@@ -1,6 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import {
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -64,10 +65,52 @@ import {
   loadCultureCardsFromStorage,
   saveCultureCardsToStorage,
 } from './src/services/cultureCardsStorage';
+import AuthScreen from './src/screens/AuthScreen';
+import BottomTabBar from './src/components/BottomTabBar';
+import StageHeader from './src/components/StageHeader';
 
 const NativeDateTimePicker = Platform.OS === 'web'
   ? null
   : require('@react-native-community/datetimepicker/src/datetimepicker').default;
+
+const stageHomeItems = [
+  {
+    icon: require('./assets/img/icon_01.svg'),
+    iconBoxStyle: 'stageIconBoxGreen',
+    label: 'Введение\nв культуру',
+    title: stages[0],
+  },
+  {
+    icon: require('./assets/img/icon_02.svg'),
+    iconBoxStyle: 'stageIconBoxMint',
+    label: 'Клонирование',
+    title: stages[1],
+  },
+  {
+    icon: require('./assets/img/icon_03.svg'),
+    iconBoxStyle: 'stageIconBoxAqua',
+    label: 'Адаптация',
+    title: stages[2],
+  },
+  {
+    icon: require('./assets/img/icon_04.svg'),
+    iconBoxStyle: 'stageIconBoxLime',
+    label: 'Теплица',
+    title: stages[3],
+  },
+  {
+    icon: require('./assets/img/icon_05.svg'),
+    iconBoxStyle: 'stageIconBoxSky',
+    label: 'Закалка',
+    title: stages[4],
+  },
+  {
+    icon: require('./assets/img/icon_06.svg'),
+    iconBoxStyle: 'stageIconBoxOrange',
+    label: 'Высадка',
+    title: stages[5],
+  },
+];
 
 function getStageRequirementsFromPlant(plant, stage) {
   if (!plant) {
@@ -362,11 +405,23 @@ export default function App() {
       return true;
     }
 
-    return (
-      getCardDisplayName(card).toLowerCase().includes(query) ||
-      (card.code || '').toLowerCase().includes(query)
-    );
+    return getCardDisplayName(card).toLowerCase().includes(query);
   });
+
+  const allVisibleStageCardsCount = cultureCards.filter((card) => {
+    const query = cardSearch.trim().toLowerCase();
+    const cardStage = card.stage || INTRO_STAGE;
+
+    if (card.status === 'cancelled' || card.status === 'archived') {
+      return false;
+    }
+
+    if (cardStage !== selectedStage) {
+      return false;
+    }
+
+    return !query || getCardDisplayName(card).toLowerCase().includes(query);
+  }).length;
 
   useEffect(() => {
     loadCultureCards();
@@ -3177,48 +3232,32 @@ export default function App() {
       <SafeAreaView style={styles.safeArea}>
         <StatusBar style="dark" />
         <View style={styles.fixedCardsScreen}>
-          <View style={styles.fixedCardsHeader}>
-            <View style={styles.cultureListHeaderRow}>
-              <Pressable
-                accessibilityLabel="Назад"
-                accessibilityRole="button"
-                onPress={() => setSelectedStage('')}
-                style={({ pressed }) => [
-                  styles.headerBackButton,
-                  pressed && styles.linkButtonPressed,
-                ]}
-              >
-                <Text style={styles.headerBackButtonText}>‹</Text>
-              </Pressable>
-
-              <Text style={styles.cultureListTitle} numberOfLines={1}>
-                {selectedStage}
-              </Text>
-            </View>
-
+          <StageHeader
+            onBack={() => setSelectedStage('')}
+            title={selectedStage}
+          >
           <View style={styles.searchRow}>
-            <TextInput
-              autoCapitalize="none"
-              autoCorrect={false}
-              onChangeText={setCardSearch}
-              placeholder="Поиск по названию или коду"
-              placeholderTextColor="#7C8A80"
-              style={styles.searchInput}
-              value={cardSearch}
-            />
-            <Pressable
-              accessibilityRole="button"
-              style={({ pressed }) => [
-                styles.searchButton,
-                pressed && styles.pressedButton,
-              ]}
-            >
-              <Text style={styles.searchButtonText}>Найти</Text>
-            </Pressable>
+            <View style={styles.searchBox}>
+              <Text style={styles.searchIcon}>{'\u2315'}</Text>
+              <TextInput
+                autoCapitalize="none"
+                autoCorrect={false}
+                onChangeText={setCardSearch}
+                placeholder={'\u041f\u043e\u0438\u0441\u043a \u043f\u043e \u043d\u0430\u0437\u0432\u0430\u043d\u0438\u044e'}
+                placeholderTextColor="#9AA3AF"
+                style={styles.searchInput}
+                value={cardSearch}
+              />
+            </View>
           </View>
 
           {(isCultureIntroStage || isCloneStage || isAdaptationStage) && (
-            <View style={styles.filterRow}>
+            <ScrollView
+              contentContainerStyle={styles.filterScrollContent}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.filterScroll}
+            >
               {(isCloneStage || isAdaptationStage
                 ? [
                   ['all', 'Все'],
@@ -3250,12 +3289,21 @@ export default function App() {
                   >
                     {label}
                   </Text>
+                  {value === 'all' && (
+                    <Text
+                      style={[
+                        styles.filterButtonCount,
+                        batchStatusFilter === value && styles.filterButtonCountActive,
+                      ]}
+                    >
+                      {allVisibleStageCardsCount}
+                    </Text>
+                  )}
                 </Pressable>
               ))}
-            </View>
+            </ScrollView>
           )}
-          </View>
-
+          </StageHeader>
           <ScrollView
             contentContainerStyle={styles.fixedCardsScrollContent}
             keyboardShouldPersistTaps="handled"
@@ -3289,9 +3337,31 @@ export default function App() {
                     {(() => {
                       const cloneStats = getCloneStats(card);
                       const adaptationStats = getAdaptationStats(card);
+                      const batchStatus = card.batchStatus || 'active';
 
                       return (
                         <>
+                    {isCultureIntroStage ? (
+                      <>
+                        <View style={styles.plantCardHeaderRow}>
+                          <Text style={styles.plantCardName} numberOfLines={2}>
+                            {getCardDisplayName(card)}
+                          </Text>
+                          <Text style={styles.plantCardStatusPill}>
+                            {BATCH_STATUS_LABELS[batchStatus] || batchStatus}
+                          </Text>
+                        </View>
+                        <View style={styles.plantCardMetaRow}>
+                          {!!card.code && (
+                            <Text style={styles.plantCardCodePill}>{card.code}</Text>
+                          )}
+                          <Text style={styles.plantCardMetaText} numberOfLines={1}>
+                            {card.createdAt ? formatDisplayDate(card.createdAt) : '-'} / {getCardCurrentQuantity(card)} {'\u0438\u0437'} {card.quantity || 0} {'\u0448\u0442.'} / QR: {QR_STATUS_LABELS[getQrStatus(card)] || getQrStatus(card)}
+                          </Text>
+                        </View>
+                      </>
+                    ) : (
+                      <>
                     <Text style={styles.plantCardName}>{getCardDisplayName(card)}</Text>
                     {!!card.stageChangedAt && (
                       <Text style={styles.plantCardCode}>
@@ -3344,6 +3414,8 @@ export default function App() {
                     <Text style={styles.plantCardCode}>
                       QR: {QR_STATUS_LABELS[getQrStatus(card)] || getQrStatus(card)}
                     </Text>
+                      </>
+                    )}
                         </>
                       );
                     })()}
@@ -3378,16 +3450,18 @@ export default function App() {
               >
                 <Text style={styles.addButtonText}>{isCultureIntroStage ? 'Создать партию' : 'Добавить'}</Text>
               </Pressable>
-              <Pressable
-                accessibilityLabel="Сканировать QR"
-                accessibilityRole="button"
-                style={({ pressed }) => [
-                  styles.qrScanButton,
-                  pressed && styles.pressedButton,
-                ]}
-              >
-                <QrIcon />
-              </Pressable>
+              {!isCultureIntroStage && (
+                <Pressable
+                  accessibilityLabel="Сканировать QR"
+                  accessibilityRole="button"
+                  style={({ pressed }) => [
+                    styles.qrScanButton,
+                    pressed && styles.pressedButton,
+                  ]}
+                >
+                  <QrIcon />
+                </Pressable>
+              )}
             </View>
           )}
         </View>
@@ -3400,25 +3474,10 @@ export default function App() {
       <SafeAreaView style={styles.safeArea}>
         <StatusBar style="dark" />
         <View style={styles.fixedCardsScreen}>
-          <View style={styles.fixedCardsHeader}>
-            <View style={styles.cultureListHeaderRow}>
-              <Pressable
-                accessibilityLabel="Назад"
-                accessibilityRole="button"
-                onPress={() => setCurrentScreen('stages')}
-                style={({ pressed }) => [
-                  styles.headerBackButton,
-                  pressed && styles.linkButtonPressed,
-                ]}
-              >
-                <Text style={styles.headerBackButtonText}>‹</Text>
-              </Pressable>
-
-              <Text style={styles.cultureListTitle} numberOfLines={1}>
-                Журнал
-              </Text>
-            </View>
-
+          <StageHeader
+            onBack={() => setCurrentScreen('stages')}
+            title={'\u0416\u0443\u0440\u043d\u0430\u043b'}
+          >
             <View style={styles.filterRow}>
               {[
                 'important',
@@ -3449,8 +3508,7 @@ export default function App() {
                 </Pressable>
               ))}
             </View>
-          </View>
-
+          </StageHeader>
           <ScrollView contentContainerStyle={styles.fixedCardsScrollContent}>
             <View style={styles.journalPanel}>
               <Text style={styles.journalTitle}>
@@ -3563,203 +3621,66 @@ export default function App() {
 
   if (isAuthenticated) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={[styles.safeArea, styles.homeSafeArea]}>
         <StatusBar style="dark" />
-        <ScrollView contentContainerStyle={styles.stagesScrollContent}>
+        <ScrollView
+          contentContainerStyle={styles.stagesScrollContent}
+          showsVerticalScrollIndicator={false}
+        >
           <View style={styles.stagesScreen}>
-            <View style={styles.stagesTopBar}>
-              <Pressable
-                accessibilityRole="button"
-                onPress={handleLogout}
-                style={({ pressed }) => [
-                  styles.backButton,
-                  pressed && styles.linkButtonPressed,
-                ]}
-              >
-                <Text style={styles.backButtonText}>Выйти</Text>
-              </Pressable>
-
-              <Pressable
-                accessibilityRole="button"
-                style={({ pressed }) => [
-                  styles.codeButton,
-                  pressed && styles.pressedButton,
-                ]}
-              >
-                <Text style={styles.codeButtonText}>Сканировать</Text>
-              </Pressable>
-            </View>
-
-            <View style={styles.stagesHeader}>
-              <Text style={styles.stagesTitle}>Выбор стадии</Text>
-              <Text style={styles.stagesSubtitle}>
-                Выберите этап, чтобы перейти к карточкам посадок
-              </Text>
-              {!!notice && <Text style={styles.noticeText}>{notice}</Text>}
-              {!!storageError && <Text style={styles.errorText}>{storageError}</Text>}
-            </View>
-
             <View style={styles.stageGrid}>
-              {stages.map((stage, index) => (
+              {stageHomeItems.map((stage) => (
                 <Pressable
                   accessibilityRole="button"
-                  key={stage}
-                  onPress={() => handleStagePress(stage)}
+                  key={stage.title}
+                  onPress={() => handleStagePress(stage.title)}
                   style={({ pressed }) => [
                     styles.stageCard,
                     pressed && styles.stageCardPressed,
                   ]}
                 >
-                  <Text style={styles.stageNumber}>{String(index + 1).padStart(2, '0')}</Text>
-                  <Text style={styles.stageName}>{stage}</Text>
+                  <View style={[styles.stageIconBox, styles[stage.iconBoxStyle]]}>
+                    <Image
+                      accessibilityIgnoresInvertColors
+                      source={stage.icon}
+                      style={styles.stageIcon}
+                    />
+                  </View>
+                  <Text style={styles.stageName}>{stage.label}</Text>
                 </Pressable>
               ))}
             </View>
 
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => {
-                setJournalFilter('important');
-                setCurrentScreen('globalJournal');
-              }}
-              style={({ pressed }) => [
-                styles.globalJournalButton,
-                pressed && styles.pressedButton,
-              ]}
-            >
-              <Text style={styles.globalJournalButtonText}>Журнал событий</Text>
-              <Text style={styles.globalJournalButtonMeta}>
-                Важные события: {globalJournalEvents.filter(isImportantJournalEvent).length}
-              </Text>
-            </Pressable>
-
-            <Pressable
-              accessibilityRole="button"
-              onPress={handleClearTestData}
-              style={({ pressed }) => [
-                styles.testClearButton,
-                pressed && styles.linkButtonPressed,
-              ]}
-            >
-              <Text style={styles.testClearButtonText}>Очистить тестовые данные</Text>
-            </Pressable>
+            {!!notice && <Text style={styles.homeNoticeText}>{notice}</Text>}
+            {!!storageError && <Text style={styles.homeErrorText}>{storageError}</Text>}
           </View>
         </ScrollView>
+
+        <BottomTabBar
+          activeTab="home"
+          onHomePress={() => setCurrentScreen('stages')}
+          onJournalPress={() => {
+            setJournalFilter('important');
+            setCurrentScreen('globalJournal');
+          }}
+          onScanPress={() => setNotice('\u0421\u043a\u0430\u043d\u0435\u0440 \u0431\u0443\u0434\u0435\u0442 \u0434\u043e\u0431\u0430\u0432\u043b\u0435\u043d \u043f\u043e\u0437\u0434\u043d\u0435\u0435.')}
+          onTasksPress={() => setNotice('\u0417\u0430\u0434\u0430\u0447\u0438 \u0431\u0443\u0434\u0443\u0442 \u0434\u043e\u0431\u0430\u0432\u043b\u0435\u043d\u044b \u043f\u043e\u0437\u0434\u043d\u0435\u0435.')}
+          taskCount={0}
+        />
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="dark" />
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
-      >
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-        >
-          <View style={styles.screen}>
-            <View style={styles.brand}>
-              <View style={styles.logoMark}>
-                <Text style={styles.logoText}>SD</Text>
-              </View>
-              <View style={styles.header}>
-                <Text style={styles.title}>Sądovnik diary</Text>
-                <Text style={styles.subtitle}>Дневник ухода за посадками</Text>
-              </View>
-            </View>
-
-            <View style={styles.authPanel}>
-              <View style={styles.formHeader}>
-                <Text style={styles.formTitle}>Авторизация</Text>
-                <Text style={styles.formSubtitle}>Войдите по логину и паролю</Text>
-              </View>
-
-              <View style={styles.form}>
-                <View style={styles.field}>
-                  <Text style={styles.label}>Логин</Text>
-                  <TextInput
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    inputMode="text"
-                    onBlur={() => setFocusedField('')}
-                    onChangeText={setLogin}
-                    onFocus={() => setFocusedField('login')}
-                    placeholder="Введите логин"
-                    placeholderTextColor="#7C8A80"
-                    returnKeyType="next"
-                    style={[
-                      styles.input,
-                      focusedField === 'login' && styles.inputFocused,
-                    ]}
-                    value={login}
-                  />
-                </View>
-
-                <View style={styles.field}>
-                  <Text style={styles.label}>Пароль</Text>
-                  <TextInput
-                    onBlur={() => setFocusedField('')}
-                    onChangeText={setPassword}
-                    onFocus={() => setFocusedField('password')}
-                    placeholder="Введите пароль"
-                    placeholderTextColor="#7C8A80"
-                    returnKeyType="done"
-                    secureTextEntry
-                    style={[
-                      styles.input,
-                      focusedField === 'password' && styles.inputFocused,
-                    ]}
-                    value={password}
-                  />
-                </View>
-
-                {!!error && <Text style={styles.errorText}>{error}</Text>}
-                {!!notice && <Text style={styles.noticeText}>{notice}</Text>}
-
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={handleLogin}
-                  style={({ pressed }) => [
-                    styles.primaryButton,
-                    pressed && styles.pressedButton,
-                  ]}
-                >
-                  <Text style={styles.primaryButtonText}>Войти</Text>
-                </Pressable>
-
-                <View style={styles.secondaryActions}>
-                  <Pressable
-                    accessibilityRole="button"
-                    onPress={handleForgotPassword}
-                    style={({ pressed }) => [
-                      styles.linkButton,
-                      pressed && styles.linkButtonPressed,
-                    ]}
-                  >
-                    <Text style={styles.linkText}>Забыли пароль?</Text>
-                  </Pressable>
-
-                  <View style={styles.divider} />
-
-                  <Pressable
-                    accessibilityRole="button"
-                    onPress={handleRegister}
-                    style={({ pressed }) => [
-                      styles.linkButton,
-                      pressed && styles.linkButtonPressed,
-                    ]}
-                  >
-                    <Text style={styles.linkText}>Зарегистрироваться</Text>
-                  </Pressable>
-                </View>
-              </View>
-            </View>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+    <AuthScreen
+      error={error}
+      firstName={login}
+      focusedField={focusedField}
+      lastName={password}
+      onFirstNameChange={setLogin}
+      onFocusedFieldChange={setFocusedField}
+      onLastNameChange={setPassword}
+      onLogin={handleLogin}
+    />
   );
 }

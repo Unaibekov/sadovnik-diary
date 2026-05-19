@@ -5,7 +5,7 @@ import {
   stageMoveTargetLabels,
   stages,
 } from './constants';
-import { dateFromIso, getTodayIsoDate } from './dates';
+import { dateFromIso, getTodayIsoDate, isoFromDate } from './dates';
 
 export function generatePlantingCode(createdAt, stage) {
   const prefix = stage === 'Клонирование'
@@ -41,10 +41,11 @@ export function createBatchCreatedOperation(card, createdAtIso = new Date().toIS
     code: card.code,
     createdAt: createdAtIso,
     createdBy: card.createdBy || currentUser.id,
+    createdByName: card.createdByName || card.createdBy || currentUser.id,
   };
 }
 
-export function createQrGeneratedOperation(card, createdAtIso = new Date().toISOString()) {
+export function createQrGeneratedOperation(card, createdAtIso = new Date().toISOString(), user = currentUser) {
   return {
     id: `qr-generated-${card.id || Date.now()}`,
     type: 'qrGenerated',
@@ -53,7 +54,8 @@ export function createQrGeneratedOperation(card, createdAtIso = new Date().toISO
     code: card.code,
     qrStatus: card.qrStatus || 'pending_print',
     createdAt: createdAtIso,
-    createdBy: currentUser.id,
+    createdBy: user.id,
+    createdByName: user.fullName || user.id,
   };
 }
 
@@ -162,6 +164,11 @@ export function getOperationSummaryItems(operation) {
     'adaptationEnvironment',
     'adaptationHumidityReduction',
     'adaptationCare',
+    'greenhouseObservation',
+    'greenhouseCare',
+    'greenhouseEnvironment',
+    'greenhouseDisease',
+    'transplant',
   ].includes(operation.type)) {
     return [
       ['Количество', operation.count ? `${operation.count} шт.` : ''],
@@ -181,6 +188,20 @@ export function getOperationSummaryItems(operation) {
       ['Тургор', operation.turgor],
       ['Стабильность', operation.stability],
       ['Уход', operation.careType],
+      ['Интервал ухода', operation.careIntervalDays ? `${operation.careIntervalDays} дн.` : ''],
+      ['Скорость роста', operation.growthRate],
+      ['Уровень риска', operation.riskLevel],
+      ['Болезнь', operation.diseaseName],
+      ['Вредитель', operation.pestName],
+      ['Степень поражения', operation.diseaseSeverity],
+      ['Объем полива', operation.waterVolume],
+      ['Интервал полива', operation.wateringIntervalDays ? `${operation.wateringIntervalDays} дн.` : ''],
+      ['Препарат', operation.productName],
+      ['Дозировка', operation.dosage],
+      ['Способ', operation.applicationMethod],
+      ['Реакция растений', operation.plantReaction],
+      ['Размещение', operation.placement],
+      ['Плотность', operation.densityChange],
       ['Комментарий', operation.comment],
       ['Фото', operation.photoNote],
     ].filter(([, value]) => Boolean(value));
@@ -329,6 +350,144 @@ export function getAdaptationStats(card) {
     stability,
     riskStatus,
   };
+}
+
+export function getGreenhouseStats(card) {
+  const operations = card?.operations || [];
+  const currentQuantity = getCardCurrentQuantity(card);
+  const initialQuantity = Number(card?.quantity) || 0;
+  const careSchedules = getGreenhouseCareSchedules(card);
+  const wateringSchedule = careSchedules.find((schedule) => schedule.careType === 'Полив');
+  const overdueCareSchedules = careSchedules.filter((schedule) => schedule.isOverdue);
+  const deathCount = operations.reduce((sum, operation) => (
+    sum + (operation.type === 'death' ? Number(operation.count) || 0 : 0)
+  ), 0);
+  const discardCount = operations.reduce((sum, operation) => (
+    sum + (operation.type === 'discard' ? Number(operation.count) || 0 : 0)
+  ), 0);
+  const saleCount = operations.reduce((sum, operation) => (
+    sum + (operation.type === 'sale' ? Number(operation.count) || 0 : 0)
+  ), 0);
+  const transplantCount = operations.reduce((sum, operation) => (
+    sum + (operation.type === 'transplant' ? Number(operation.count) || 0 : 0)
+  ), 0);
+  const growthRate = getLatestOperationValue(
+    operations,
+    ['greenhouseObservation', 'greenhouseEnvironment', 'greenhouseCare', 'transplant'],
+    'growthRate',
+  ) || 'Не указана';
+  const riskLevel = getLatestOperationValue(
+    operations,
+    ['greenhouseObservation', 'greenhouseDisease', 'greenhouseEnvironment', 'greenhouseCare'],
+    'riskLevel',
+  );
+  const stressLevel = getLatestOperationValue(
+    operations,
+    ['greenhouseObservation', 'greenhouseDisease'],
+    'stressLevel',
+  ) || 'Не указан';
+  const stability = getLatestOperationValue(
+    operations,
+    ['greenhouseObservation', 'greenhouseEnvironment', 'greenhouseCare', 'transplant'],
+    'stability',
+  ) || 'Не указана';
+  const criticalDiseaseOperation = operations.find((operation) => (
+    operation.type === 'greenhouseDisease' &&
+    (operation.diseaseSeverity === 'Критическая' || operation.riskLevel === 'Критический')
+  ));
+  const lossCount = deathCount + discardCount;
+  const lossPercent = initialQuantity > 0
+    ? Math.round((lossCount / initialQuantity) * 100)
+    : 0;
+  const riskStatus = criticalDiseaseOperation ||
+    riskLevel === 'Критический' ||
+    stressLevel === 'Критический' ||
+    card?.batchStatus === 'problem' ||
+    lossPercent >= 30
+    ? 'Критический'
+    : riskLevel === 'Высокий' || stressLevel === 'Высокий' || lossPercent >= 15
+      ? 'Высокий'
+      : riskLevel || 'Низкий';
+
+  return {
+    initialQuantity,
+    currentQuantity,
+    deathCount,
+    discardCount,
+    saleCount,
+    transplantCount,
+    lossCount,
+    lossPercent,
+    growthRate,
+    riskStatus,
+    stressLevel,
+    stability,
+    hasCriticalDisease: Boolean(criticalDiseaseOperation),
+    careSchedules,
+    overdueCareSchedules,
+    lastWateringDate: wateringSchedule?.lastDate || '',
+    nextWateringDate: wateringSchedule?.nextDate || '',
+    wateringIntervalDays: wateringSchedule?.intervalDays || 2,
+    wateringStatus: wateringSchedule?.status || 'Нет полива',
+    wateringDaysOverdue: wateringSchedule?.daysOverdue || 0,
+    isWateringOverdue: Boolean(wateringSchedule?.isOverdue),
+    isWateringDueToday: Boolean(wateringSchedule?.isDueToday),
+    hasOverdueCare: overdueCareSchedules.length > 0,
+  };
+}
+
+export function getGreenhouseCareSchedules(card) {
+  const operations = card?.operations || [];
+  const careTypes = [
+    { careType: 'Полив', emptyStatus: 'Нет полива', defaultIntervalDays: 2 },
+    { careType: 'Подкормка', emptyStatus: 'Нет подкормки', defaultIntervalDays: 14 },
+    { careType: 'Профилактика', emptyStatus: 'Нет профилактики', defaultIntervalDays: 30 },
+    { careType: 'Лечение', emptyStatus: 'Нет лечения', defaultIntervalDays: 7 },
+  ];
+  const todayIso = getTodayIsoDate();
+  const todayDate = dateFromIso(todayIso);
+
+  return careTypes.map(({ careType, emptyStatus, defaultIntervalDays }) => {
+    const latestCare = operations.find((operation) => (
+      operation.type === 'greenhouseCare' && operation.careType === careType
+    ));
+    const savedInterval = card?.greenhouseCareIntervals?.[careType];
+    const intervalDays = Number(
+      latestCare?.careIntervalDays ||
+      latestCare?.wateringIntervalDays ||
+      savedInterval ||
+      (careType === 'Полив' ? card?.wateringIntervalDays : '') ||
+      defaultIntervalDays,
+    ) || defaultIntervalDays;
+    const lastDate = latestCare?.date || '';
+    const nextDate = lastDate
+      ? isoFromDate(new Date(
+        dateFromIso(lastDate).getTime() + intervalDays * 24 * 60 * 60 * 1000,
+      ))
+      : '';
+    const nextDateValue = nextDate ? dateFromIso(nextDate) : null;
+    const daysOverdue = nextDateValue
+      ? Math.max(Math.floor((todayDate - nextDateValue) / (24 * 60 * 60 * 1000)), 0)
+      : 0;
+    const status = !lastDate
+      ? emptyStatus
+      : daysOverdue > 0
+        ? 'Просрочен'
+        : nextDate === todayIso
+          ? 'Сегодня'
+          : 'В графике';
+
+    return {
+      careType,
+      lastDate,
+      nextDate,
+      intervalDays,
+      status,
+      daysOverdue,
+      isOverdue: status === 'Просрочен',
+      isDueToday: status === 'Сегодня',
+    };
+  });
 }
 
 export function getDaysInCurrentStage(card) {

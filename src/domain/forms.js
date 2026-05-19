@@ -34,6 +34,7 @@ export function createEmptyPreventionDraft() {
 export function createEmptyStatusForm() {
   return {
     rootedCount: '',
+    transplantCount: '',
     propagationCount: '',
     saleCount: '',
     deathCount: '',
@@ -57,6 +58,20 @@ export function createEmptyStatusForm() {
     turgor: '',
     stability: '',
     careType: '',
+    growthRate: '',
+    riskLevel: '',
+    careIntervalDays: '',
+    wateringIntervalDays: '',
+    diseaseName: '',
+    pestName: '',
+    diseaseSeverity: '',
+    waterVolume: '',
+    applicationMethod: '',
+    productName: '',
+    dosage: '',
+    plantReaction: '',
+    placement: '',
+    densityChange: '',
   };
 }
 
