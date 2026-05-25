@@ -101,12 +101,18 @@ export function getMonthDays(date) {
   const mondayFirstOffset = (firstDay.getDay() + 6) % 7;
   const days = [];
 
-  for (let index = 0; index < mondayFirstOffset; index += 1) {
-    days.push(null);
+  for (let index = mondayFirstOffset; index > 0; index -= 1) {
+    days.push(new Date(year, month, 1 - index));
   }
 
   for (let day = 1; day <= daysInMonth; day += 1) {
     days.push(new Date(year, month, day));
+  }
+
+  const trailingDaysCount = (7 - (days.length % 7)) % 7;
+
+  for (let day = 1; day <= trailingDaysCount; day += 1) {
+    days.push(new Date(year, month + 1, day));
   }
 
   return days;

@@ -39,6 +39,7 @@ export function createBatchCreatedOperation(card, createdAtIso = new Date().toIS
     stage: card.stage || INTRO_STAGE,
     quantity: card.quantity,
     code: card.code,
+    qrStatus: card.qrStatus || (card.code ? 'pending_print' : 'none'),
     createdAt: createdAtIso,
     createdBy: card.createdBy || currentUser.id,
     createdByName: card.createdByName || card.createdBy || currentUser.id,
@@ -62,7 +63,6 @@ export function createQrGeneratedOperation(card, createdAtIso = new Date().toISO
 export function normalizeCultureCard(card) {
   const operations = card.operations || [];
   const hasBatchCreatedOperation = operations.some((operation) => operation.type === 'batchCreated');
-  const hasQrGeneratedOperation = operations.some((operation) => operation.type === 'qrGenerated');
   const normalizedQrStatus = card.qrStatus || (card.qrPrinted ? 'printed' : card.code ? 'pending_print' : 'none');
   const normalizedCard = {
     ...card,
@@ -74,16 +74,13 @@ export function normalizeCultureCard(card) {
     startPhotoNote: card.startPhotoNote || '',
   };
   const normalizedOperations = [
-    ...(!hasQrGeneratedOperation && normalizedCard.code
-      ? [createQrGeneratedOperation(normalizedCard, normalizedCard.createdAt || new Date().toISOString())]
-      : []),
     ...(!hasBatchCreatedOperation
       ? [createBatchCreatedOperation(normalizedCard, normalizedCard.createdAt || new Date().toISOString())]
       : []),
     ...operations,
   ];
 
-  if (hasBatchCreatedOperation && hasQrGeneratedOperation) {
+  if (hasBatchCreatedOperation) {
     return normalizedCard;
   }
 
@@ -116,7 +113,7 @@ export function getOperationSummaryItems(operation) {
     return [
       ['Стадия', operation.stage],
       ['Количество', operation.quantity ? `${operation.quantity} шт.` : ''],
-      ['Код', operation.code],
+      ['QR', QR_STATUS_LABELS[operation.qrStatus] || operation.qrStatus],
     ].filter(([, value]) => Boolean(value));
   }
 
@@ -172,6 +169,7 @@ export function getOperationSummaryItems(operation) {
   ].includes(operation.type)) {
     return [
       ['Количество', operation.count ? `${operation.count} шт.` : ''],
+      ['Остаток', operation.currentQuantity !== undefined ? `${operation.currentQuantity} шт.` : ''],
       ['Причина', operation.reason],
       ['Тип реализации', operation.saleType],
       ['Получатель', operation.recipient],

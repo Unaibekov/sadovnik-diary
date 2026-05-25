@@ -4,9 +4,15 @@
   "main": "index.js",
   "scripts": {
     "start": "expo start",
+    "start:lan": "expo start --lan --offline",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "web:lan": "expo start --web --host lan",
+    "export:web": "expo export --platform web",
+    "serve:dist": "node scripts/serve-dist.js",
+    "phone:web": "npm run export:web && npm run serve:dist",
+    "build:apk": "npx eas-cli build --platform android --profile apk"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",

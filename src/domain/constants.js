@@ -41,7 +41,7 @@ export const humidityRequirementOptions = [
 export const CUSTOM_REQUIREMENT_OPTION = 'Свое значение';
 
 export const CULTURE_CARDS_STORAGE_KEY = 'sadovnikDiary:cultureCards';
-export const CULTURE_CARDS_RESET_KEY = 'sadovnikDiary:cultureCardsReset:2026-05-10-2';
+export const CULTURE_CARDS_RESET_KEY = 'sadovnikDiary:cultureCardsReset:2026-05-25-clear-stage-cards';
 export const EMPTY_CATALOG_VALUE = 'Отсутствует';
 export const INTRO_STAGE = 'Введение в культуру';
 

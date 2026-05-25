@@ -1,12 +1,12 @@
-import { Pressable, Text, View } from 'react-native';
-import styles from '../../styles';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import appStyles from '../../styles';
 import {
   HomeIcon,
   JournalIcon,
   MenuIcon,
   QrIcon,
   TodoIcon,
-} from './TabBarIcons';
+} from './icons';
 
 const tabs = [
   {
@@ -31,7 +31,7 @@ const tabs = [
   },
 ];
 
-const activeColor = '#22C55E';
+const activeColor = '#15863F';
 const inactiveColor = '#9CA3AF';
 
 export default function BottomTabBar({
@@ -50,14 +50,14 @@ export default function BottomTabBar({
     menu: onMenuPress,
     tasks: onTasksPress,
   };
+  const safeBottomInset = Math.max(bottomInset, 0);
 
   return (
     <View style={[
-      styles.homeTabBar,
+      styles.tabBar,
       {
-        bottom: 0,
-        height: 76 + bottomInset,
-        paddingBottom: bottomInset,
+        height: 76 + safeBottomInset,
+        paddingBottom: safeBottomInset,
       },
     ]}>
       {tabs.slice(0, 2).map((tab) => (
@@ -75,8 +75,8 @@ export default function BottomTabBar({
         accessibilityRole="button"
         onPress={onScanPress}
         style={({ pressed }) => [
-          styles.homeScannerButton,
-          pressed && styles.pressedButton,
+          styles.scannerButton,
+          pressed && appStyles.pressedButton,
         ]}
       >
         <QrIcon color="#FFFFFF" size={28} />
@@ -112,24 +112,104 @@ function TabBarItem({
       accessibilityRole="button"
       onPress={onPress}
       style={({ pressed }) => [
-        styles.homeTabItem,
-        pressed && styles.linkButtonPressed,
+        styles.tabItem,
+        pressed && appStyles.linkButtonPressed,
       ]}
     >
-      <View style={styles.homeTabIconWrap}>
+      <View style={styles.tabIconWrap}>
         <Icon color={color} size={22} />
         {hasNotification && (
-          <View style={styles.homeTabBadge}>
-            <Text style={styles.homeTabBadgeText}>{notificationLabel}</Text>
+          <View style={styles.tabBadge}>
+            <Text style={styles.tabBadgeText}>{notificationLabel}</Text>
           </View>
         )}
       </View>
       <Text style={[
-        styles.homeTabText,
-        active && styles.homeTabTextActive,
+        styles.tabText,
+        active && styles.tabTextActive,
       ]}>
         {label}
       </Text>
     </Pressable>
   );
 }
+
+const styles = StyleSheet.create({
+  tabBar: {
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderColor: '#EEF2F0',
+    borderTopLeftRadius: 26,
+    borderTopRightRadius: 26,
+    borderWidth: 1,
+    borderBottomWidth: 0,
+    bottom: 0,
+    flexDirection: 'row',
+    height: 76,
+    justifyContent: 'space-between',
+    left: 0,
+    paddingHorizontal: 8,
+    position: 'absolute',
+    right: 0,
+    shadowColor: '#102015',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.08,
+    shadowRadius: 24,
+  },
+  tabItem: {
+    alignItems: 'center',
+    flex: 1,
+    gap: 5,
+    justifyContent: 'center',
+    minWidth: 0,
+  },
+  tabIconWrap: {
+    alignItems: 'center',
+    height: 24,
+    justifyContent: 'center',
+    width: 28,
+  },
+  tabBadge: {
+    alignItems: 'center',
+    backgroundColor: '#EF4444',
+    borderColor: '#FFFFFF',
+    borderRadius: 8,
+    borderWidth: 1,
+    height: 16,
+    justifyContent: 'center',
+    minWidth: 16,
+    paddingHorizontal: 4,
+    position: 'absolute',
+    right: -6,
+    top: -5,
+  },
+  tabBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '800',
+    lineHeight: 11,
+  },
+  tabText: {
+    color: '#9CA3AF',
+    fontSize: 11,
+    fontWeight: '700',
+    lineHeight: 15,
+  },
+  tabTextActive: {
+    color: activeColor,
+  },
+  scannerButton: {
+    alignItems: 'center',
+    backgroundColor: activeColor,
+    borderRadius: 24,
+    height: 72,
+    justifyContent: 'center',
+    marginHorizontal: 4,
+    marginTop: -36,
+    shadowColor: activeColor,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.26,
+    shadowRadius: 16,
+    width: 72,
+  },
+});

@@ -1,16 +1,16 @@
 import { StatusBar } from 'expo-status-bar';
 import {
-  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  SafeAreaView,
   ScrollView,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import styles from '../../styles';
+import { LogoIcon } from '../components/icons';
 
 export default function AuthScreen({
   error,
@@ -43,11 +43,7 @@ export default function AuthScreen({
           ]}>
             <View style={styles.brand}>
               <View style={styles.logoMark}>
-                <Image
-                  accessibilityIgnoresInvertColors
-                  source={require('../../assets/img/logo.svg')}
-                  style={styles.logoImage}
-                />
+                <LogoIcon size={44} />
               </View>
               <View style={styles.header}>
                 <Text style={styles.title}>Sadovnik Diary</Text>
