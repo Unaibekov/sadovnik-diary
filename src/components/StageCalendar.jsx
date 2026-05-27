@@ -21,6 +21,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 
 export default function StageCalendar({
   days,
+  embedded = false,
   month,
   operationDates,
   selectedDate,
@@ -75,7 +76,11 @@ export default function StageCalendar({
   };
 
   return (
-    <View style={[appStyles.surfacePanel, styles.calendarPanel]}>
+    <View style={[
+      !embedded && appStyles.surfacePanel,
+      styles.calendarPanel,
+      embedded && styles.calendarPanelEmbedded,
+    ]}>
       <View style={styles.monthBar}>
         <Pressable
           accessibilityRole="button"
@@ -220,6 +225,10 @@ const styles = StyleSheet.create({
   calendarPanel: {
     paddingHorizontal: 9,
     paddingVertical: 8,
+  },
+  calendarPanelEmbedded: {
+    borderWidth: 0,
+    shadowOpacity: 0,
   },
   monthBar: {
     alignItems: 'center',
