@@ -2,7 +2,6 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import {
   KeyboardAvoidingView,
-  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -18,7 +17,6 @@ import {
   CUSTOM_REQUIREMENT_OPTION,
   EMPTY_CATALOG_VALUE,
   INTRO_STAGE,
-  QR_STATUS_LABELS,
   SOURCE_MATERIAL_OPTIONS,
   currentUser,
   humidityRequirementOptions,
@@ -66,11 +64,15 @@ import {
   saveCultureCardsToStorage,
 } from './src/services/cultureCardsStorage';
 import AuthScreen from './src/screens/AuthScreen';
+import CultureCalendarScreen from './src/screens/CultureCalendarScreen';
+import CultureListScreen from './src/screens/CultureListScreen';
+import IntroActionFormScreen from './src/screens/IntroActionFormScreen';
 import BottomTabBar from './src/components/BottomTabBar';
 import StageHeader from './src/components/StageHeader';
-import StatusFilterTabs from './src/components/StatusFilterTabs';
-import StageCalendar from './src/components/StageCalendar';
-import { ChevronDownIcon, EditIcon, StageItemIcon, TrashIcon } from './src/components/icons';
+import CultureCalendarTab from './src/components/CultureCalendarTab';
+import CultureJournalTab from './src/components/CultureJournalTab';
+import CulturePassportTab from './src/components/CulturePassportTab';
+import { ChevronDownIcon, StageItemIcon } from './src/components/icons';
 
 const NativeDateTimePicker = Platform.OS === 'web'
   ? null
@@ -2750,646 +2752,134 @@ function AppContent() {
     selectedCard
   ) {
     const selectedDate = selectedCalendarDate || selectedCard.createdAt || getTodayIsoDate();
-    const currentMonthDays = calendarDays.filter((date) => (
-      date &&
-      date.getMonth() === calendarMonth.getMonth() &&
-      date.getFullYear() === calendarMonth.getFullYear()
-    ));
-    const calendarTabs = [
-      ['calendar', 'Календарь'],
-      ['passport', 'Паспорт серии'],
-      ['journal', 'Журнал'],
-    ];
     const introActionCommands = [
       ['comment', 'Комментарий'],
       ['photo', 'Фото'],
       ['contamination', 'Контаминация'],
       ['quarantine', 'Карантин'],
     ];
-    const currentStageLabel = selectedCard.stage || INTRO_STAGE;
 
     return (
-      <SafeAreaView style={styles.safeArea}>
-        <StatusBar style="dark" />
-        <View style={styles.calendarScreen}>
-          <StageHeader onBack={closeCultureCalendar} title={getCardDisplayName(selectedCard)} />
+      <CultureCalendarScreen
+        activeTab={cultureCalendarTab}
+        bottomInset={bottomInset}
+        isStageMoveConfirmVisible={isStageMoveConfirmVisible}
+        onAddEvent={() => {
+          setSelectedCalendarDate(selectedDate);
+          setStageActionError('');
+          setEditingOperationId(null);
 
-          <View style={styles.calendarPinnedContent}>
-            <View style={styles.calendarTabs}>
-              {calendarTabs.map(([value, label]) => {
-                const isActive = cultureCalendarTab === value;
+          if (selectedCard.stage === INTRO_STAGE) {
+            setIsDateEntryExpanded(false);
+            setIntroActionType('comment');
+            setIntroActionForm(createEmptyIntroActionForm());
+            setCurrentScreen('introActionForm');
+            return;
+          }
 
-                return (
-                  <Pressable
-                    accessibilityRole="button"
-                    key={value}
-                    onPress={() => {
-                      setCultureCalendarTab(value);
-                      setIsDateEntryExpanded(false);
-                      setIntroActionType('');
-                      setEditingOperationId(null);
-                      setStageActionError('');
-                    }}
-                    style={({ pressed }) => [
-                      styles.calendarTab,
-                      isActive && styles.calendarTabActive,
-                      pressed && styles.linkButtonPressed,
-                    ]}
-                  >
-                    <Text style={[
-                      styles.calendarTabText,
-                      isActive && styles.calendarTabTextActive,
-                    ]}>
-                      {label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </View>
-
-          <ScrollView style={styles.calendarScroll} contentContainerStyle={styles.calendarContent}>
+          openStatusChangeForm();
+        }}
+        onBack={closeCultureCalendar}
+        onCancelStageMove={() => setIsStageMoveConfirmVisible(false)}
+        onChangeTab={(tab) => {
+          setCultureCalendarTab(tab);
+          setIsDateEntryExpanded(false);
+          setIntroActionType('');
+          setEditingOperationId(null);
+          setStageActionError('');
+        }}
+        onConfirmStageMove={handleAddStageChange}
+        onRequestStageMove={() => setIsStageMoveConfirmVisible(true)}
+        showBottomActions={cultureCalendarTab === 'calendar'}
+        stageMoveBlockedMessage={stageMoveBlockedMessage}
+        stageMoveButtonLabel={stageMoveButtonLabel}
+        stageMoveTarget={selectedCardNextStage}
+        title={getCardDisplayName(selectedCard)}
+      >
             {cultureCalendarTab === 'calendar' && (
-              <>
-                {!!selectedCardNextStage && !!stageMoveBlockedMessage && (
-                  <View style={styles.blockedNotice}>
-                    <View style={styles.blockedNoticeIcon}>
-                      <Text style={styles.blockedNoticeIconText}>!</Text>
-                    </View>
-                    <Text style={styles.blockedNoticeText}>{stageMoveBlockedMessage}</Text>
-                  </View>
+              <CultureCalendarTab
+                calendarDays={calendarDays}
+                calendarMonth={calendarMonth}
+                canDeleteOperation={(operation) => (
+                  (
+                    (selectedCard.stage === INTRO_STAGE && introOperationFields[operation.type]) ||
+                    editableStatusOperationTypes.includes(operation.type)
+                  ) && !protectedOperationTypes.includes(operation.type)
                 )}
-
-                {hasCalendarRecommendations && (
-                  <View style={[styles.surfacePanel, styles.recommendationsPanel]}>
-                    <Pressable
-                      accessibilityRole="button"
-                      onPress={() => setIsRecommendationsExpanded((value) => !value)}
-                      style={({ pressed }) => [
-                        styles.recommendationsHeader,
-                        pressed && styles.linkButtonPressed,
-                      ]}
-                    >
-                      <Text style={styles.recommendationsTitle}>Рекомендации</Text>
-                      <View style={[
-                        styles.recommendationsArrow,
-                        isRecommendationsExpanded && styles.recommendationsArrowExpanded,
-                      ]}>
-                        <ChevronDownIcon color="#15863F" size={20} />
-                      </View>
-                    </Pressable>
-
-                    {isRecommendationsExpanded && (
-                      <View style={styles.recommendationsBody}>
-                        {!!selectedCard.temperatureRequirement && (
-                          <View style={[styles.passportRow, styles.passportRowFirst]}>
-                            <Text style={styles.passportLabel}>Температура</Text>
-                            <Text style={styles.passportValue}>{selectedCard.temperatureRequirement}</Text>
-                          </View>
-                        )}
-                        {!!selectedCard.lightRequirement && (
-                          <View style={[
-                            styles.passportRow,
-                            !selectedCard.temperatureRequirement && styles.passportRowFirst,
-                          ]}>
-                            <Text style={styles.passportLabel}>Освещенность</Text>
-                            <Text style={styles.passportValue}>{selectedCard.lightRequirement}</Text>
-                          </View>
-                        )}
-                        {!!selectedCard.humidityRequirement && (
-                          <View style={[
-                            styles.passportRow,
-                            !selectedCard.temperatureRequirement &&
-                              !selectedCard.lightRequirement &&
-                              styles.passportRowFirst,
-                          ]}>
-                            <Text style={styles.passportLabel}>Влажность</Text>
-                            <Text style={styles.passportValue}>{selectedCard.humidityRequirement}</Text>
-                          </View>
-                        )}
-                        {(selectedCard.preventionItems || []).map((item, index) => (
-                          <View
-                            key={`${item.name}-${index}`}
-                            style={[
-                              styles.passportRow,
-                              !selectedCard.temperatureRequirement &&
-                                !selectedCard.lightRequirement &&
-                                !selectedCard.humidityRequirement &&
-                                index === 0 &&
-                                styles.passportRowFirst,
-                            ]}
-                          >
-                            <Text style={styles.passportLabel}>
-                              {selectedCard.stage === 'Клонирование' ? 'Препарат' : 'Профилактика'}
-                            </Text>
-                            <Text style={styles.passportValue}>
-                              {[item.name, item.applicationRate, item.frequency].filter(Boolean).join(' · ')}
-                            </Text>
-                          </View>
-                        ))}
-                      </View>
-                    )}
-                  </View>
+                canEditOperation={(operation) => (
+                  (selectedCard.stage === INTRO_STAGE && introOperationFields[operation.type]) ||
+                  editableStatusOperationTypes.includes(operation.type)
                 )}
-
-                <View style={[styles.surfacePanel, styles.calendarRecordsPanel]}>
-                  <StageCalendar
-                    days={calendarDays.filter(Boolean)}
-                    embedded
-                    month={calendarMonth}
-                    operationDates={operationDates}
-                    selectedDate={selectedDate}
-                    onChangeMonth={changeCalendarMonth}
-                    onSelectDate={(isoDate) => {
-                      setSelectedCalendarDate(isoDate);
-                      setIsDateEntryExpanded(false);
-                      setIntroActionType('');
-                      setIntroActionForm(createEmptyIntroActionForm());
-                      setEditingOperationId(null);
-                      setStageActionError('');
-                    }}
-                  />
-
-                  <View style={styles.calendarRecordsDivider} />
-
-                  <ScrollView
-                    nestedScrollEnabled
-                    showsVerticalScrollIndicator={false}
-                    style={styles.dateRecordsScroll}
-                    contentContainerStyle={styles.dateRecordsContent}
-                  >
-                  <View style={styles.dateActionHeader}>
-                    <Text style={styles.dateActionTitle}>{formatDisplayDate(selectedDate)}</Text>
-                  </View>
-
-                  {isDateEntryExpanded && (
-                    <>
-                      {selectedCard.stage === INTRO_STAGE ? (
-                        <View style={styles.actionGrid}>
-                          {introActionCommands.map(([value, label]) => (
-                            <Pressable
-                              accessibilityRole="button"
-                              key={value}
-                              onPress={() => {
-                                setIntroActionType(value);
-                                setEditingOperationId(null);
-                                setStageActionError('');
-                              }}
-                              style={[
-                                styles.actionChip,
-                                introActionType === value && styles.actionChipActive,
-                              ]}
-                            >
-                              <Text style={[
-                                styles.actionChipText,
-                                introActionType === value && styles.actionChipTextActive,
-                              ]}>
-                                {label}
-                              </Text>
-                            </Pressable>
-                          ))}
-                        </View>
-                      ) : (
-                        <Pressable
-                          accessibilityRole="button"
-                          onPress={openStatusChangeForm}
-                          style={({ pressed }) => [
-                            styles.statusButton,
-                            pressed && styles.linkButtonPressed,
-                          ]}
-                        >
-                          <Text style={styles.statusButtonText}>Добавить событие</Text>
-                        </Pressable>
-                      )}
-
-                      {selectedCard.stage === INTRO_STAGE && !!introActionType && introActionType !== 'death' && (
-                        <View style={styles.inlineForm}>
-                          {introActionType === 'comment' && (
-                            <TextInput
-                              multiline
-                              onChangeText={(value) => updateIntroActionForm('comment', value)}
-                              placeholder="Комментарий"
-                              placeholderTextColor="#7C8A80"
-                              style={[styles.input, styles.multilineInput]}
-                              value={introActionForm.comment}
-                            />
-                          )}
-                          {introActionType === 'photo' && (
-                            <TextInput
-                              multiline
-                              onChangeText={(value) => updateIntroActionForm('photoNote', value)}
-                              placeholder="Описание фото или ссылка"
-                              placeholderTextColor="#7C8A80"
-                              style={[styles.input, styles.multilineInput]}
-                              value={introActionForm.photoNote}
-                            />
-                          )}
-                          {introActionType === 'contamination' && (
-                            <TextInput
-                              multiline
-                              onChangeText={(value) => updateIntroActionForm('contaminationNote', value)}
-                              placeholder="Описание контаминации"
-                              placeholderTextColor="#7C8A80"
-                              style={[styles.input, styles.multilineInput]}
-                              value={introActionForm.contaminationNote}
-                            />
-                          )}
-                          {introActionType === 'quarantine' && (
-                            <TextInput
-                              multiline
-                              onChangeText={(value) => updateIntroActionForm('quarantineReason', value)}
-                              placeholder="Причина карантина"
-                              placeholderTextColor="#7C8A80"
-                              style={[styles.input, styles.multilineInput]}
-                              value={introActionForm.quarantineReason}
-                            />
-                          )}
-                          <View style={styles.inlineActions}>
-                            <Pressable
-                              accessibilityRole="button"
-                              onPress={handleSaveIntroAction}
-                              style={({ pressed }) => [
-                                styles.inlineActionButton,
-                                pressed && styles.linkButtonPressed,
-                              ]}
-                            >
-                              <Text style={styles.inlineActionButtonText}>
-                                {editingOperationId ? 'Сохранить правку' : 'Сохранить'}
-                              </Text>
-                            </Pressable>
-                            <Pressable
-                              accessibilityRole="button"
-                              onPress={() => {
-                                setIntroActionType('');
-                                setIntroActionForm(createEmptyIntroActionForm());
-                                setEditingOperationId(null);
-                                setStageActionError('');
-                              }}
-                              style={({ pressed }) => [
-                                styles.inlineDangerButton,
-                                pressed && styles.linkButtonPressed,
-                              ]}
-                            >
-                              <Text style={styles.inlineDangerButtonText}>Отменить</Text>
-                            </Pressable>
-                          </View>
-                        </View>
-                      )}
-                      <View style={styles.dateActionDivider} />
-                    </>
-                  )}
-
-                  {selectedDateOperations.length === 0 && (
-                    <Text style={styles.journalEmpty}>Записей за эту дату нет</Text>
-                  )}
-
-                  {selectedDateOperations.map((operation) => {
-                    const summaryItems = getOperationSummaryItems(operation, selectedCard);
-                    const canEditOperation = (
-                      (selectedCard.stage === INTRO_STAGE && introOperationFields[operation.type]) ||
-                      editableStatusOperationTypes.includes(operation.type)
-                    );
-                    const canDeleteOperation = canEditOperation && !protectedOperationTypes.includes(operation.type);
-
-                    return (
-                      <View key={operation.id} style={styles.statusSummary}>
-                        <View style={styles.operationHeaderRow}>
-                          <Text style={styles.statusSummaryTitle}>
-                            {operation.title || 'Событие'}
-                            {operation.createdAt ? ` • ${formatDisplayTime(operation.createdAt)}` : ''}
-                          </Text>
-                          <View style={styles.operationActions}>
-                            {canEditOperation && (
-                              <Pressable
-                                accessibilityLabel="Редактировать запись"
-                                accessibilityRole="button"
-                                onPress={() => openEditOperation(operation)}
-                                style={({ pressed }) => [
-                                  styles.operationActionButton,
-                                  pressed && styles.linkButtonPressed,
-                                ]}
-                              >
-                                <EditIcon size={20} />
-                              </Pressable>
-                            )}
-                            {canDeleteOperation && (
-                              <Pressable
-                                accessibilityLabel="Удалить запись"
-                                accessibilityRole="button"
-                                onPress={() => deleteOperation(operation.id)}
-                                style={({ pressed }) => [
-                                  styles.operationActionButton,
-                                  pressed && styles.linkButtonPressed,
-                                ]}
-                              >
-                                <TrashIcon size={20} />
-                              </Pressable>
-                            )}
-                          </View>
-                        </View>
-                        {summaryItems.map(([label, value]) => (
-                          <Text key={label} style={styles.statusSummaryText}>
-                            {label}: {value}
-                          </Text>
-                        ))}
-                      </View>
-                    );
-                  })}
-                  </ScrollView>
-                </View>
-
-                {!!stageActionError && (
-                  <View style={styles.stageActionErrorNotice}>
-                    <View style={styles.blockedNoticeIcon}>
-                      <Text style={styles.blockedNoticeIconText}>!</Text>
-                    </View>
-                    <Text style={styles.blockedNoticeText}>{stageActionError}</Text>
-                  </View>
-                )}
-
-              </>
+                card={selectedCard}
+                hasRecommendations={hasCalendarRecommendations}
+                introActionForm={introActionForm}
+                introActionType={introActionType}
+                isDateEntryExpanded={isDateEntryExpanded}
+                isRecommendationsExpanded={isRecommendationsExpanded}
+                onCancelIntroAction={() => {
+                  setIntroActionType('');
+                  setIntroActionForm(createEmptyIntroActionForm());
+                  setEditingOperationId(null);
+                  setStageActionError('');
+                }}
+                onChangeIntroActionForm={updateIntroActionForm}
+                onChangeMonth={changeCalendarMonth}
+                onDeleteOperation={deleteOperation}
+                onEditOperation={openEditOperation}
+                onSaveIntroAction={handleSaveIntroAction}
+                onSelectDate={(isoDate) => {
+                  setSelectedCalendarDate(isoDate);
+                  setIsDateEntryExpanded(false);
+                  setIntroActionType('');
+                  setIntroActionForm(createEmptyIntroActionForm());
+                  setEditingOperationId(null);
+                  setStageActionError('');
+                }}
+                onSelectIntroActionType={(value) => {
+                  setIntroActionType(value);
+                  setEditingOperationId(null);
+                  setStageActionError('');
+                }}
+                onToggleRecommendations={() => setIsRecommendationsExpanded((value) => !value)}
+                operationDates={operationDates}
+                selectedDate={selectedDate}
+                selectedDateOperations={selectedDateOperations}
+                stageActionError={stageActionError}
+                stageMoveBlockedMessage={stageMoveBlockedMessage}
+                stageMoveTarget={selectedCardNextStage}
+              />
             )}
 
             {cultureCalendarTab === 'passport' && (
-              <View style={styles.passportBlocks}>
-                <View style={[styles.surfacePanel, styles.passportPanel]}>
-                  <Text style={styles.passportSectionTitle}>Сводка</Text>
-                <View style={[styles.passportRow, styles.passportRowFirst]}>
-                  <Text style={styles.passportLabel}>Статус партии</Text>
-                  <Text style={styles.passportValue}>
-                    {BATCH_STATUS_LABELS[getResolvedBatchStatus(selectedCard)] || getResolvedBatchStatus(selectedCard) || 'Активная'}
-                  </Text>
-                </View>
-                {selectedCard.stage === 'Клонирование' && (
-                  <View style={styles.passportRow}>
-                    <Text style={styles.passportLabel}>Статус риска</Text>
-                    <Text style={styles.passportValue}>{selectedCardCloneStats.riskStatus}</Text>
-                  </View>
-                )}
-                {selectedCard.stage === 'Адаптация' && (
-                  <View style={styles.passportRow}>
-                    <Text style={styles.passportLabel}>Статус риска</Text>
-                    <Text style={styles.passportValue}>{selectedCardAdaptationStats.riskStatus}</Text>
-                  </View>
-                )}
-                <View style={styles.passportRow}>
-                  <Text style={styles.passportLabel}>Остаток</Text>
-                  <Text style={styles.passportValue}>
-                    {selectedCardCurrentQuantity} из {selectedCard.quantity} шт.
-                  </Text>
-                </View>
-                {selectedCard.stage === 'Клонирование' && (
-                  <>
-                    <View style={styles.passportRow}>
-                      <Text style={styles.passportLabel}>Укоренено</Text>
-                      <Text style={styles.passportValue}>
-                        {selectedCardCloneStats.rootedCount} шт. / {selectedCardCloneStats.rootingPercent}%
-                      </Text>
-                    </View>
-                    <View style={styles.passportRow}>
-                      <Text style={styles.passportLabel}>Потери</Text>
-                      <Text style={styles.passportValue}>
-                        {selectedCardCloneStats.lossCount} шт. / {selectedCardCloneStats.lossPercent}%
-                      </Text>
-                    </View>
-                  </>
-                )}
-                {selectedCard.stage === 'Адаптация' && (
-                  <>
-                    <View style={styles.passportRow}>
-                      <Text style={styles.passportLabel}>Приживаемость</Text>
-                      <Text style={styles.passportValue}>{selectedCardAdaptationStats.survivalPercent}%</Text>
-                    </View>
-                    <View style={styles.passportRow}>
-                      <Text style={styles.passportLabel}>Потери</Text>
-                      <Text style={styles.passportValue}>{selectedCardAdaptationStats.lossCount} шт.</Text>
-                    </View>
-                  </>
-                )}
-                {selectedCard.stage === INTRO_STAGE && (
-                  <>
-                    <View style={styles.passportRow}>
-                      <Text style={styles.passportLabel}>QR</Text>
-                      <Text style={styles.passportValue}>
-                        {QR_STATUS_LABELS[getQrStatus(selectedCard)] || getQrStatus(selectedCard)}
-                      </Text>
-                    </View>
-                  </>
-                )}
-                <View style={styles.passportRow}>
-                  <Text style={styles.passportLabel}>Дней на стадии</Text>
-                  <Text style={styles.passportValue}>{selectedCardDaysInStage}</Text>
-                </View>
-                </View>
-
-                <View style={[styles.surfacePanel, styles.passportPanel]}>
-                <Text style={styles.passportSectionTitle}>Культура</Text>
-                <View style={[styles.passportRow, styles.passportRowFirst]}>
-                  <Text style={styles.passportLabel}>Культура</Text>
-                  <Text style={styles.passportValue}>{selectedCard.cultureName}</Text>
-                </View>
-                <View style={styles.passportRow}>
-                  <Text style={styles.passportLabel}>Вид</Text>
-                  <Text style={styles.passportValue}>{selectedCard.speciesName}</Text>
-                </View>
-                <View style={styles.passportRow}>
-                  <Text style={styles.passportLabel}>Сорт</Text>
-                  <Text style={styles.passportValue}>{selectedCard.varietyName}</Text>
-                </View>
-                {selectedCard.stage === INTRO_STAGE && (
-                  <>
-                    <View style={styles.passportRow}>
-                      <Text style={styles.passportLabel}>Гормон</Text>
-                      <Text style={styles.passportValue}>{selectedCard.hasHormone ? 'Есть' : 'Нет'}</Text>
-                    </View>
-                    <View style={styles.passportRow}>
-                      <Text style={styles.passportLabel}>Источник материала</Text>
-                      <Text style={styles.passportValue}>{selectedCard.sourceMaterial || 'Не указан'}</Text>
-                    </View>
-                  </>
-                )}
-                </View>
-
-                <View style={[styles.surfacePanel, styles.passportPanel]}>
-                <Text style={styles.passportSectionTitle}>История</Text>
-                <View style={[styles.passportRow, styles.passportRowFirst]}>
-                  <Text style={styles.passportLabel}>Дата создания</Text>
-                  <Text style={styles.passportValue}>{formatDisplayDate(selectedCard.createdAt)}</Text>
-                </View>
-                <View style={styles.passportRow}>
-                  <Text style={styles.passportLabel}>Код партии</Text>
-                  <Text style={styles.passportValue}>{selectedCard.code}</Text>
-                </View>
-                {!!selectedCard.stageChangedAt && (
-                  <View style={styles.passportRow}>
-                    <Text style={styles.passportLabel}>Дата перехода в стадию {selectedCard.stage}</Text>
-                    <Text style={styles.passportValue}>{formatDisplayDate(selectedCard.stageChangedAt)}</Text>
-                  </View>
-                )}
-                  </View>
-              </View>
+              <CulturePassportTab
+                adaptationStats={selectedCardAdaptationStats}
+                card={selectedCard}
+                cloneStats={selectedCardCloneStats}
+                currentQuantity={selectedCardCurrentQuantity}
+                daysInStage={selectedCardDaysInStage}
+                getResolvedBatchStatus={getResolvedBatchStatus}
+              />
             )}
 
             {cultureCalendarTab === 'journal' && (
-              <View style={[styles.surfacePanel, styles.journalPanel]}>
-                <Text style={styles.journalTitle}>Журнал</Text>
-                {selectedCardOperations.length === 0 && (
-                  <Text style={styles.journalEmpty}>Событий пока нет</Text>
-                )}
-                {selectedCardOperations.map((operation) => {
-                  const summaryItems = getOperationSummaryItems(operation, selectedCard);
-                  const canEditOperation = (
+              <CultureJournalTab
+                canDeleteOperation={(operation) => (
+                  (
                     (selectedCard.stage === INTRO_STAGE && introOperationFields[operation.type]) ||
                     editableStatusOperationTypes.includes(operation.type)
-                  );
-                  const canDeleteOperation = canEditOperation && !protectedOperationTypes.includes(operation.type);
-
-                  return (
-                    <View
-                      key={operation.id}
-                      style={[
-                        styles.journalItem,
-                        ['contamination', 'quarantine'].includes(operation.type) && styles.journalItemWarning,
-                      ]}
-                    >
-                      <View style={styles.operationHeaderRow}>
-                        <Text style={styles.journalItemTitle}>{operation.title || 'Событие'}</Text>
-                        <View style={styles.operationActions}>
-                          {canEditOperation && (
-                            <Pressable
-                              accessibilityLabel="Редактировать запись"
-                              accessibilityRole="button"
-                              onPress={() => openEditOperation(operation)}
-                              style={({ pressed }) => [
-                                styles.operationActionButton,
-                                pressed && styles.linkButtonPressed,
-                              ]}
-                            >
-                              <EditIcon size={20} />
-                            </Pressable>
-                          )}
-                          {canDeleteOperation && (
-                            <Pressable
-                              accessibilityLabel="Удалить запись"
-                              accessibilityRole="button"
-                              onPress={() => deleteOperation(operation.id)}
-                              style={({ pressed }) => [
-                                styles.operationActionButton,
-                                pressed && styles.linkButtonPressed,
-                              ]}
-                            >
-                              <TrashIcon size={20} />
-                            </Pressable>
-                          )}
-                        </View>
-                      </View>
-                      {!!operation.date && (
-                        <Text style={styles.journalItemDate}>
-                          {formatDisplayDate(operation.date)}
-                          {operation.createdAt ? `, ${formatDisplayTime(operation.createdAt)}` : ''}
-                        </Text>
-                      )}
-                      {summaryItems.map(([label, value]) => (
-                        <Text key={label} style={styles.journalItemText}>
-                          {label}: {value}
-                        </Text>
-                      ))}
-                    </View>
-                  );
-                })}
-              </View>
+                  ) && !protectedOperationTypes.includes(operation.type)
+                )}
+                canEditOperation={(operation) => (
+                  (selectedCard.stage === INTRO_STAGE && introOperationFields[operation.type]) ||
+                  editableStatusOperationTypes.includes(operation.type)
+                )}
+                card={selectedCard}
+                operations={selectedCardOperations}
+                onDeleteOperation={deleteOperation}
+                onEditOperation={openEditOperation}
+              />
             )}
-          </ScrollView>
-
-          {cultureCalendarTab === 'calendar' && (
-            <View style={[
-              styles.calendarBottomActions,
-              { paddingBottom: Math.max(bottomInset + 12, 28) },
-            ]}>
-              {!!selectedCardNextStage && !stageMoveBlockedMessage && (
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={() => setIsStageMoveConfirmVisible(true)}
-                  style={({ pressed }) => [
-                    styles.primaryButton,
-                    styles.calendarStageMoveButton,
-                    pressed && styles.pressedButton,
-                  ]}
-                >
-                  <Text style={[styles.primaryButtonText, styles.calendarStageMoveButtonText]}>
-                    {stageMoveButtonLabel}
-                  </Text>
-                </Pressable>
-              )}
-
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => {
-                  setSelectedCalendarDate(selectedDate);
-                  setStageActionError('');
-                  setEditingOperationId(null);
-
-                  if (selectedCard.stage === INTRO_STAGE) {
-                    setIsDateEntryExpanded(false);
-                    setIntroActionType('comment');
-                    setIntroActionForm(createEmptyIntroActionForm());
-                    setCurrentScreen('introActionForm');
-                    return;
-                  }
-
-                  openStatusChangeForm();
-                }}
-                style={({ pressed }) => [
-                  styles.calendarAddEventButton,
-                  pressed && styles.linkButtonPressed,
-                ]}
-              >
-                <Text style={styles.calendarAddEventButtonText}>+</Text>
-              </Pressable>
-            </View>
-          )}
-
-          <Modal
-            animationType="fade"
-            transparent
-            visible={isStageMoveConfirmVisible}
-            onRequestClose={() => setIsStageMoveConfirmVisible(false)}
-          >
-            <View style={styles.modalOverlay}>
-              <View style={styles.confirmModal}>
-                <Text style={styles.confirmModalTitle}>Подтвердить перенос</Text>
-                <Text style={styles.confirmModalText}>
-                  Перенести серию в стадию {selectedCardNextStage}?
-                </Text>
-                <View style={styles.confirmModalActions}>
-                  <Pressable
-                    accessibilityRole="button"
-                    onPress={() => setIsStageMoveConfirmVisible(false)}
-                    style={({ pressed }) => [
-                      styles.secondaryOutlineButton,
-                      styles.confirmModalButton,
-                      pressed && styles.linkButtonPressed,
-                    ]}
-                  >
-                    <Text style={styles.secondaryOutlineButtonText}>Отмена</Text>
-                  </Pressable>
-                  <Pressable
-                    accessibilityRole="button"
-                    onPress={handleAddStageChange}
-                    style={({ pressed }) => [
-                      styles.primaryButton,
-                      styles.confirmModalButton,
-                      pressed && styles.pressedButton,
-                    ]}
-                  >
-                    <Text style={styles.primaryButtonText}>Перенести</Text>
-                  </Pressable>
-                </View>
-              </View>
-            </View>
-          </Modal>
-        </View>
-      </SafeAreaView>
+      </CultureCalendarScreen>
     );
   }
 
@@ -3398,118 +2888,33 @@ function AppContent() {
     currentScreen === 'introActionForm' &&
     selectedCard
   ) {
-    const introActionCommands = [
-      ['comment', 'Комментарий'],
-      ['photo', 'Фото'],
-      ['contamination', 'Контаминация'],
-      ['quarantine', 'Карантин'],
-    ];
-
     return (
-      <SafeAreaView style={styles.safeArea}>
-        <StatusBar style="dark" />
-        <StageHeader
-          onBack={() => {
-            setIntroActionType('');
-            setIntroActionForm(createEmptyIntroActionForm());
-            setEditingOperationId(null);
-            setStageActionError('');
+      <IntroActionFormScreen
+        actionForm={introActionForm}
+        actionType={introActionType}
+        error={stageActionError}
+        isEditing={Boolean(editingOperationId)}
+        onBack={() => {
+          setIntroActionType('');
+          setIntroActionForm(createEmptyIntroActionForm());
+          setEditingOperationId(null);
+          setStageActionError('');
+          setCurrentScreen('cultureCalendar');
+        }}
+        onChangeActionForm={updateIntroActionForm}
+        onSave={async () => {
+          const isSaved = await handleSaveIntroAction();
+          if (isSaved) {
             setCurrentScreen('cultureCalendar');
-          }}
-          subtitle={<Text style={styles.stageHeaderSubtitle}>{getCardDisplayName(selectedCard)}</Text>}
-          title={editingOperationId ? 'Редактировать действие' : 'Добавить действие'}
-        />
-
-        <ScrollView contentContainerStyle={styles.cultureFormScrollContent}>
-          <View style={styles.cardsScreen}>
-            <View style={[styles.surfacePanel, styles.formPanel]}>
-              <View style={styles.actionGrid}>
-                {introActionCommands.map(([value, label]) => (
-                  <Pressable
-                    accessibilityRole="button"
-                    key={value}
-                    onPress={() => {
-                      setIntroActionType(value);
-                      setEditingOperationId(null);
-                      setStageActionError('');
-                    }}
-                    style={[
-                      styles.actionChip,
-                      introActionType === value && styles.actionChipActive,
-                    ]}
-                  >
-                    <Text style={[
-                      styles.actionChipText,
-                      introActionType === value && styles.actionChipTextActive,
-                    ]}>
-                      {label}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-
-              {introActionType === 'comment' && (
-                <TextInput
-                  multiline
-                  onChangeText={(value) => updateIntroActionForm('comment', value)}
-                  placeholder="Комментарий"
-                  placeholderTextColor="#7C8A80"
-                  style={[styles.input, styles.multilineInput]}
-                  value={introActionForm.comment}
-                />
-              )}
-              {introActionType === 'photo' && (
-                <TextInput
-                  multiline
-                  onChangeText={(value) => updateIntroActionForm('photoNote', value)}
-                  placeholder="Описание фото или ссылка"
-                  placeholderTextColor="#7C8A80"
-                  style={[styles.input, styles.multilineInput]}
-                  value={introActionForm.photoNote}
-                />
-              )}
-              {introActionType === 'contamination' && (
-                <TextInput
-                  multiline
-                  onChangeText={(value) => updateIntroActionForm('contaminationNote', value)}
-                  placeholder="Описание контаминации"
-                  placeholderTextColor="#7C8A80"
-                  style={[styles.input, styles.multilineInput]}
-                  value={introActionForm.contaminationNote}
-                />
-              )}
-              {introActionType === 'quarantine' && (
-                <TextInput
-                  multiline
-                  onChangeText={(value) => updateIntroActionForm('quarantineReason', value)}
-                  placeholder="Причина карантина"
-                  placeholderTextColor="#7C8A80"
-                  style={[styles.input, styles.multilineInput]}
-                  value={introActionForm.quarantineReason}
-                />
-              )}
-
-              {!!stageActionError && <Text style={styles.errorText}>{stageActionError}</Text>}
-
-              <Pressable
-                accessibilityRole="button"
-                onPress={async () => {
-                  const isSaved = await handleSaveIntroAction();
-                  if (isSaved) {
-                    setCurrentScreen('cultureCalendar');
-                  }
-                }}
-                style={({ pressed }) => [
-                  styles.primaryButton,
-                  pressed && styles.pressedButton,
-                ]}
-              >
-                <Text style={styles.primaryButtonText}>Сохранить</Text>
-              </Pressable>
-            </View>
-          </View>
-        </ScrollView>
-      </SafeAreaView>
+          }
+        }}
+        onSelectActionType={(value) => {
+          setIntroActionType(value);
+          setEditingOperationId(null);
+          setStageActionError('');
+        }}
+        selectedCard={selectedCard}
+      />
     );
   }
 
@@ -4169,233 +3574,28 @@ function AppContent() {
     currentScreen === 'cultureList'
   ) {
     return (
-      <SafeAreaView style={styles.safeArea}>
-        <StatusBar style="dark" />
-        <View style={styles.fixedCardsScreen}>
-          <StageHeader
-            onBack={() => setSelectedStage('')}
-            title={selectedStage}
-          >
-          <View style={styles.searchRow}>
-            <View style={styles.searchBox}>
-              <Text style={styles.searchIcon}>{'\u2315'}</Text>
-              <TextInput
-                autoCapitalize="none"
-                autoCorrect={false}
-                onChangeText={setCardSearch}
-                placeholder={'\u041f\u043e\u0438\u0441\u043a \u043f\u043e \u043d\u0430\u0437\u0432\u0430\u043d\u0438\u044e'}
-                placeholderTextColor="#9AA3AF"
-                style={styles.searchInput}
-                value={cardSearch}
-              />
-            </View>
-          </View>
-
-          {(isCultureIntroStage || isCloneStage || isAdaptationStage || isGreenhouseStage) && (
-            <StatusFilterTabs
-              activeValue={batchStatusFilter}
-              count={allVisibleStageCardsCount}
-              items={isCloneStage || isAdaptationStage || isGreenhouseStage
-                ? [
-                  ['all', '\u0412\u0441\u0435'],
-                  ['active', '\u0410\u043a\u0442\u0438\u0432\u043d\u0430\u044f'],
-                  ['partial', '\u0427\u0430\u0441\u0442\u0438\u0447\u043d\u043e \u0440\u0435\u0430\u043b\u0438\u0437\u043e\u0432\u0430\u043d\u0430'],
-                  ['quarantine', '\u041a\u0430\u0440\u0430\u043d\u0442\u0438\u043d'],
-                  ['problem', '\u041f\u0440\u043e\u0431\u043b\u0435\u043c\u043d\u0430\u044f'],
-                ]
-                : [
-                  ['all', '\u0412\u0441\u0435'],
-                  ['active', '\u0410\u043a\u0442\u0438\u0432\u043d\u0430\u044f'],
-                  ['draft', '\u0427\u0435\u0440\u043d\u043e\u0432\u0438\u043a'],
-                  ['quarantine', '\u041a\u0430\u0440\u0430\u043d\u0442\u0438\u043d'],
-                ]}
-              onChange={setBatchStatusFilter}
-            />
-          )}
-          </StageHeader>
-          <ScrollView
-            contentContainerStyle={[
-              styles.fixedCardsScrollContent,
-              isCultureIntroStage && styles.fixedCardsScrollContentWithActions,
-            ]}
-            keyboardShouldPersistTaps="handled"
-          >
-            <View style={styles.plantCardList}>
-              {isCardsLoading && (
-                <View style={styles.emptyState}>
-                  <Text style={styles.emptyStateText}>Загрузка карточек...</Text>
-                </View>
-              )}
-
-              {!!storageError && (
-                <View style={styles.errorBox}>
-                  <Text style={styles.errorText}>{storageError}</Text>
-                </View>
-              )}
-
-              {!isCardsLoading && filteredCultureCards.map((card) => {
-                const batchStatus = getResolvedBatchStatus(card);
-
-                return (
-                <Pressable
-                  accessibilityRole="button"
-                  key={card.id}
-                  onPress={() => openCultureCalendar(card)}
-                  style={({ pressed }) => [
-                    styles.plantCard,
-                    pressed && styles.stageCardPressed,
-                  ]}
-                >
-                  {getResolvedBatchStatus(card) === 'partial' && card.sterilityStatus !== 'contaminated' ? (
-                    <View
-                      accessibilityLabel="Активная, частично реализована"
-                      style={styles.plantCardStatusDotGroup}
-                    >
-                      <View style={[styles.plantCardStatusDotInline, styles.plantCardStatusDotActive]} />
-                      <View style={[styles.plantCardStatusDotInline, styles.plantCardStatusDotPartial]} />
-                    </View>
-                  ) : (
-                    <View
-                      accessibilityLabel={
-                        BATCH_STATUS_LABELS[getResolvedBatchStatus(card)] ||
-                        getResolvedBatchStatus(card) ||
-                        'Активная'
-                      }
-                      style={[
-                        styles.plantCardStatusDot,
-                        getPlantCardStatusDotStyle(getResolvedBatchStatus(card), card.sterilityStatus),
-                      ]}
-                    />
-                  )}
-                  <View>
-                    {(() => {
-                      const cloneStats = getCloneStats(card);
-                      const adaptationStats = getAdaptationStats(card);
-                      const greenhouseStats = getGreenhouseStats(card);
-                      return (
-                        <>
-                    {isCultureIntroStage ? (
-                      <>
-                        <View style={styles.plantCardHeaderRow}>
-                          <Text style={styles.plantCardName} numberOfLines={2}>
-                            {getCardDisplayName(card)}
-                          </Text>
-                        </View>
-                        <View style={styles.plantCardMetaRow}>
-                          <Text style={styles.plantCardMetaText} numberOfLines={1}>
-                            {card.createdAt ? formatDisplayDate(card.createdAt) : '-'} {'\u2022'} {getCardCurrentQuantity(card)} шт.
-                          </Text>
-                          {getQrStatus(card) === 'pending_print' && (
-                            <Text style={styles.plantCardMetaText} numberOfLines={1}>
-                              Ожидает печати
-                            </Text>
-                          )}
-                        </View>
-                        {batchStatus === 'draft' && (
-                          <View style={styles.plantCardActions}>
-                            <Pressable
-                              accessibilityRole="button"
-                              onPress={(event) => {
-                                event?.stopPropagation?.();
-                                openEditCultureForm(card);
-                              }}
-                              style={({ pressed }) => [
-                                styles.plantCardActionButton,
-                                pressed && styles.linkButtonPressed,
-                              ]}
-                            >
-                              <Text style={styles.plantCardActionButtonText}>Редактировать</Text>
-                            </Pressable>
-                          </View>
-                        )}
-                      </>
-                    ) : (
-                      <>
-                    <Text style={styles.plantCardName}>{getCardDisplayName(card)}</Text>
-                    <View style={styles.plantCardMetaRow}>
-                      <Text style={styles.plantCardMetaText} numberOfLines={1}>
-                        {(card.stageChangedAt || card.createdAt)
-                          ? formatDisplayDate(card.stageChangedAt || card.createdAt)
-                          : '-'} {'\u2022'} {getCardCurrentQuantity(card)} из {card.quantity} шт.
-                      </Text>
-                    </View>
-                    {isCloneStage && (
-                      <>
-                        {cloneStats.riskStatus !== 'Нормальный' && (
-                          <Text style={styles.plantCardWarningText}>
-                            Риск: {cloneStats.riskStatus}
-                          </Text>
-                        )}
-                      </>
-                    )}
-                    {isAdaptationStage && (
-                      <>
-                        {adaptationStats.riskStatus !== 'Нормальный' && (
-                          <Text style={styles.plantCardWarningText}>
-                            Риск: {adaptationStats.riskStatus}
-                          </Text>
-                        )}
-                      </>
-                    )}
-                    {isGreenhouseStage && (
-                      <>
-                        {greenhouseStats.riskStatus !== 'Низкий' && (
-                          <Text style={styles.plantCardWarningText}>
-                            Риск: {greenhouseStats.riskStatus}
-                          </Text>
-                        )}
-                        {greenhouseStats.hasOverdueCare && (
-                          <Text style={styles.plantCardWarningText}>
-                            Уход просрочен
-                          </Text>
-                        )}
-                      </>
-                    )}
-                      </>
-                    )}
-                        </>
-                      );
-                    })()}
-                  </View>
-                </Pressable>
-                );
-              })}
-
-              {!isCardsLoading && filteredCultureCards.length === 0 && (
-                <View style={styles.emptyState}>
-                  <Text style={styles.emptyStateText}>
-                    {isCultureIntroStage && 'Партий пока нет. Нажмите "Создать партию", чтобы создать первую.'}
-                    {isCloneStage && 'Карточек пока нет. Переведите растение из введения в культуру.'}
-                    {isAdaptationStage && 'Карточек пока нет. Переведите растение из клонирования.'}
-                    {isGreenhouseStage && 'Карточек пока нет. Переведите растение из адаптации.'}
-                    {!isCultureIntroStage && !isCloneStage && !isAdaptationStage && !isGreenhouseStage &&
-                      'Карточек пока нет. Переведите растение из предыдущей стадии.'}
-                  </Text>
-                </View>
-              )}
-            </View>
-          </ScrollView>
-
-          {isCultureIntroStage && (
-            <View style={[
-              styles.fixedAddButtonBar,
-              { paddingBottom: Math.max(bottomInset + 12, 28) },
-            ]}>
-              <Pressable
-                accessibilityRole="button"
-                onPress={openCultureForm}
-                style={({ pressed }) => [
-                  styles.addButton,
-                  styles.fixedAddButton,
-                  pressed && styles.pressedButton,
-                ]}
-              >
-                <Text style={styles.addButtonText}>Создать партию</Text>
-              </Pressable>
-            </View>
-          )}
-        </View>
-      </SafeAreaView>
+      <CultureListScreen
+        allVisibleStageCardsCount={allVisibleStageCardsCount}
+        batchStatusFilter={batchStatusFilter}
+        bottomInset={bottomInset}
+        cardSearch={cardSearch}
+        cards={filteredCultureCards}
+        getPlantCardStatusDotStyle={getPlantCardStatusDotStyle}
+        getResolvedBatchStatus={getResolvedBatchStatus}
+        isAdaptationStage={isAdaptationStage}
+        isCardsLoading={isCardsLoading}
+        isCloneStage={isCloneStage}
+        isCultureIntroStage={isCultureIntroStage}
+        isGreenhouseStage={isGreenhouseStage}
+        onBack={() => setSelectedStage('')}
+        onChangeBatchStatusFilter={setBatchStatusFilter}
+        onChangeSearch={setCardSearch}
+        onCreateCulture={openCultureForm}
+        onEditCulture={openEditCultureForm}
+        onOpenCultureCalendar={openCultureCalendar}
+        selectedStage={selectedStage}
+        storageError={storageError}
+      />
     );
   }
 
