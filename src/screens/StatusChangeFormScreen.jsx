@@ -387,11 +387,12 @@ export default function StatusChangeFormScreen({
                 accessibilityRole="button"
                 onPress={onSave}
                 style={({ pressed }) => [
-                  styles.primaryButton,
-                  pressed && styles.pressedButton,
+                  styles.secondaryOutlineButton,
+                  styles.transparentOutlineButton,
+                  pressed && styles.linkButtonPressed,
                 ]}
               >
-                <Text style={styles.primaryButtonText}>
+                <Text style={styles.secondaryOutlineButtonText}>
                   {isEditing ? 'Сохранить правку' : 'Сохранить и добавить ещё'}
                 </Text>
               </Pressable>
@@ -400,11 +401,11 @@ export default function StatusChangeFormScreen({
                 accessibilityRole="button"
                 onPress={onBack}
                 style={({ pressed }) => [
-                  styles.cancelButton,
-                  pressed && styles.linkButtonPressed,
+                  styles.primaryButton,
+                  pressed && styles.pressedButton,
                 ]}
               >
-                <Text style={styles.cancelButtonText}>Готово</Text>
+                <Text style={styles.primaryButtonText}>Готово</Text>
               </Pressable>
             </View>
           </View>

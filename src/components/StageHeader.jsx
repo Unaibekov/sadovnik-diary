@@ -6,6 +6,7 @@ export default function StageHeader({
   action,
   children,
   onBack,
+  subtitle,
   title,
 }) {
   return (
@@ -23,9 +24,12 @@ export default function StageHeader({
           <ArrowBackIcon size={22} />
         </Pressable>
 
-        <Text style={styles.title} numberOfLines={1}>
-          {title}
-        </Text>
+        <View style={styles.titleBlock}>
+          <Text style={styles.title} numberOfLines={1}>
+            {title}
+          </Text>
+          {subtitle}
+        </View>
 
         {action}
       </View>
@@ -67,9 +71,12 @@ const styles = StyleSheet.create({
   },
   title: {
     color: '#111827',
-    flex: 1,
     fontSize: 18,
     fontWeight: '700',
     lineHeight: 24,
+  },
+  titleBlock: {
+    flex: 1,
+    minWidth: 0,
   },
 });

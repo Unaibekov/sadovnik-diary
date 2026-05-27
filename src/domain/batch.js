@@ -104,10 +104,20 @@ export function getStatusOperationItems(operation) {
   ].filter(([, value]) => Number(value) > 0);
 }
 
-export function getOperationSummaryItems(operation) {
+export function getOperationSummaryItems(operation, card) {
   if (!operation) {
     return [];
   }
+  const totalQuantity = Number(operation.totalQuantity || operation.cardQuantity || card?.quantity) || 0;
+  const formatCountWithTotal = (value) => {
+    if (value === undefined || value === null || value === '') {
+      return '';
+    }
+
+    return totalQuantity
+      ? `${value} из ${totalQuantity} шт.`
+      : `${value} шт.`;
+  };
 
   if (operation.type === 'batchCreated') {
     return [
@@ -123,7 +133,7 @@ export function getOperationSummaryItems(operation) {
       ['Куда', operation.toStage],
       ['Укоренено', operation.rootedCount ? `${operation.rootedCount} шт.` : ''],
       ['Процент укоренения', operation.rootingPercent !== undefined ? `${operation.rootingPercent}%` : ''],
-      ['Остаток', operation.currentQuantity ? `${operation.currentQuantity} шт.` : ''],
+      ['Остаток', operation.currentQuantity !== undefined ? formatCountWithTotal(operation.currentQuantity) : ''],
     ].filter(([, value]) => Boolean(value));
   }
 
@@ -167,9 +177,18 @@ export function getOperationSummaryItems(operation) {
     'greenhouseDisease',
     'transplant',
   ].includes(operation.type)) {
+    if (operation.type === 'propagation') {
+      return [
+        ['Добавлено', operation.count ? `${operation.count} шт.` : ''],
+        ['Остаток', operation.currentQuantity !== undefined ? `${operation.currentQuantity} шт.` : ''],
+        ['Способ размножения', operation.propagationMethod],
+        ['Комментарий', operation.comment],
+        ['Фото', operation.photoNote],
+      ].filter(([, value]) => Boolean(value));
+    }
+
     return [
-      ['Количество', operation.count ? `${operation.count} шт.` : ''],
-      ['Остаток', operation.currentQuantity !== undefined ? `${operation.currentQuantity} шт.` : ''],
+      ['Количество', formatCountWithTotal(operation.count)],
       ['Причина', operation.reason],
       ['Тип реализации', operation.saleType],
       ['Получатель', operation.recipient],
@@ -237,12 +256,17 @@ export function getCardCurrentQuantity(card) {
       const saleCount = Number(operation.saleCount) || 0;
       const deathCount = Number(operation.deathCount) || 0;
       const discardCount = Number(operation.discardCount) || 0;
+      const propagationCount = Number(operation.propagationCount) || 0;
 
-      return Math.max(quantity - saleCount - deathCount - discardCount, 0);
+      return Math.max(quantity + propagationCount - saleCount - deathCount - discardCount, 0);
     }
 
     if (['sale', 'death', 'discard'].includes(operation.type)) {
       return Math.max(quantity - (Number(operation.count) || 0), 0);
+    }
+
+    if (operation.type === 'propagation') {
+      return quantity + (Number(operation.count) || 0);
     }
 
     return quantity;

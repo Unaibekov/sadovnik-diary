@@ -46,7 +46,6 @@ import {
 import {
   canEditIdentityFields,
   createBatchCreatedOperation,
-  createQrGeneratedOperation,
   generatePlantingCode,
   getAdaptationStats,
   getCardCurrentQuantity,
@@ -111,6 +110,11 @@ const protectedOperationTypes = [
   'quarantineReleased',
 ];
 
+const cultureCreateBatchStatuses = [
+  ['active', BATCH_STATUS_LABELS.active],
+  ['draft', BATCH_STATUS_LABELS.draft],
+];
+
 function isOperationVisibleInCurrentStage(operation, card) {
   if (!operation || !card || (card.stage || INTRO_STAGE) === INTRO_STAGE) {
     return true;
@@ -133,6 +137,16 @@ function isOperationVisibleInCurrentStage(operation, card) {
   }
 
   return true;
+}
+
+function getLatestFilledCalendarDate(card) {
+  const operationDates = (card?.operations || [])
+    .filter((operation) => isOperationVisibleInCurrentStage(operation, card))
+    .map((operation) => operation.date)
+    .filter(Boolean)
+    .sort();
+
+  return operationDates.at(-1) || card?.createdAt || getTodayIsoDate();
 }
 
 const stageHomeItems = [
@@ -250,6 +264,7 @@ function getGlobalJournalEvents(cards) {
       cardId: card.id,
       cardName: getCardDisplayName(card),
       cardCode: card.code,
+      cardQuantity: card.quantity,
       cardStage: card.stage || INTRO_STAGE,
       cultureName: card.cultureName,
       speciesName: card.speciesName,
@@ -326,12 +341,12 @@ function QrIcon() {
   );
 }
 
-function getPlantCardStatusDotStyle(batchStatus) {
+function getPlantCardStatusDotStyle(batchStatus, sterilityStatus) {
   if (batchStatus === 'draft') {
     return styles.plantCardStatusDotDraft;
   }
 
-  if (['quarantine', 'problem'].includes(batchStatus)) {
+  if (sterilityStatus === 'contaminated' || ['quarantine', 'problem'].includes(batchStatus)) {
     return styles.plantCardStatusDotProblem;
   }
 
@@ -340,6 +355,29 @@ function getPlantCardStatusDotStyle(batchStatus) {
   }
 
   return styles.plantCardStatusDotActive;
+}
+
+function hasSaleOperation(card) {
+  return (card?.operations || []).some((operation) => (
+    (operation.type === 'sale' && Number(operation.count) > 0) ||
+    (operation.type === 'statusChange' && Number(operation.saleCount) > 0)
+  ));
+}
+
+function getResolvedBatchStatus(card) {
+  const batchStatus = card?.batchStatus || 'active';
+  const currentQuantity = getCardCurrentQuantity(card);
+  const hasSale = hasSaleOperation(card);
+
+  if (hasSale && currentQuantity === 0) {
+    return 'sold';
+  }
+
+  if (['sold', 'partial'].includes(batchStatus)) {
+    return hasSale ? 'partial' : 'active';
+  }
+
+  return batchStatus;
 }
 
 function AppContent() {
@@ -476,9 +514,9 @@ function AppContent() {
   const filteredCultureCards = cultureCards.filter((card) => {
     const query = cardSearch.trim().toLowerCase();
     const cardStage = card.stage || INTRO_STAGE;
-    const batchStatus = card.batchStatus || 'active';
+    const batchStatus = getResolvedBatchStatus(card);
 
-    if (card.status === 'cancelled' || card.status === 'archived') {
+    if (card.status === 'cancelled' || (card.status === 'archived' && batchStatus === 'sold')) {
       return false;
     }
 
@@ -504,8 +542,9 @@ function AppContent() {
   const allVisibleStageCardsCount = cultureCards.filter((card) => {
     const query = cardSearch.trim().toLowerCase();
     const cardStage = card.stage || INTRO_STAGE;
+    const batchStatus = getResolvedBatchStatus(card);
 
-    if (card.status === 'cancelled' || card.status === 'archived') {
+    if (card.status === 'cancelled' || (card.status === 'archived' && batchStatus === 'sold')) {
       return false;
     }
 
@@ -724,7 +763,7 @@ function AppContent() {
   }
 
   function openCultureCalendar(card) {
-    const initialDate = card.createdAt || getTodayIsoDate();
+    const initialDate = getLatestFilledCalendarDate(card);
 
     setSelectedCardId(card.id);
     setSelectedCalendarDate(initialDate);
@@ -846,10 +885,18 @@ function AppContent() {
 
     const nextCards = cultureCards.map((card) => (
       card.id === selectedCard.id
-        ? {
-          ...card,
-          operations: (card.operations || []).filter((operation) => operation.id !== operationId),
-        }
+        ? (() => {
+          const nextCard = {
+            ...card,
+            operations: (card.operations || []).filter((operation) => operation.id !== operationId),
+          };
+
+          return {
+            ...nextCard,
+            batchStatus: getResolvedBatchStatus(nextCard),
+            status: getResolvedBatchStatus(nextCard) === 'sold' ? 'archived' : 'active',
+          };
+        })()
         : card
     ));
 
@@ -1257,6 +1304,13 @@ function AppContent() {
       title: eventConfig.title,
       date: selectedCalendarDate,
       ...(count ? { count } : {}),
+      totalQuantity: selectedCard.quantity,
+      ...(['death', 'discard', 'sale'].includes(introActionType)
+        ? { currentQuantity: Math.max(currentQuantity - Number(count), 0) }
+        : {}),
+      ...(introActionType === 'propagation'
+        ? { currentQuantity: currentQuantity + Number(count) }
+        : {}),
       comment: statusForm.comment.trim(),
       photoNote: statusForm.photoNote.trim(),
       ...(['death', 'discard'].includes(introActionType)
@@ -1330,23 +1384,28 @@ function AppContent() {
         operations: nextOperations,
       };
       const nextQuantity = getCardCurrentQuantity(nextCard);
+      const fallbackBatchStatus = introActionType === 'sale' && nextQuantity === 0
+        ? 'sold'
+        : introActionType === 'quarantine'
+          ? 'quarantine'
+        : introActionType === 'quarantineReleased'
+          ? 'active'
+        : introActionType === 'adaptationStress' && statusForm.stressLevel === 'Критический'
+          ? 'problem'
+        : introActionType === 'sale'
+          ? 'partial'
+          : card.batchStatus || 'active';
+      const nextCardWithStatus = {
+        ...nextCard,
+        batchStatus: fallbackBatchStatus,
+      };
 
       return {
-        ...nextCard,
-        batchStatus: introActionType === 'sale' && nextQuantity === 0
-          ? 'sold'
-          : introActionType === 'quarantine'
-            ? 'quarantine'
-          : introActionType === 'quarantineReleased'
-            ? 'active'
-          : introActionType === 'adaptationStress' && statusForm.stressLevel === 'Критический'
-            ? 'problem'
-          : introActionType === 'sale'
-            ? 'partial'
-            : card.batchStatus || 'active',
-        status: introActionType === 'sale' && nextQuantity === 0
+        ...nextCardWithStatus,
+        batchStatus: getResolvedBatchStatus(nextCardWithStatus),
+        status: getResolvedBatchStatus(nextCardWithStatus) === 'sold'
           ? 'archived'
-          : card.status || 'active',
+          : 'active',
       };
     });
 
@@ -1517,18 +1576,12 @@ function AppContent() {
       code,
       createdBy: currentUser.id,
     }, nowIso);
-    const qrGeneratedOperation = createQrGeneratedOperation({
-      id: editingCardId || `${Date.now()}`,
-      createdAt,
-      code,
-      qrStatus,
-    }, nowIso);
     const nextOperations = editingCardId
       ? [
         ...(stageSettingsOperation ? [stageSettingsOperation] : []),
         ...(cultureForm.operations || []),
       ]
-      : [qrGeneratedOperation, batchCreatedOperation];
+      : [batchCreatedOperation];
 
     const nextCard = {
       ...cultureForm,
@@ -1608,6 +1661,7 @@ function AppContent() {
         <StatusBar style="dark" />
         <StageHeader
           onBack={closeCultureForm}
+          subtitle={<Text style={styles.stageHeaderSubtitle}>{selectedStage}</Text>}
           title={
             isEditingCard && hasControlledRequirements
               ? 'Паспорт и настройки'
@@ -1617,9 +1671,7 @@ function AppContent() {
                   ? 'Создать партию'
                   : 'Добавить карточку'
           }
-        >
-          <Text style={styles.stageHeaderSubtitle}>{selectedStage}</Text>
-        </StageHeader>
+        />
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.keyboardView}
@@ -2005,8 +2057,7 @@ function AppContent() {
 
                           {(
                             openDropdown === 'sourceMaterialCustom' ||
-                            !cultureForm.sourceMaterial ||
-                            !SOURCE_MATERIAL_OPTIONS.includes(cultureForm.sourceMaterial)
+                            (cultureForm.sourceMaterial && !SOURCE_MATERIAL_OPTIONS.includes(cultureForm.sourceMaterial))
                           ) && (
                             <TextInput
                               onChangeText={(value) => updateCultureForm('sourceMaterial', value)}
@@ -2058,7 +2109,7 @@ function AppContent() {
                         {openDropdown === 'batchStatus' && (
                           <View style={styles.dropdownList}>
                             <ScrollView nestedScrollEnabled>
-                              {Object.entries(BATCH_STATUS_LABELS).map(([value, label]) => (
+                              {cultureCreateBatchStatuses.map(([value, label]) => (
                                 <Pressable
                                   accessibilityRole="button"
                                   key={value}
@@ -2475,7 +2526,7 @@ function AppContent() {
         <View style={styles.calendarScreen}>
           <StageHeader onBack={closeCultureCalendar} title={getCardDisplayName(selectedCard)} />
 
-          <ScrollView contentContainerStyle={styles.calendarContent}>
+          <View style={styles.calendarPinnedContent}>
             <View style={styles.calendarTabs}>
               {calendarTabs.map(([value, label]) => {
                 const isActive = cultureCalendarTab === value;
@@ -2509,22 +2560,35 @@ function AppContent() {
             </View>
 
             {cultureCalendarTab === 'calendar' && (
+              <StageCalendar
+                days={calendarDays.filter(Boolean)}
+                month={calendarMonth}
+                operationDates={operationDates}
+                selectedDate={selectedDate}
+                onChangeMonth={changeCalendarMonth}
+                onSelectDate={(isoDate) => {
+                  setSelectedCalendarDate(isoDate);
+                  setIsDateEntryExpanded(false);
+                  setIntroActionType('');
+                  setIntroActionForm(createEmptyIntroActionForm());
+                  setEditingOperationId(null);
+                  setStageActionError('');
+                }}
+              />
+            )}
+          </View>
+
+          <ScrollView style={styles.calendarScroll} contentContainerStyle={styles.calendarContent}>
+            {cultureCalendarTab === 'calendar' && (
               <>
-                <StageCalendar
-                  days={calendarDays.filter(Boolean)}
-                  month={calendarMonth}
-                  operationDates={operationDates}
-                  selectedDate={selectedDate}
-                  onChangeMonth={changeCalendarMonth}
-                  onSelectDate={(isoDate) => {
-                    setSelectedCalendarDate(isoDate);
-                    setIsDateEntryExpanded(false);
-                    setIntroActionType('');
-                    setIntroActionForm(createEmptyIntroActionForm());
-                    setEditingOperationId(null);
-                    setStageActionError('');
-                  }}
-                />
+                {!!selectedCardNextStage && !!stageMoveBlockedMessage && (
+                  <View style={styles.blockedNotice}>
+                    <View style={styles.blockedNoticeIcon}>
+                      <Text style={styles.blockedNoticeIconText}>!</Text>
+                    </View>
+                    <Text style={styles.blockedNoticeText}>{stageMoveBlockedMessage}</Text>
+                  </View>
+                )}
 
                 <View style={[styles.surfacePanel, styles.dateActionPanel]}>
                   <View style={styles.dateActionHeader}>
@@ -2677,7 +2741,7 @@ function AppContent() {
                   )}
 
                   {selectedDateOperations.map((operation) => {
-                    const summaryItems = getOperationSummaryItems(operation);
+                    const summaryItems = getOperationSummaryItems(operation, selectedCard);
                     const canEditOperation = (
                       (selectedCard.stage === INTRO_STAGE && introOperationFields[operation.type]) ||
                       editableStatusOperationTypes.includes(operation.type)
@@ -2687,7 +2751,10 @@ function AppContent() {
                     return (
                       <View key={operation.id} style={styles.statusSummary}>
                         <View style={styles.operationHeaderRow}>
-                          <Text style={styles.statusSummaryTitle}>{operation.title || 'Событие'}</Text>
+                          <Text style={styles.statusSummaryTitle}>
+                            {operation.title || 'Событие'}
+                            {operation.createdAt ? ` • ${formatDisplayTime(operation.createdAt)}` : ''}
+                          </Text>
                           <View style={styles.operationActions}>
                             {canEditOperation && (
                               <Pressable
@@ -2717,9 +2784,6 @@ function AppContent() {
                             )}
                           </View>
                         </View>
-                        {!!operation.createdAt && (
-                          <Text style={styles.statusSummaryText}>{formatDisplayTime(operation.createdAt)}</Text>
-                        )}
                         {summaryItems.map(([label, value]) => (
                           <Text key={label} style={styles.statusSummaryText}>
                             {label}: {value}
@@ -2729,12 +2793,6 @@ function AppContent() {
                     );
                   })}
                 </View>
-
-                {!!selectedCardNextStage && !!stageMoveBlockedMessage && (
-                  <View style={styles.calendarStageMoveFooter}>
-                    <Text style={styles.errorText}>{stageMoveBlockedMessage}</Text>
-                  </View>
-                )}
 
                 {!!selectedCardNextStage && !stageMoveBlockedMessage && (
                   <Pressable
@@ -2759,12 +2817,14 @@ function AppContent() {
                 <View style={[styles.passportRow, styles.passportRowFirst]}>
                   <Text style={styles.passportLabel}>Статус партии</Text>
                   <Text style={styles.passportValue}>
-                    {BATCH_STATUS_LABELS[selectedCard.batchStatus || 'active'] || selectedCard.batchStatus || 'Активная'}
+                    {BATCH_STATUS_LABELS[getResolvedBatchStatus(selectedCard)] || getResolvedBatchStatus(selectedCard) || 'Активная'}
                   </Text>
                 </View>
                 <View style={styles.passportRow}>
-                  <Text style={styles.passportLabel}>Текущий остаток</Text>
-                  <Text style={styles.passportValue}>{selectedCardCurrentQuantity} шт.</Text>
+                  <Text style={styles.passportLabel}>Остаток</Text>
+                  <Text style={styles.passportValue}>
+                    {selectedCardCurrentQuantity} из {selectedCard.quantity} шт.
+                  </Text>
                 </View>
                 <View style={styles.passportRow}>
                   <Text style={styles.passportLabel}>Дней на стадии</Text>
@@ -2781,10 +2841,6 @@ function AppContent() {
                       <Text style={styles.passportValue}>
                         {QR_STATUS_LABELS[getQrStatus(selectedCard)] || getQrStatus(selectedCard)}
                       </Text>
-                    </View>
-                    <View style={styles.passportRow}>
-                      <Text style={styles.passportLabel}>Исходное количество</Text>
-                      <Text style={styles.passportValue}>{selectedCard.quantity} шт.</Text>
                     </View>
                   </>
                 )}
@@ -2912,10 +2968,6 @@ function AppContent() {
                   <Text style={styles.passportLabel}>Дата создания</Text>
                   <Text style={styles.passportValue}>{formatDisplayDate(selectedCard.createdAt)}</Text>
                 </View>
-                <View style={styles.passportRow}>
-                  <Text style={styles.passportLabel}>Исходное количество</Text>
-                  <Text style={styles.passportValue}>{selectedCard.quantity} шт.</Text>
-                </View>
                   </View>
               </View>
             )}
@@ -2927,7 +2979,7 @@ function AppContent() {
                   <Text style={styles.journalEmpty}>Событий пока нет</Text>
                 )}
                 {selectedCardOperations.map((operation) => {
-                  const summaryItems = getOperationSummaryItems(operation);
+                  const summaryItems = getOperationSummaryItems(operation, selectedCard);
                   const canEditOperation = (
                     (selectedCard.stage === INTRO_STAGE && introOperationFields[operation.type]) ||
                     editableStatusOperationTypes.includes(operation.type)
@@ -3006,11 +3058,11 @@ function AppContent() {
         <StatusBar style="dark" />
         <StageHeader
           onBack={closeStatusChangeForm}
+          subtitle={(
+            <Text style={styles.stageHeaderSubtitle}>{getCardDisplayName(selectedCard)}</Text>
+          )}
           title={editingOperationId ? 'Редактировать событие' : 'Добавить событие'}
-        >
-          <Text style={styles.stageHeaderSubtitle}>{getCardDisplayName(selectedCard)}</Text>
-          <Text style={styles.stageHeaderSubtitle}>{formatDisplayDate(selectedCalendarDate)}</Text>
-        </StageHeader>
+        />
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.keyboardView}
@@ -3358,6 +3410,19 @@ function AppContent() {
                   />
                 </View>
 
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={handleSaveStatusChange}
+                  style={({ pressed }) => [
+                    styles.secondaryOutlineButton,
+                    styles.transparentOutlineButton,
+                    pressed && styles.linkButtonPressed,
+                  ]}
+                >
+                  <Text style={styles.secondaryOutlineButtonText}>
+                    {editingOperationId ? 'Сохранить правку' : 'Сохранить и добавить ещё'}
+                  </Text>
+                </Pressable>
               </View>
 
               <View style={styles.cultureFormFooter}>
@@ -3366,26 +3431,13 @@ function AppContent() {
 
                 <Pressable
                   accessibilityRole="button"
-                  onPress={handleSaveStatusChange}
+                  onPress={closeStatusChangeForm}
                   style={({ pressed }) => [
                     styles.primaryButton,
                     pressed && styles.pressedButton,
                   ]}
                 >
-                  <Text style={styles.primaryButtonText}>
-                    {editingOperationId ? 'Сохранить правку' : 'Сохранить и добавить ещё'}
-                  </Text>
-                </Pressable>
-
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={closeStatusChangeForm}
-                  style={({ pressed }) => [
-                    styles.secondaryOutlineButton,
-                    pressed && styles.linkButtonPressed,
-                  ]}
-                >
-                  <Text style={styles.secondaryOutlineButtonText}>Готово</Text>
+                  <Text style={styles.primaryButtonText}>Готово</Text>
                 </Pressable>
               </View>
             </View>
@@ -3431,8 +3483,8 @@ function AppContent() {
                 ? [
                   ['all', '\u0412\u0441\u0435'],
                   ['active', '\u0410\u043a\u0442\u0438\u0432\u043d\u0430\u044f'],
-                  ['quarantine', '\u041a\u0430\u0440\u0430\u043d\u0442\u0438\u043d'],
                   ['partial', '\u0427\u0430\u0441\u0442\u0438\u0447\u043d\u043e \u0440\u0435\u0430\u043b\u0438\u0437\u043e\u0432\u0430\u043d\u0430'],
+                  ['quarantine', '\u041a\u0430\u0440\u0430\u043d\u0442\u0438\u043d'],
                   ['problem', '\u041f\u0440\u043e\u0431\u043b\u0435\u043c\u043d\u0430\u044f'],
                 ]
                 : [
@@ -3462,35 +3514,44 @@ function AppContent() {
                 </View>
               )}
 
-              {!isCardsLoading && filteredCultureCards.map((card) => (
+              {!isCardsLoading && filteredCultureCards.map((card) => {
+                const batchStatus = getResolvedBatchStatus(card);
+
+                return (
                 <Pressable
                   accessibilityRole="button"
                   key={card.id}
                   onPress={() => openCultureCalendar(card)}
                   style={({ pressed }) => [
                     styles.plantCard,
-                    (card.sterilityStatus === 'contaminated' || card.batchStatus === 'quarantine') &&
-                      styles.plantCardWarning,
                     pressed && styles.stageCardPressed,
                   ]}
                 >
-                  <View
-                    accessibilityLabel={
-                      BATCH_STATUS_LABELS[card.batchStatus || 'active'] ||
-                      card.batchStatus ||
-                      'Активная'
-                    }
-                    style={[
-                      styles.plantCardStatusDot,
-                      getPlantCardStatusDotStyle(card.batchStatus || 'active'),
-                    ]}
-                  />
+                  {getResolvedBatchStatus(card) === 'partial' && card.sterilityStatus !== 'contaminated' ? (
+                    <View
+                      accessibilityLabel="Активная, частично реализована"
+                      style={styles.plantCardStatusDotGroup}
+                    >
+                      <View style={[styles.plantCardStatusDotInline, styles.plantCardStatusDotActive]} />
+                      <View style={[styles.plantCardStatusDotInline, styles.plantCardStatusDotPartial]} />
+                    </View>
+                  ) : (
+                    <View
+                      accessibilityLabel={
+                        BATCH_STATUS_LABELS[getResolvedBatchStatus(card)] ||
+                        getResolvedBatchStatus(card) ||
+                        'Активная'
+                      }
+                      style={[
+                        styles.plantCardStatusDot,
+                        getPlantCardStatusDotStyle(getResolvedBatchStatus(card), card.sterilityStatus),
+                      ]}
+                    />
+                  )}
                   <View>
                     {(() => {
                       const cloneStats = getCloneStats(card);
                       const adaptationStats = getAdaptationStats(card);
-                      const batchStatus = card.batchStatus || 'active';
-
                       return (
                         <>
                     {isCultureIntroStage ? (
@@ -3504,6 +3565,11 @@ function AppContent() {
                           <Text style={styles.plantCardMetaText} numberOfLines={1}>
                             {card.createdAt ? formatDisplayDate(card.createdAt) : '-'} {'\u2022'} {getCardCurrentQuantity(card)} шт.
                           </Text>
+                          {getQrStatus(card) === 'pending_print' && (
+                            <Text style={styles.plantCardMetaText} numberOfLines={1}>
+                              Ожидает печати
+                            </Text>
+                          )}
                         </View>
                         {batchStatus === 'draft' && (
                           <View style={styles.plantCardActions}>
@@ -3526,49 +3592,29 @@ function AppContent() {
                     ) : (
                       <>
                     <Text style={styles.plantCardName}>{getCardDisplayName(card)}</Text>
-                    {!!card.stageChangedAt && (
-                      <Text style={styles.plantCardCode}>
-                        Дата перехода: {formatDisplayDate(card.stageChangedAt)}
+                    <View style={styles.plantCardMetaRow}>
+                      <Text style={styles.plantCardMetaText} numberOfLines={1}>
+                        {(card.stageChangedAt || card.createdAt)
+                          ? formatDisplayDate(card.stageChangedAt || card.createdAt)
+                          : '-'} {'\u2022'} {getCardCurrentQuantity(card)} из {card.quantity} шт.
                       </Text>
-                    )}
-                    {!card.stageChangedAt && !!card.createdAt && (
-                      <Text style={styles.plantCardCode}>
-                        Дата создания: {formatDisplayDate(card.createdAt)}
-                      </Text>
-                    )}
-                    {!!card.quantity && (
-                      <Text style={styles.plantCardCode}>
-                        Остаток: {getCardCurrentQuantity(card)} из {card.quantity} шт.
-                      </Text>
-                    )}
-                    {card.sterilityStatus === 'contaminated' && (
-                      <Text style={styles.plantCardWarningText}>
-                        Материал заражён. Переход стадии заблокирован.
-                      </Text>
-                    )}
-                    {card.batchStatus === 'quarantine' && (
-                      <Text style={styles.plantCardWarningText}>
-                        Партия в карантине. Требуется решение администратора или агронома.
-                      </Text>
-                    )}
+                    </View>
                     {isCloneStage && (
                       <>
-                        <Text style={styles.plantCardCode}>
-                          Укоренение: {cloneStats.rootingPercent}% / потери: {cloneStats.lossCount} шт.
-                        </Text>
-                        <Text style={styles.plantCardCode}>
-                          Риск: {cloneStats.riskStatus} / дней: {getDaysInCurrentStage(card)}
-                        </Text>
+                        {cloneStats.riskStatus !== 'Нормальный' && (
+                          <Text style={styles.plantCardWarningText}>
+                            Риск: {cloneStats.riskStatus}
+                          </Text>
+                        )}
                       </>
                     )}
                     {isAdaptationStage && (
                       <>
-                        <Text style={styles.plantCardCode}>
-                          Приживаемость: {adaptationStats.survivalPercent}% / стресс: {adaptationStats.stressLevel}
-                        </Text>
-                        <Text style={styles.plantCardCode}>
-                          Риск: {adaptationStats.riskStatus} / дней: {getDaysInCurrentStage(card)}
-                        </Text>
+                        {adaptationStats.riskStatus !== 'Нормальный' && (
+                          <Text style={styles.plantCardWarningText}>
+                            Риск: {adaptationStats.riskStatus}
+                          </Text>
+                        )}
                       </>
                     )}
                       </>
@@ -3578,7 +3624,8 @@ function AppContent() {
                     })()}
                   </View>
                 </Pressable>
-              ))}
+                );
+              })}
 
               {!isCardsLoading && filteredCultureCards.length === 0 && (
                 <View style={styles.emptyState}>
@@ -3684,7 +3731,7 @@ function AppContent() {
                     key={card.id}
                     style={[
                       styles.globalJournalCard,
-                      (card.sterilityStatus === 'contaminated' || card.batchStatus === 'quarantine') &&
+                      (card.sterilityStatus === 'contaminated' || getResolvedBatchStatus(card) === 'quarantine') &&
                         styles.globalJournalCardWarning,
                     ]}
                   >
@@ -3713,7 +3760,7 @@ function AppContent() {
                     </Pressable>
 
                     <Text style={styles.journalItemText} numberOfLines={1}>
-                      {BATCH_STATUS_LABELS[card.batchStatus || 'active'] || card.batchStatus} · {getCardCurrentQuantity(card)} шт.
+                      {BATCH_STATUS_LABELS[getResolvedBatchStatus(card)] || getResolvedBatchStatus(card)} · {getCardCurrentQuantity(card)} шт.
                     </Text>
 
                     {isExpanded && (
@@ -3722,10 +3769,7 @@ function AppContent() {
                           accessibilityRole="button"
                           onPress={() => {
                             setSelectedStage(card.stage || INTRO_STAGE);
-                            setSelectedCardId(card.id);
-                            setSelectedCalendarDate('');
-                            setCalendarMonth(events[0]?.date ? dateFromIso(events[0].date) : new Date());
-                            setCurrentScreen('cultureCalendar');
+                            openCultureCalendar(card);
                           }}
                           style={({ pressed }) => [
                             styles.globalJournalOpenCardButton,

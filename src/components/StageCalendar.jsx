@@ -130,6 +130,7 @@ export default function StageCalendar({
                 date.getMonth() === month.getMonth();
               const hasOperation = isCurrentMonth && operationDates.has(isoDate);
               const isSelected = isCurrentMonth && selectedDate === isoDate;
+              const isToday = isCurrentMonth && isoDate === todayIsoDate;
 
               return (
                 <Pressable
@@ -140,6 +141,7 @@ export default function StageCalendar({
                   style={[
                     styles.dayCell,
                     !isCurrentMonth && styles.dayCellMuted,
+                    isToday && styles.dayCellToday,
                     hasOperation && styles.dayCellMarked,
                     isSelected && styles.dayCellSelected,
                   ]}
@@ -148,6 +150,7 @@ export default function StageCalendar({
                     style={[
                       styles.dayCellText,
                       !isCurrentMonth && styles.dayCellTextMuted,
+                      isToday && styles.dayCellTextToday,
                       (hasOperation || isSelected) && styles.dayCellTextMarked,
                       isSelected && styles.dayCellTextSelected,
                     ]}
@@ -171,6 +174,7 @@ export default function StageCalendar({
             const isoDate = isoFromDate(date);
             const hasOperation = operationDates.has(isoDate);
             const isSelected = selectedDate === isoDate;
+            const isToday = isoDate === todayIsoDate;
             const dayName = weekDayLabels[(date.getDay() + 6) % 7];
 
             return (
@@ -180,12 +184,14 @@ export default function StageCalendar({
                 onPress={() => onSelectDate(isoDate)}
                 style={[
                   styles.stripDayCell,
+                  isToday && styles.dayCellToday,
                   hasOperation && styles.dayCellMarked,
                   isSelected && styles.dayCellSelected,
                 ]}
               >
                 <Text style={[
                   styles.stripDayName,
+                  isToday && styles.dayCellTextToday,
                   (hasOperation || isSelected) && styles.dayCellTextMarked,
                   isSelected && styles.dayCellTextSelected,
                 ]}>
@@ -194,6 +200,7 @@ export default function StageCalendar({
                 <Text
                   style={[
                     styles.stripDayText,
+                    isToday && styles.dayCellTextToday,
                     (hasOperation || isSelected) && styles.dayCellTextMarked,
                     isSelected && styles.dayCellTextSelected,
                   ]}
@@ -328,6 +335,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#15863F14',
     borderColor: '#15863F4D',
   },
+  dayCellToday: {
+    backgroundColor: '#F3F4F6',
+    borderColor: '#D1D5DB',
+  },
   dayCellSelected: {
     backgroundColor: '#15863F',
     borderColor: '#15863F',
@@ -340,6 +351,10 @@ const styles = StyleSheet.create({
   dayCellTextMarked: {
     color: '#111827',
     fontWeight: '700',
+  },
+  dayCellTextToday: {
+    color: '#374151',
+    fontWeight: '800',
   },
   dayCellTextSelected: {
     color: '#FFFFFF',

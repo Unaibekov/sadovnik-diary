@@ -97,9 +97,9 @@ export default StyleSheet.create({
   },
   stageHeaderSubtitle: {
     color: '#5F7065',
-    fontSize: 15,
-    lineHeight: 21,
-    marginTop: 8,
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 2,
   },
   stageGrid: {
     flexDirection: 'row',
@@ -810,6 +810,39 @@ export default StyleSheet.create({
     gap: 12,
     justifyContent: 'space-between',
   },
+  blockedNotice: {
+    alignItems: 'flex-start',
+    backgroundColor: '#FFFFFF',
+    borderColor: '#F1D6D2',
+    borderRadius: 14,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 18,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  blockedNoticeIcon: {
+    alignItems: 'center',
+    backgroundColor: '#B42318',
+    borderRadius: 13,
+    height: 26,
+    justifyContent: 'center',
+    width: 26,
+  },
+  blockedNoticeIconText: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '800',
+    lineHeight: 22,
+  },
+  blockedNoticeText: {
+    color: '#B42318',
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '700',
+    lineHeight: 20,
+  },
   dateEntryToggle: {
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
@@ -1267,6 +1300,19 @@ export default StyleSheet.create({
     width: 14,
     zIndex: 1,
   },
+  plantCardStatusDotGroup: {
+    flexDirection: 'row',
+    gap: 6,
+    position: 'absolute',
+    right: 18,
+    top: 18,
+    zIndex: 1,
+  },
+  plantCardStatusDotInline: {
+    borderRadius: 7,
+    height: 14,
+    width: 14,
+  },
   plantCardStatusDotActive: {
     backgroundColor: '#15863F',
   },
@@ -1299,7 +1345,6 @@ export default StyleSheet.create({
   },
   plantCardMetaText: {
     color: '#9AA3AF',
-    flex: 1,
     fontSize: 13,
     lineHeight: 18,
   },
@@ -1535,6 +1580,9 @@ export default StyleSheet.create({
     justifyContent: 'center',
     minHeight: 50,
     paddingHorizontal: 16,
+  },
+  transparentOutlineButton: {
+    backgroundColor: 'transparent',
   },
   secondaryOutlineButtonText: {
     color: '#15863F',
