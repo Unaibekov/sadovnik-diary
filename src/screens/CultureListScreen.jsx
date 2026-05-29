@@ -33,6 +33,7 @@ export default function CultureListScreen({
   onChangeSearch,
   onCreateCulture,
   onEditCulture,
+  onOpenRecommendations,
   onOpenCultureCalendar,
   selectedStage,
   storageError,
@@ -57,7 +58,11 @@ export default function CultureListScreen({
     <SafeAreaView style={styles.safeArea}>
       <StatusBar style="dark" />
       <View style={styles.fixedCardsScreen}>
-        <StageHeader onBack={onBack} title={selectedStage}>
+        <StageHeader
+          onBack={onBack}
+          onOpenRecommendations={!isCultureIntroStage ? onOpenRecommendations : undefined}
+          title={selectedStage}
+        >
           <View style={styles.searchRow}>
             <View style={styles.searchBox}>
               <Text style={styles.searchIcon}>{'\u2315'}</Text>

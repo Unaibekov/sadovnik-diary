@@ -144,19 +144,6 @@ export function getOperationSummaryItems(operation, card) {
     ].filter(([, value]) => Boolean(value));
   }
 
-  if (operation.type === 'stageSettingsUpdated') {
-    return [
-      ['Стадия', operation.stage],
-      ['Температура', operation.temperatureRequirement],
-      ['Влажность', operation.humidityRequirement],
-      ['Освещенность', operation.lightRequirement],
-      [
-        'Профилактика',
-        (operation.preventionItems || []).map((item) => item.name).filter(Boolean).join('; '),
-      ],
-    ].filter(([, value]) => Boolean(value));
-  }
-
   if (operation.type === 'statusChange') {
     return getStatusOperationItems(operation).map(([label, value]) => [label, `${value} шт.`]);
   }

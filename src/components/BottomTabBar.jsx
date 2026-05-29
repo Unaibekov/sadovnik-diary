@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#EF4444',
     borderColor: '#FFFFFF',
-    borderRadius: 8,
+    borderRadius: 999,
     borderWidth: 1,
     height: 16,
     justifyContent: 'center',
@@ -201,7 +201,7 @@ const styles = StyleSheet.create({
   scannerButton: {
     alignItems: 'center',
     backgroundColor: activeColor,
-    borderRadius: 24,
+    borderRadius: 999,
     height: 72,
     justifyContent: 'center',
     marginHorizontal: 4,

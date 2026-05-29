@@ -1,10 +1,13 @@
 import { StatusBar } from 'expo-status-bar';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 import { useEffect, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
+  Share,
   Text,
   TextInput,
   View,
@@ -14,16 +17,12 @@ import plantsCatalog from './data/plantsCatalog';
 import styles from './styles';
 import {
   BATCH_STATUS_LABELS,
-  CUSTOM_REQUIREMENT_OPTION,
   EMPTY_CATALOG_VALUE,
   INTRO_STAGE,
   SOURCE_MATERIAL_OPTIONS,
   currentUser,
-  humidityRequirementOptions,
-  lightRequirementOptions,
   stageMoveTargetLabels,
   stages,
-  temperatureRequirementOptions,
 } from './src/domain/constants';
 import {
   dateFromIso,
@@ -38,7 +37,6 @@ import {
 import {
   createEmptyCultureForm,
   createEmptyIntroActionForm,
-  createEmptyPreventionDraft,
   createEmptyStatusForm,
 } from './src/domain/forms';
 import {
@@ -55,7 +53,6 @@ import {
   getOperationSummaryItems,
   getQrStatus,
   getStageMoveButtonLabel,
-  getStatusOperationItems,
   isPositiveInteger,
 } from './src/domain/batch';
 import {
@@ -63,10 +60,18 @@ import {
   loadCultureCardsFromStorage,
   saveCultureCardsToStorage,
 } from './src/services/cultureCardsStorage';
+import {
+  getReminderDateFromIsoDate,
+  initializeLocalNotifications,
+  scheduleWateringReminder,
+} from './src/services/localNotifications';
 import AuthScreen from './src/screens/AuthScreen';
 import CultureCalendarScreen from './src/screens/CultureCalendarScreen';
 import CultureListScreen from './src/screens/CultureListScreen';
 import IntroActionFormScreen from './src/screens/IntroActionFormScreen';
+import MenuScreen from './src/screens/MenuScreen';
+import RecommendationsScreen from './src/screens/RecommendationsScreen';
+import StatusChangeFormScreen from './src/screens/StatusChangeFormScreen';
 import BottomTabBar from './src/components/BottomTabBar';
 import StageHeader from './src/components/StageHeader';
 import CultureCalendarTab from './src/components/CultureCalendarTab';
@@ -278,41 +283,40 @@ const stageHomeItems = [
   },
 ];
 
-function getStageRequirementsFromPlant(plant, stage) {
-  if (!plant) {
-    return {};
-  }
+function getGlobalJournalEvents(cards) {
+  return cards
+    .flatMap((card) => (card.operations || [])
+      .filter((operation) => operation.type !== 'stageSettingsUpdated')
+      .map((operation) => ({
+        ...operation,
+        cardId: card.id,
+        cardName: getCardDisplayName(card),
+        cardCode: card.code,
+        cardQuantity: card.quantity,
+        cardStage: card.stage || INTRO_STAGE,
+        cultureName: card.cultureName,
+        speciesName: card.speciesName,
+        varietyName: card.varietyName,
+      })))
+    .sort((first, second) => (
+      new Date(second.createdAt || second.date || 0) - new Date(first.createdAt || first.date || 0)
+    ));
+}
 
-  if (stage === 'Адаптация') {
-    return {
-      temperatureRequirement: plant.adaptationTemperatureRequirement || plant.cloneTemperatureRequirement || '',
-      lightRequirement: plant.adaptationLightRequirement || plant.cloneLightRequirement || '',
-      humidityRequirement: plant.adaptationHumidityRequirement || '',
-      preventionItems: plant.adaptationPreventionItems || [],
-    };
-  }
+function removeRecommendationFields(card) {
+  const {
+    temperatureRequirement,
+    lightRequirement,
+    humidityRequirement,
+    preventionItems,
+    ...cardWithoutRecommendations
+  } = card || {};
 
-  if (stage === 'Клонирование') {
-    const preventionName = [
-      plant.preventionStimulators,
-      plant.preventionChemicals,
-    ].filter(Boolean).join('; ');
-
-    return {
-      temperatureRequirement: plant.cloneTemperatureRequirement || '',
-      lightRequirement: plant.cloneLightRequirement || '',
-      humidityRequirement: plant.cloneHumidityRange ? `${plant.cloneHumidityRange}%` : '',
-      preventionItems: preventionName
-        ? [{
-          name: preventionName,
-          applicationRate: plant.preventionApplicationRate || '',
-          frequency: plant.preventionFrequency || '',
-        }]
-        : [],
-    };
-  }
-
-  return {};
+  return {
+    ...cardWithoutRecommendations,
+    operations: (cardWithoutRecommendations.operations || [])
+      .filter((operation) => operation.type !== 'stageSettingsUpdated'),
+  };
 }
 
 function findCatalogPlant(card) {
@@ -323,46 +327,81 @@ function findCatalogPlant(card) {
   ));
 }
 
-function getRequirementSelectOptions(recommendedValue, presetOptions) {
-  const options = [];
-
-  if (recommendedValue) {
-    options.push({
-      label: `Рекомендовано: ${recommendedValue}`,
-      value: recommendedValue,
-    });
+function normalizeRecommendationText(value) {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => [item.name, item.applicationRate, item.frequency].filter(Boolean).join(' · '))
+      .filter(Boolean)
+      .join('\n');
   }
 
-  presetOptions
-    .filter((option) => option !== recommendedValue)
-    .forEach((option) => {
-      options.push({ label: option, value: option });
-    });
-
-  options.push({
-    label: CUSTOM_REQUIREMENT_OPTION,
-    value: CUSTOM_REQUIREMENT_OPTION,
-  });
-
-  return options;
+  return value || '';
 }
 
-function getGlobalJournalEvents(cards) {
-  return cards
-    .flatMap((card) => (card.operations || []).map((operation) => ({
-      ...operation,
-      cardId: card.id,
-      cardName: getCardDisplayName(card),
-      cardCode: card.code,
-      cardQuantity: card.quantity,
-      cardStage: card.stage || INTRO_STAGE,
-      cultureName: card.cultureName,
-      speciesName: card.speciesName,
-      varietyName: card.varietyName,
-    })))
-    .sort((first, second) => (
-      new Date(second.createdAt || second.date || 0) - new Date(first.createdAt || first.date || 0)
-    ));
+function getPlantRecommendationItems(plant, stage) {
+  if (!plant) {
+    return [];
+  }
+
+  const isCloneStageRecommendation = stage === stages[1];
+  const temperature = isCloneStageRecommendation
+    ? plant.cloneTemperatureRequirement
+    : plant.adaptationTemperatureRequirement || plant.cloneTemperatureRequirement;
+  const light = isCloneStageRecommendation
+    ? plant.cloneLightRequirement
+    : plant.adaptationLightRequirement || plant.cloneLightRequirement;
+  const humidity = isCloneStageRecommendation
+    ? plant.cloneHumidityRange && `${plant.cloneHumidityRange}%`
+    : plant.adaptationHumidityRequirement || (plant.cloneHumidityRange && `${plant.cloneHumidityRange}%`);
+  const preventionItems = isCloneStageRecommendation
+    ? ''
+    : normalizeRecommendationText(plant.adaptationPreventionItems);
+
+  return [
+    { label: 'Температура', value: temperature },
+    { label: 'Освещение', value: light },
+    { label: 'Влажность', value: humidity },
+    { label: 'Подкормки', value: plant.preventionFertilizers },
+    { label: 'Препараты', value: plant.preventionChemicals },
+    { label: 'Стимуляторы', value: plant.preventionStimulators },
+    { label: 'Схема', value: plant.preventionApplicationRate },
+    { label: 'Период', value: plant.preventionFrequency },
+    { label: 'Профилактика', value: preventionItems },
+  ].filter((item) => Boolean(item.value));
+}
+
+function getStagePlantRecommendationItems(plant, stage) {
+  if (!plant || stage === stages[0]) {
+    return [];
+  }
+
+  if (stage === stages[1]) {
+    return [
+      { label: 'Температура', value: plant.cloneTemperatureRequirement },
+      { label: 'Освещение', value: plant.cloneLightRequirement },
+      { label: 'Влажность', value: plant.cloneHumidityRange && `${plant.cloneHumidityRange}%` },
+      { label: 'Подкормки', value: plant.preventionFertilizers },
+      { label: 'Стимуляторы', value: plant.preventionStimulators },
+      { label: 'Период', value: plant.preventionFrequency },
+    ].filter((item) => Boolean(item.value));
+  }
+
+  if (stage === stages[2]) {
+    return [
+      { label: 'Температура', value: plant.adaptationTemperatureRequirement || plant.cloneTemperatureRequirement },
+      { label: 'Освещение', value: plant.adaptationLightRequirement || plant.cloneLightRequirement },
+      { label: 'Влажность', value: plant.adaptationHumidityRequirement || (plant.cloneHumidityRange && `${plant.cloneHumidityRange}%`) },
+      { label: 'Профилактика', value: normalizeRecommendationText(plant.adaptationPreventionItems) },
+    ].filter((item) => Boolean(item.value));
+  }
+
+  return [
+    { label: 'Подкормки', value: plant.preventionFertilizers },
+    { label: 'Препараты', value: plant.preventionChemicals },
+    { label: 'Стимуляторы', value: plant.preventionStimulators },
+    { label: 'Схема', value: plant.preventionApplicationRate },
+    { label: 'Период', value: plant.preventionFrequency },
+  ].filter((item) => Boolean(item.value));
 }
 
 function isImportantJournalEvent(event) {
@@ -454,6 +493,44 @@ function getResolvedBatchStatus(card) {
   return batchStatus;
 }
 
+function formatCsvCell(value) {
+  const normalizedValue = String(value ?? '').replace(/\r?\n/g, ' ');
+  return `"${normalizedValue.replace(/"/g, '""')}"`;
+}
+
+function buildCultureCardsCsv(cards) {
+  const rows = [
+    [
+      'Код',
+      'Культура',
+      'Вид',
+      'Сорт',
+      'Стадия',
+      'Статус',
+      'Количество',
+      'Дата создания',
+      'Событий в журнале',
+    ],
+    ...cards.map((card) => {
+      const status = getResolvedBatchStatus(card);
+
+      return [
+        card.code,
+        card.cultureName,
+        card.speciesName,
+        card.varietyName,
+        card.stage || INTRO_STAGE,
+        BATCH_STATUS_LABELS[status] || status,
+        getCardCurrentQuantity(card),
+        card.createdAt ? formatDisplayDate(card.createdAt) : '',
+        (card.operations || []).length,
+      ];
+    }),
+  ];
+
+  return `\uFEFF${rows.map((row) => row.map(formatCsvCell).join(';')).join('\r\n')}`;
+}
+
 function AppContent() {
   const safeAreaInsets = useSafeAreaInsets();
   const bottomInset = Math.max(safeAreaInsets.bottom || 0, 0);
@@ -470,8 +547,6 @@ function AppContent() {
   const [storageError, setStorageError] = useState('');
   const [currentScreen, setCurrentScreen] = useState('stages');
   const [cultureForm, setCultureForm] = useState(createEmptyCultureForm);
-  const [preventionDraft, setPreventionDraft] = useState(createEmptyPreventionDraft);
-  const [editingPreventionIndex, setEditingPreventionIndex] = useState(null);
   const [statusForm, setStatusForm] = useState(createEmptyStatusForm);
   const [introActionForm, setIntroActionForm] = useState(createEmptyIntroActionForm);
   const [introActionType, setIntroActionType] = useState('');
@@ -492,15 +567,18 @@ function AppContent() {
   const [selectedCalendarDate, setSelectedCalendarDate] = useState('');
   const [cultureCalendarTab, setCultureCalendarTab] = useState('calendar');
   const [isDateEntryExpanded, setIsDateEntryExpanded] = useState(false);
-  const [isRecommendationsExpanded, setIsRecommendationsExpanded] = useState(false);
   const [isStageMoveConfirmVisible, setIsStageMoveConfirmVisible] = useState(false);
+  const [operationDeleteCandidateId, setOperationDeleteCandidateId] = useState(null);
+  const [recommendationsContext, setRecommendationsContext] = useState(null);
+  const [recommendationsMode, setRecommendationsMode] = useState('current');
 
   const editingCard = cultureCards.find((card) => card.id === editingCardId);
   const selectedCard = cultureCards.find((card) => card.id === selectedCardId);
   const isEditingCard = Boolean(editingCardId);
   const canEditCurrentIdentity = canEditIdentityFields(currentUser, editingCard);
   const calendarDays = getMonthDays(calendarMonth);
-  const selectedCardOperations = selectedCard?.operations || [];
+  const selectedCardOperations = (selectedCard?.operations || [])
+    .filter((operation) => operation.type !== 'stageSettingsUpdated');
   const selectedCardCalendarOperations = selectedCardOperations.filter((operation) => (
     isOperationVisibleInCurrentStage(operation, selectedCard)
   ));
@@ -509,48 +587,13 @@ function AppContent() {
   const selectedCardCloneStats = getCloneStats(selectedCard);
   const selectedCardAdaptationStats = getAdaptationStats(selectedCard);
   const selectedCardDaysInStage = getDaysInCurrentStage(selectedCard);
-  const selectedCardCatalogPlant = selectedCard ? findCatalogPlant(selectedCard) : null;
-  const selectedDateStatusOperation = selectedCardCalendarOperations.find((operation) => (
-    operation.type === 'statusChange' && operation.date === selectedCalendarDate
-  ));
   const selectedDateOperations = selectedCardCalendarOperations.filter((operation) => (
     operation.date === selectedCalendarDate
   ));
-  const selectedDateStatusItems = getStatusOperationItems(selectedDateStatusOperation);
   const isCultureIntroStage = selectedStage === 'Введение в культуру';
   const isCloneStage = selectedStage === 'Клонирование';
   const isAdaptationStage = selectedStage === 'Адаптация';
   const isGreenhouseStage = selectedStage === 'Теплица';
-  const hasCalendarRecommendations = Boolean(
-    selectedCard &&
-    (
-      selectedCard.temperatureRequirement ||
-      selectedCard.lightRequirement ||
-      selectedCard.humidityRequirement ||
-      (selectedCard.preventionItems || []).length > 0
-    ),
-  );
-  const hasControlledRequirements = isCloneStage || isAdaptationStage || isGreenhouseStage;
-  const selectedCatalogPlant = findCatalogPlant(cultureForm);
-  const selectedStageRequirements = getStageRequirementsFromPlant(selectedCatalogPlant, selectedStage);
-  const temperatureRequirementSelectOptions = getRequirementSelectOptions(
-    selectedStageRequirements.temperatureRequirement || '',
-    temperatureRequirementOptions,
-  );
-  const lightRequirementSelectOptions = getRequirementSelectOptions(
-    selectedStageRequirements.lightRequirement || '',
-    lightRequirementOptions,
-  );
-  const humidityRequirementSelectOptions = getRequirementSelectOptions(
-    selectedStageRequirements.humidityRequirement || '',
-    humidityRequirementOptions,
-  );
-  const isCustomTemperatureRequirement = Boolean(cultureForm.temperatureRequirement) &&
-    !temperatureRequirementSelectOptions.some((option) => option.value === cultureForm.temperatureRequirement);
-  const isCustomLightRequirement = Boolean(cultureForm.lightRequirement) &&
-    !lightRequirementSelectOptions.some((option) => option.value === cultureForm.lightRequirement);
-  const isCustomHumidityRequirement = Boolean(cultureForm.humidityRequirement) &&
-    !humidityRequirementSelectOptions.some((option) => option.value === cultureForm.humidityRequirement);
   const selectedCardNextStage = getNextStage(selectedCard?.stage || selectedStage);
   const stageMoveButtonLabel = selectedCardNextStage
     ? `В ${stageMoveTargetLabels[selectedCardNextStage] || selectedCardNextStage.toLocaleLowerCase('ru-RU')}`
@@ -561,11 +604,16 @@ function AppContent() {
       ? 'Партия на карантине. Перевод в клонирование заблокирован.'
       : '';
   const showIdentityAsText = isEditingCard;
-  const canSaveCultureForm = !isEditingCard || hasControlledRequirements;
+  const canSaveCultureForm = true;
   const isSupportedPlantingStage = stages.includes(selectedStage);
   const isSelectedCloneCard = selectedCard?.stage === 'Клонирование';
   const canReleaseQuarantine = ['agronomist', 'admin', 'superadmin'].includes(currentUser.role);
   const globalJournalEvents = getGlobalJournalEvents(cultureCards);
+  const activeCardsCount = cultureCards.filter((card) => (
+    card.status !== 'cancelled' &&
+    card.status !== 'archived' &&
+    getResolvedBatchStatus(card) !== 'sold'
+  )).length;
   const groupedGlobalJournalCards = cultureCards
     .map((card) => {
       const cardEvents = globalJournalEvents.filter((event) => (
@@ -641,14 +689,65 @@ function AppContent() {
 
     return !query || getCardDisplayName(card).toLowerCase().includes(query);
   }).length;
+  const recommendationStage = recommendationsContext?.stage || selectedCard?.stage || selectedStage;
+  const recommendationCard = recommendationsContext?.cardId
+    ? cultureCards.find((card) => card.id === recommendationsContext.cardId)
+    : null;
+  const recommendationSourceCards = recommendationCard
+    ? [recommendationCard]
+    : cultureCards.filter((card) => (
+      (card.stage || INTRO_STAGE) === recommendationStage &&
+      card.status !== 'cancelled' &&
+      card.status !== 'archived'
+    ));
+  const recommendationEntries = recommendationCard && recommendationsMode === 'all'
+    ? stages.map((stage) => {
+      const plant = findCatalogPlant(recommendationCard);
+
+      return {
+        key: `${recommendationCard.id}-${stage}`,
+        plantKey: recommendationCard.id,
+        subtitle: getCardDisplayName(recommendationCard),
+        title: stage,
+        items: getStagePlantRecommendationItems(plant, stage),
+      };
+    })
+    : recommendationSourceCards.reduce((entries, card) => {
+      const plantKey = [
+        card.cultureName,
+        card.speciesName,
+        card.varietyName,
+      ].join('|');
+
+      if (!recommendationCard && entries.some((entry) => entry.plantKey === plantKey)) {
+        return entries;
+      }
+
+      const plant = findCatalogPlant(card);
+
+      return [
+        ...entries,
+        {
+          key: recommendationCard ? `${card.id}-${recommendationStage}` : plantKey,
+          plantKey,
+          subtitle: [
+            plant?.originalName,
+            recommendationCard ? recommendationStage : '',
+          ].filter(Boolean).join(' · '),
+          title: getCardDisplayName(card),
+          items: getStagePlantRecommendationItems(plant, recommendationStage),
+        },
+      ];
+    }, []);
 
   useEffect(() => {
     loadCultureCards();
+    initializeLocalNotifications().catch(() => {});
   }, []);
 
   async function loadCultureCards() {
     try {
-      const savedCards = await loadCultureCardsFromStorage();
+      const savedCards = (await loadCultureCardsFromStorage()).map(removeRecommendationFields);
       setCultureCards(savedCards);
       setStorageError('');
     } catch (loadError) {
@@ -660,8 +759,9 @@ function AppContent() {
 
   async function saveCultureCards(nextCards) {
     try {
-      await saveCultureCardsToStorage(nextCards);
-      setCultureCards(nextCards);
+      const cardsWithoutRecommendations = nextCards.map(removeRecommendationFields);
+      await saveCultureCardsToStorage(cardsWithoutRecommendations);
+      setCultureCards(cardsWithoutRecommendations);
       setStorageError('');
     } catch (saveError) {
       setStorageError('Не удалось сохранить локальные данные');
@@ -703,6 +803,96 @@ function AppContent() {
     setSelectedCalendarDate('');
     setJournalFilter('important');
     setCurrentScreen('globalJournal');
+  }
+
+  function openMenu() {
+    setSelectedStage('');
+    setSelectedCardId(null);
+    setSelectedCalendarDate('');
+    setCurrentScreen('menu');
+  }
+
+  async function handleShareData() {
+    const exportedAt = new Date().toISOString();
+    const fileName = `sadovnik-diary-${exportedAt.slice(0, 10)}.csv`;
+    const csv = buildCultureCardsCsv(cultureCards);
+
+    try {
+      if (Platform.OS === 'web' || !FileSystem.documentDirectory) {
+        await Share.share({
+          title: fileName,
+          message: csv,
+        });
+        setNotice('CSV-отчет передан в системное меню отправки.');
+        return;
+      }
+
+      const isSharingAvailable = await Sharing.isAvailableAsync();
+
+      if (!isSharingAvailable) {
+        await Share.share({
+          title: fileName,
+          message: csv,
+        });
+        setNotice('CSV-отчет передан как текст.');
+        return;
+      }
+
+      const fileUri = `${FileSystem.documentDirectory}${fileName}`;
+      await FileSystem.writeAsStringAsync(fileUri, csv, {
+        encoding: FileSystem.EncodingType.UTF8,
+      });
+      await Sharing.shareAsync(fileUri, {
+        dialogTitle: 'Поделиться отчетом Sadovnik Diary',
+        mimeType: 'text/csv',
+        UTI: 'public.comma-separated-values-text',
+      });
+      setNotice('CSV-файл отчета готов к отправке.');
+    } catch (shareError) {
+      setNotice('Не удалось подготовить CSV-отчет.');
+    }
+  }
+
+  async function handleScheduleTestWateringReminder() {
+    try {
+      await scheduleWateringReminder({
+        body: 'Тестовое напоминание: пора проверить полив.',
+        date: new Date(Date.now() + 60 * 1000),
+      });
+      setNotice('Напоминание о поливе запланировано через 1 минуту.');
+    } catch (notificationError) {
+      setNotice('Не удалось включить уведомления. Проверьте разрешения телефона.');
+    }
+  }
+
+  function openStageRecommendations() {
+    setRecommendationsContext({
+      backScreen: 'cultureList',
+      stage: selectedStage,
+    });
+    setRecommendationsMode('current');
+    setCurrentScreen('recommendations');
+  }
+
+  function openSelectedCardRecommendations(backScreen) {
+    if (!selectedCard) {
+      return;
+    }
+
+    setRecommendationsContext({
+      backScreen,
+      cardId: selectedCard.id,
+      stage: selectedCard.stage || selectedStage,
+    });
+    setRecommendationsMode('current');
+    setCurrentScreen('recommendations');
+  }
+
+  function closeRecommendations() {
+    const backScreen = recommendationsContext?.backScreen || 'cultureList';
+    setRecommendationsContext(null);
+    setRecommendationsMode('current');
+    setCurrentScreen(backScreen);
   }
 
   function handleLogout() {
@@ -757,67 +947,9 @@ function AppContent() {
     }));
   }
 
-  function updatePreventionDraft(field, value) {
-    setPreventionDraft((currentDraft) => ({
-      ...currentDraft,
-      [field]: value,
-    }));
-  }
-
-  function resetPreventionEditor() {
-    setPreventionDraft(createEmptyPreventionDraft());
-    setEditingPreventionIndex(null);
-  }
-
-  function startAddPreventionItem() {
-    setPreventionDraft(createEmptyPreventionDraft());
-    setEditingPreventionIndex(-1);
-  }
-
-  function selectRecommendedPreventionItem(item) {
-    setCultureForm((currentForm) => ({
-      ...currentForm,
-      preventionItems: [item],
-    }));
-    resetPreventionEditor();
-    setOpenDropdown('');
-  }
-
-  function startEditPreventionItem(index) {
-    setPreventionDraft(cultureForm.preventionItems[index] || createEmptyPreventionDraft());
-    setEditingPreventionIndex(index);
-  }
-
-  function savePreventionItem() {
-    const nextItem = {
-      name: preventionDraft.name.trim(),
-      applicationRate: preventionDraft.applicationRate.trim(),
-      frequency: preventionDraft.frequency.trim(),
-    };
-
-    if (!nextItem.name && !nextItem.applicationRate && !nextItem.frequency) {
-      resetPreventionEditor();
-      return;
-    }
-
-    setCultureForm((currentForm) => {
-      const currentItems = currentForm.preventionItems || [];
-      const nextItems = editingPreventionIndex >= 0
-        ? currentItems.map((item, index) => (index === editingPreventionIndex ? nextItem : item))
-        : [...currentItems, nextItem];
-
-      return {
-        ...currentForm,
-        preventionItems: nextItems,
-      };
-    });
-    resetPreventionEditor();
-  }
-
   function openCultureForm() {
     setCultureForm(createEmptyCultureForm());
     setFormError('');
-    resetPreventionEditor();
     setShowDatePicker(false);
     setOpenDropdown('');
     setTouchedSubmit(false);
@@ -826,22 +958,14 @@ function AppContent() {
   }
 
   function openEditCultureForm(card) {
-    const catalogPlant = findCatalogPlant(card);
-    const stageRequirements = getStageRequirementsFromPlant(catalogPlant, card.stage);
-
     setCultureForm({
       ...createEmptyCultureForm(),
-      ...card,
-      temperatureRequirement: card.temperatureRequirement || stageRequirements.temperatureRequirement || '',
-      lightRequirement: card.lightRequirement || stageRequirements.lightRequirement || '',
-      humidityRequirement: card.humidityRequirement || stageRequirements.humidityRequirement || '',
-      preventionItems: card.preventionItems || stageRequirements.preventionItems || [],
+      ...removeRecommendationFields(card),
       qrPrinted: card.qrPrinted || false,
       qrPrintedAt: card.qrPrintedAt || null,
       qrPrintedBy: card.qrPrintedBy || null,
     });
     setFormError('');
-    resetPreventionEditor();
     setShowDatePicker(false);
     setOpenDropdown('');
     setTouchedSubmit(false);
@@ -856,7 +980,6 @@ function AppContent() {
     setSelectedCalendarDate(initialDate);
     setCultureCalendarTab('calendar');
     setIsDateEntryExpanded(false);
-    setIsRecommendationsExpanded(false);
     setIntroActionType('');
     setIntroActionForm(createEmptyIntroActionForm());
     setStageActionError('');
@@ -867,7 +990,6 @@ function AppContent() {
   function closeCultureForm() {
     setCultureForm(createEmptyCultureForm());
     setFormError('');
-    resetPreventionEditor();
     setShowDatePicker(false);
     setOpenDropdown('');
     setTouchedSubmit(false);
@@ -880,7 +1002,6 @@ function AppContent() {
     setSelectedCalendarDate('');
     setCultureCalendarTab('calendar');
     setIsDateEntryExpanded(false);
-    setIsRecommendationsExpanded(false);
     setIntroActionType('');
     setIntroActionForm(createEmptyIntroActionForm());
     setEditingOperationId(null);
@@ -1020,6 +1141,20 @@ function AppContent() {
     }
   }
 
+  function requestDeleteOperation(operationId) {
+    setOperationDeleteCandidateId(operationId);
+  }
+
+  function cancelDeleteOperation() {
+    setOperationDeleteCandidateId(null);
+  }
+
+  async function confirmDeleteOperation() {
+    const operationId = operationDeleteCandidateId;
+    setOperationDeleteCandidateId(null);
+    await deleteOperation(operationId);
+  }
+
   function handleSelectCulture(cultureName) {
     if (!canEditCurrentIdentity) {
       return;
@@ -1031,10 +1166,6 @@ function AppContent() {
       speciesName: '',
       varietyName: '',
       sourcePlantName: '',
-      temperatureRequirement: '',
-      lightRequirement: '',
-      humidityRequirement: '',
-      preventionItems: [],
     }));
     setOpenDropdown('');
   }
@@ -1049,10 +1180,6 @@ function AppContent() {
       speciesName,
       varietyName: '',
       sourcePlantName: '',
-      temperatureRequirement: '',
-      lightRequirement: '',
-      humidityRequirement: '',
-      preventionItems: [],
     }));
     setOpenDropdown('');
   }
@@ -1067,16 +1194,10 @@ function AppContent() {
       (plant.speciesName || EMPTY_CATALOG_VALUE) === cultureForm.speciesName &&
       (plant.varietyName || EMPTY_CATALOG_VALUE) === varietyName
     ));
-    const stageRequirements = getStageRequirementsFromPlant(selectedPlant, selectedStage);
-
     setCultureForm((currentForm) => ({
       ...currentForm,
       varietyName,
       sourcePlantName: selectedPlant?.originalName || '',
-      temperatureRequirement: stageRequirements.temperatureRequirement || currentForm.temperatureRequirement,
-      lightRequirement: stageRequirements.lightRequirement || currentForm.lightRequirement,
-      humidityRequirement: stageRequirements.humidityRequirement || currentForm.humidityRequirement,
-      preventionItems: stageRequirements.preventionItems || currentForm.preventionItems,
     }));
     setOpenDropdown('');
   }
@@ -1231,11 +1352,10 @@ function AppContent() {
         return card;
       }
 
-      const catalogPlant = findCatalogPlant(card);
-      const stageRequirements = getStageRequirementsFromPlant(catalogPlant, nextStage);
+      const cardWithoutRecommendations = removeRecommendationFields(card);
 
       return {
-        ...card,
+        ...cardWithoutRecommendations,
         stage: nextStage,
         stageChangedAt: selectedCalendarDate,
         stageChangedBy: currentUser.id,
@@ -1249,18 +1369,6 @@ function AppContent() {
           },
           ...(card.stageHistory || []),
         ],
-        temperatureRequirement: nextStage === 'Адаптация'
-          ? stageRequirements.temperatureRequirement || card.temperatureRequirement || ''
-          : card.temperatureRequirement || stageRequirements.temperatureRequirement || '',
-        lightRequirement: nextStage === 'Адаптация'
-          ? stageRequirements.lightRequirement || card.lightRequirement || ''
-          : card.lightRequirement || stageRequirements.lightRequirement || '',
-        humidityRequirement: nextStage === 'Адаптация'
-          ? stageRequirements.humidityRequirement || card.humidityRequirement || ''
-          : card.humidityRequirement || stageRequirements.humidityRequirement || '',
-        preventionItems: nextStage === 'Адаптация'
-          ? stageRequirements.preventionItems || card.preventionItems || []
-          : card.preventionItems || stageRequirements.preventionItems || [],
         operations: [nextOperation, ...(card.operations || [])],
       };
     });
@@ -1318,7 +1426,7 @@ function AppContent() {
         requiresReason: true,
       },
       adaptationStress: {
-        title: 'Стресс / состояние',
+        title: 'Наблюдение',
         countField: '',
       },
       adaptationEnvironment: {
@@ -1396,8 +1504,14 @@ function AppContent() {
       }
     }
 
-    if (introActionType === 'adaptationStress' && !statusForm.stressLevel.trim()) {
-      setStatusFormError('Укажите уровень стресса');
+    if (introActionType === 'adaptationStress' && ![
+      statusForm.stressLevel,
+      statusForm.conditionDescription,
+      statusForm.reason,
+      statusForm.turgor,
+      statusForm.stability,
+    ].some((value) => value.trim())) {
+      setStatusFormError('Укажите хотя бы один параметр наблюдения');
       return;
     }
 
@@ -1408,6 +1522,7 @@ function AppContent() {
       statusForm.substrateHumidity,
       statusForm.environmentLight,
       statusForm.ventilation,
+      statusForm.humidityReduction,
     ].some((value) => value.trim())) {
       setStatusFormError('Укажите хотя бы один параметр среды');
       return;
@@ -1521,6 +1636,7 @@ function AppContent() {
           substrateHumidity: statusForm.substrateHumidity.trim(),
           environmentLight: statusForm.environmentLight.trim(),
           ventilation: statusForm.ventilation.trim(),
+          humidityReduction: statusForm.humidityReduction.trim(),
           turgor: statusForm.turgor.trim(),
           stability: statusForm.stability.trim(),
         }
@@ -1658,12 +1774,33 @@ function AppContent() {
     });
 
     await saveCultureCards(nextCards);
+
+    if (introActionType === 'greenhouseCare' && statusForm.careType.trim() === 'Полив') {
+      const updatedCard = nextCards.find((card) => card.id === selectedCard.id);
+      const wateringStats = getGreenhouseStats(updatedCard);
+      const reminderDate = getReminderDateFromIsoDate(wateringStats.nextWateringDate);
+
+      if (reminderDate) {
+        scheduleWateringReminder({
+          body: `${getCardDisplayName(updatedCard)}: следующий полив ${formatDisplayDate(wateringStats.nextWateringDate)}.`,
+          date: reminderDate,
+        }).catch(() => {});
+      }
+    }
+
+    const wasEditingOperation = Boolean(editingOperationId);
+
     setStatusForm(createEmptyStatusForm());
     setEditingOperationId(null);
     setStatusFormError('');
-    setStatusFormNotice(editingOperationId
-      ? 'Событие обновлено.'
-      : 'Событие сохранено. Можно добавить следующее.');
+
+    if (wasEditingOperation) {
+      setStatusFormNotice('');
+      setCurrentScreen('cultureCalendar');
+      return;
+    }
+
+    setStatusFormNotice('Событие сохранено. Можно добавить следующее.');
   }
 
   async function handleSaveIntroAction() {
@@ -1760,17 +1897,10 @@ function AppContent() {
     const sourceMaterial = cultureForm.sourceMaterial.trim();
     const parentBatch = cultureForm.parentBatch.trim();
     const startPhotoNote = cultureForm.startPhotoNote.trim();
-    const temperatureRequirement = cultureForm.temperatureRequirement.trim();
-    const lightRequirement = cultureForm.lightRequirement.trim();
-    const humidityRequirement = cultureForm.humidityRequirement.trim();
     const isDuplicateCode = cultureCards.some((card) => (
       card.id !== editingCardId &&
       (card.code || '').trim().toLowerCase() === code.toLowerCase()
     ));
-    const isMissingCloneField = isCloneStage && (!temperatureRequirement || !lightRequirement || !humidityRequirement);
-    const isMissingAdaptationField = isAdaptationStage &&
-      (!temperatureRequirement || !lightRequirement || !humidityRequirement);
-
     if (
       !createdAt ||
       !cultureName ||
@@ -1778,9 +1908,7 @@ function AppContent() {
       !varietyName ||
       !code ||
       !quantity ||
-      (isCultureIntroStage && !sourceMaterial) ||
-      isMissingCloneField ||
-      isMissingAdaptationField
+      (isCultureIntroStage && !sourceMaterial)
     ) {
       setFormError('Заполните все поля');
       return;
@@ -1798,27 +1926,6 @@ function AppContent() {
 
     const nowIso = new Date().toISOString();
     const qrStatus = cultureForm.qrStatus === 'printed' ? 'printed' : 'pending_print';
-    const stageSettingsChanged = Boolean(editingCardId && editingCard && (
-      (editingCard.temperatureRequirement || '') !== temperatureRequirement ||
-      (editingCard.lightRequirement || '') !== lightRequirement ||
-      (editingCard.humidityRequirement || '') !== humidityRequirement ||
-      JSON.stringify(editingCard.preventionItems || []) !== JSON.stringify(cultureForm.preventionItems || [])
-    ));
-    const stageSettingsOperation = stageSettingsChanged
-      ? {
-        id: `settings-${Date.now()}`,
-        type: 'stageSettingsUpdated',
-        title: 'Изменение настроек стадии',
-        date: getTodayIsoDate(),
-        createdAt: nowIso,
-        createdBy: currentUser.id,
-        stage: selectedStage,
-        temperatureRequirement,
-        lightRequirement,
-        humidityRequirement,
-        preventionItems: cultureForm.preventionItems || [],
-      }
-      : null;
     const batchCreatedOperation = createBatchCreatedOperation({
       createdAt,
       stage: selectedStage,
@@ -1827,14 +1934,12 @@ function AppContent() {
       createdBy: currentUser.id,
     }, nowIso);
     const nextOperations = editingCardId
-      ? [
-        ...(stageSettingsOperation ? [stageSettingsOperation] : []),
-        ...(cultureForm.operations || []),
-      ]
+      ? cultureForm.operations || []
       : [batchCreatedOperation];
+    const cultureFormWithoutRecommendations = removeRecommendationFields(cultureForm);
 
     const nextCard = {
-      ...cultureForm,
+      ...cultureFormWithoutRecommendations,
       id: editingCardId || `${Date.now()}`,
       createdAt,
       cultureName,
@@ -1846,10 +1951,6 @@ function AppContent() {
       parentBatch,
       sterilityStatus: cultureForm.sterilityStatus || 'unchecked',
       startPhotoNote,
-      temperatureRequirement,
-      lightRequirement,
-      humidityRequirement,
-      preventionItems: cultureForm.preventionItems || [],
       name: getCardDisplayName({ cultureName, speciesName, varietyName }),
       stage: selectedStage,
       qrPrinted: cultureForm.qrPrinted || false,
@@ -1913,13 +2014,11 @@ function AppContent() {
           onBack={closeCultureForm}
           subtitle={<Text style={styles.stageHeaderSubtitle}>{selectedStage}</Text>}
           title={
-            isEditingCard && hasControlledRequirements
-              ? 'Паспорт и настройки'
-              : isEditingCard
-                ? 'Паспорт партии'
-                : isCultureIntroStage
-                  ? 'Создать партию'
-                  : 'Добавить карточку'
+            isEditingCard
+              ? 'Паспорт партии'
+              : isCultureIntroStage
+                ? 'Создать партию'
+                : 'Добавить карточку'
           }
         />
         <KeyboardAvoidingView
@@ -2383,341 +2482,6 @@ function AppContent() {
                   </>
                 )}
 
-                {hasControlledRequirements && (
-                  <>
-                    <View style={styles.field}>
-                      <Pressable
-                        accessibilityRole="button"
-                        onPress={() => setOpenDropdown(
-                          openDropdown === 'temperatureRequirement' ? '' : 'temperatureRequirement',
-                        )}
-                        style={[
-                          styles.selectButton,
-                          isRequiredFieldMissing('temperatureRequirement') && styles.inputInvalid,
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.selectButtonText,
-                            !cultureForm.temperatureRequirement && styles.selectPlaceholder,
-                          ]}
-                        >
-                          {cultureForm.temperatureRequirement || 'Выберите температурный режим'}
-                        </Text>
-                        <View style={styles.selectButtonArrow}>
-                          <ChevronDownIcon />
-                        </View>
-                      </Pressable>
-
-                      {openDropdown === 'temperatureRequirement' && (
-                        <View style={styles.dropdownList}>
-                          <ScrollView nestedScrollEnabled>
-                            {temperatureRequirementSelectOptions.map((option) => (
-                              <Pressable
-                                accessibilityRole="button"
-                                key={option.label}
-                                onPress={() => {
-                                  if (option.value === CUSTOM_REQUIREMENT_OPTION) {
-                                    updateCultureForm('temperatureRequirement', '');
-                                    setOpenDropdown('temperatureRequirementCustom');
-                                    return;
-                                  }
-
-                                  updateCultureForm('temperatureRequirement', option.value);
-                                  setOpenDropdown('');
-                                }}
-                                style={({ pressed }) => [
-                                  styles.dropdownItem,
-                                  pressed && styles.linkButtonPressed,
-                                ]}
-                              >
-                                <Text style={styles.dropdownItemText}>{option.label}</Text>
-                              </Pressable>
-                            ))}
-                          </ScrollView>
-                        </View>
-                      )}
-
-                      {(openDropdown === 'temperatureRequirementCustom' || isCustomTemperatureRequirement) && (
-                        <TextInput
-                          onChangeText={(value) => updateCultureForm('temperatureRequirement', value)}
-                          placeholder="Введите свой температурный режим"
-                          placeholderTextColor="#7C8A80"
-                          style={[
-                            styles.input,
-                            isRequiredFieldMissing('temperatureRequirement') && styles.inputInvalid,
-                          ]}
-                          value={cultureForm.temperatureRequirement}
-                        />
-                      )}
-                    </View>
-
-                    <View style={styles.field}>
-                      <Pressable
-                        accessibilityRole="button"
-                        onPress={() => setOpenDropdown(
-                          openDropdown === 'lightRequirement' ? '' : 'lightRequirement',
-                        )}
-                        style={[
-                          styles.selectButton,
-                          isRequiredFieldMissing('lightRequirement') && styles.inputInvalid,
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.selectButtonText,
-                            !cultureForm.lightRequirement && styles.selectPlaceholder,
-                          ]}
-                        >
-                          {cultureForm.lightRequirement || 'Выберите режим освещенности'}
-                        </Text>
-                        <View style={styles.selectButtonArrow}>
-                          <ChevronDownIcon />
-                        </View>
-                      </Pressable>
-
-                      {openDropdown === 'lightRequirement' && (
-                        <View style={styles.dropdownList}>
-                          <ScrollView nestedScrollEnabled>
-                            {lightRequirementSelectOptions.map((option) => (
-                              <Pressable
-                                accessibilityRole="button"
-                                key={option.label}
-                                onPress={() => {
-                                  if (option.value === CUSTOM_REQUIREMENT_OPTION) {
-                                    updateCultureForm('lightRequirement', '');
-                                    setOpenDropdown('lightRequirementCustom');
-                                    return;
-                                  }
-
-                                  updateCultureForm('lightRequirement', option.value);
-                                  setOpenDropdown('');
-                                }}
-                                style={({ pressed }) => [
-                                  styles.dropdownItem,
-                                  pressed && styles.linkButtonPressed,
-                                ]}
-                              >
-                                <Text style={styles.dropdownItemText}>{option.label}</Text>
-                              </Pressable>
-                            ))}
-                          </ScrollView>
-                        </View>
-                      )}
-
-                      {(openDropdown === 'lightRequirementCustom' || isCustomLightRequirement) && (
-                        <TextInput
-                          onChangeText={(value) => updateCultureForm('lightRequirement', value)}
-                          placeholder="Введите свой режим освещенности"
-                          placeholderTextColor="#7C8A80"
-                          style={[
-                            styles.input,
-                            isRequiredFieldMissing('lightRequirement') && styles.inputInvalid,
-                          ]}
-                          value={cultureForm.lightRequirement}
-                        />
-                      )}
-                    </View>
-
-                    <View style={styles.field}>
-                      <Pressable
-                        accessibilityRole="button"
-                        onPress={() => setOpenDropdown(
-                          openDropdown === 'humidityRequirement' ? '' : 'humidityRequirement',
-                        )}
-                        style={[
-                          styles.selectButton,
-                          isRequiredFieldMissing('humidityRequirement') && styles.inputInvalid,
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.selectButtonText,
-                            !cultureForm.humidityRequirement && styles.selectPlaceholder,
-                          ]}
-                        >
-                          {cultureForm.humidityRequirement || 'Выберите влажность'}
-                        </Text>
-                        <View style={styles.selectButtonArrow}>
-                          <ChevronDownIcon />
-                        </View>
-                      </Pressable>
-
-                      {openDropdown === 'humidityRequirement' && (
-                        <View style={styles.dropdownList}>
-                          <ScrollView nestedScrollEnabled>
-                            {humidityRequirementSelectOptions.map((option) => (
-                              <Pressable
-                                accessibilityRole="button"
-                                key={option.label}
-                                onPress={() => {
-                                  if (option.value === CUSTOM_REQUIREMENT_OPTION) {
-                                    updateCultureForm('humidityRequirement', '');
-                                    setOpenDropdown('humidityRequirementCustom');
-                                    return;
-                                  }
-
-                                  updateCultureForm('humidityRequirement', option.value);
-                                  setOpenDropdown('');
-                                }}
-                                style={({ pressed }) => [
-                                  styles.dropdownItem,
-                                  pressed && styles.linkButtonPressed,
-                                ]}
-                              >
-                                <Text style={styles.dropdownItemText}>{option.label}</Text>
-                              </Pressable>
-                            ))}
-                          </ScrollView>
-                        </View>
-                      )}
-
-                      {(openDropdown === 'humidityRequirementCustom' || isCustomHumidityRequirement) && (
-                        <TextInput
-                          onChangeText={(value) => updateCultureForm('humidityRequirement', value)}
-                          placeholder="Введите свою влажность"
-                          placeholderTextColor="#7C8A80"
-                          style={[
-                            styles.input,
-                            isRequiredFieldMissing('humidityRequirement') && styles.inputInvalid,
-                          ]}
-                          value={cultureForm.humidityRequirement}
-                        />
-                      )}
-                    </View>
-
-                    <View style={styles.field}>
-                          <Pressable
-                            accessibilityRole="button"
-                            onPress={() => setOpenDropdown(
-                              openDropdown === 'preventionRequirement' ? '' : 'preventionRequirement',
-                            )}
-                            style={styles.selectButton}
-                          >
-                            <Text
-                              style={[
-                                styles.selectButtonText,
-                                !(cultureForm.preventionItems || []).length && styles.selectPlaceholder,
-                              ]}
-                            >
-                              {(cultureForm.preventionItems || [])[0]?.name || 'Выберите профилактику'}
-                            </Text>
-                            <View style={styles.selectButtonArrow}>
-                              <ChevronDownIcon />
-                            </View>
-                          </Pressable>
-
-                          {openDropdown === 'preventionRequirement' && (
-                            <View style={styles.dropdownList}>
-                              <ScrollView nestedScrollEnabled>
-                                {(selectedStageRequirements.preventionItems || []).map((item, index) => (
-                                  <Pressable
-                                    accessibilityRole="button"
-                                    key={`${item.name}-${index}`}
-                                    onPress={() => selectRecommendedPreventionItem(item)}
-                                    style={({ pressed }) => [
-                                      styles.dropdownItem,
-                                      pressed && styles.linkButtonPressed,
-                                    ]}
-                                  >
-                                    <Text style={styles.dropdownItemText}>{item.name}</Text>
-                                    {!!item.applicationRate && (
-                                      <Text style={styles.dropdownItemMeta}>Норма: {item.applicationRate}</Text>
-                                    )}
-                                    {!!item.frequency && (
-                                      <Text style={styles.dropdownItemMeta}>Периодичность: {item.frequency}</Text>
-                                    )}
-                                  </Pressable>
-                                ))}
-                                <Pressable
-                                  accessibilityRole="button"
-                                  onPress={startAddPreventionItem}
-                                  style={({ pressed }) => [
-                                    styles.dropdownItem,
-                                    pressed && styles.linkButtonPressed,
-                                  ]}
-                                >
-                                  <Text style={styles.dropdownItemText}>Свое значение</Text>
-                                </Pressable>
-                              </ScrollView>
-                            </View>
-                          )}
-
-                          {(cultureForm.preventionItems || []).map((item, index) => (
-                            <View key={`${item.name}-${index}`} style={styles.preventionItem}>
-                              <Text style={styles.preventionItemTitle}>{item.name || 'Без названия'}</Text>
-                              {!!item.applicationRate && (
-                                <Text style={styles.preventionItemText}>Норма: {item.applicationRate}</Text>
-                              )}
-                              {!!item.frequency && (
-                                <Text style={styles.preventionItemText}>Периодичность: {item.frequency}</Text>
-                              )}
-                              <View style={styles.inlineActions}>
-                                <Pressable
-                                  accessibilityRole="button"
-                                  onPress={() => startEditPreventionItem(index)}
-                                  style={({ pressed }) => [
-                                    styles.inlineActionButton,
-                                    pressed && styles.linkButtonPressed,
-                                  ]}
-                                >
-                                  <Text style={styles.inlineActionButtonText}>Изменить</Text>
-                                </Pressable>
-                              </View>
-                            </View>
-                          ))}
-
-                          {editingPreventionIndex !== null && (
-                            <View style={styles.preventionEditor}>
-                              <TextInput
-                                onChangeText={(value) => updatePreventionDraft('name', value)}
-                                placeholder="Название"
-                                placeholderTextColor="#7C8A80"
-                                style={styles.input}
-                                value={preventionDraft.name}
-                              />
-                              <TextInput
-                                onChangeText={(value) => updatePreventionDraft('applicationRate', value)}
-                                placeholder="Норма внесения"
-                                placeholderTextColor="#7C8A80"
-                                style={styles.input}
-                                value={preventionDraft.applicationRate}
-                              />
-                              <TextInput
-                                onChangeText={(value) => updatePreventionDraft('frequency', value)}
-                                placeholder="Периодичность внесения"
-                                placeholderTextColor="#7C8A80"
-                                style={styles.input}
-                                value={preventionDraft.frequency}
-                              />
-                              <View style={styles.inlineActions}>
-                                <Pressable
-                                  accessibilityRole="button"
-                                  onPress={savePreventionItem}
-                                  style={({ pressed }) => [
-                                    styles.inlineActionButton,
-                                    pressed && styles.linkButtonPressed,
-                                  ]}
-                                >
-                                  <Text style={styles.inlineActionButtonText}>Сохранить</Text>
-                                </Pressable>
-                                <Pressable
-                                  accessibilityRole="button"
-                                  onPress={resetPreventionEditor}
-                                  style={({ pressed }) => [
-                                    styles.inlineDangerButton,
-                                    pressed && styles.linkButtonPressed,
-                                  ]}
-                                >
-                                  <Text style={styles.inlineDangerButtonText}>Отменить</Text>
-                                </Pressable>
-                              </View>
-                            </View>
-                          )}
-                        </View>
-                  </>
-                )}
-
               </View>
 
               <View style={styles.cultureFormFooter}>
@@ -2752,18 +2516,12 @@ function AppContent() {
     selectedCard
   ) {
     const selectedDate = selectedCalendarDate || selectedCard.createdAt || getTodayIsoDate();
-    const introActionCommands = [
-      ['comment', 'Комментарий'],
-      ['photo', 'Фото'],
-      ['contamination', 'Контаминация'],
-      ['quarantine', 'Карантин'],
-    ];
-
     return (
       <CultureCalendarScreen
         activeTab={cultureCalendarTab}
         bottomInset={bottomInset}
         isStageMoveConfirmVisible={isStageMoveConfirmVisible}
+        isOperationDeleteConfirmVisible={Boolean(operationDeleteCandidateId)}
         onAddEvent={() => {
           setSelectedCalendarDate(selectedDate);
           setStageActionError('');
@@ -2781,6 +2539,7 @@ function AppContent() {
         }}
         onBack={closeCultureCalendar}
         onCancelStageMove={() => setIsStageMoveConfirmVisible(false)}
+        onCancelOperationDelete={cancelDeleteOperation}
         onChangeTab={(tab) => {
           setCultureCalendarTab(tab);
           setIsDateEntryExpanded(false);
@@ -2789,6 +2548,8 @@ function AppContent() {
           setStageActionError('');
         }}
         onConfirmStageMove={handleAddStageChange}
+        onConfirmOperationDelete={confirmDeleteOperation}
+        onOpenRecommendations={() => openSelectedCardRecommendations('cultureCalendar')}
         onRequestStageMove={() => setIsStageMoveConfirmVisible(true)}
         showBottomActions={cultureCalendarTab === 'calendar'}
         stageMoveBlockedMessage={stageMoveBlockedMessage}
@@ -2811,22 +2572,9 @@ function AppContent() {
                   editableStatusOperationTypes.includes(operation.type)
                 )}
                 card={selectedCard}
-                hasRecommendations={hasCalendarRecommendations}
-                introActionForm={introActionForm}
-                introActionType={introActionType}
-                isDateEntryExpanded={isDateEntryExpanded}
-                isRecommendationsExpanded={isRecommendationsExpanded}
-                onCancelIntroAction={() => {
-                  setIntroActionType('');
-                  setIntroActionForm(createEmptyIntroActionForm());
-                  setEditingOperationId(null);
-                  setStageActionError('');
-                }}
-                onChangeIntroActionForm={updateIntroActionForm}
                 onChangeMonth={changeCalendarMonth}
-                onDeleteOperation={deleteOperation}
+                onDeleteOperation={requestDeleteOperation}
                 onEditOperation={openEditOperation}
-                onSaveIntroAction={handleSaveIntroAction}
                 onSelectDate={(isoDate) => {
                   setSelectedCalendarDate(isoDate);
                   setIsDateEntryExpanded(false);
@@ -2835,12 +2583,6 @@ function AppContent() {
                   setEditingOperationId(null);
                   setStageActionError('');
                 }}
-                onSelectIntroActionType={(value) => {
-                  setIntroActionType(value);
-                  setEditingOperationId(null);
-                  setStageActionError('');
-                }}
-                onToggleRecommendations={() => setIsRecommendationsExpanded((value) => !value)}
                 operationDates={operationDates}
                 selectedDate={selectedDate}
                 selectedDateOperations={selectedDateOperations}
@@ -2875,7 +2617,7 @@ function AppContent() {
                 )}
                 card={selectedCard}
                 operations={selectedCardOperations}
-                onDeleteOperation={deleteOperation}
+                onDeleteOperation={requestDeleteOperation}
                 onEditOperation={openEditOperation}
               />
             )}
@@ -2925,646 +2667,42 @@ function AppContent() {
     selectedCard
   ) {
     return (
-      <SafeAreaView style={styles.safeArea}>
-        <StatusBar style="dark" />
-        <StageHeader
-          onBack={closeStatusChangeForm}
-          subtitle={(
-            <Text style={styles.stageHeaderSubtitle}>{getCardDisplayName(selectedCard)}</Text>
-          )}
-          title={editingOperationId ? 'Редактировать событие' : 'Добавить событие'}
-        />
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.keyboardView}
-        >
-          <ScrollView
-            contentContainerStyle={styles.cardsScrollContent}
-            keyboardShouldPersistTaps="handled"
-          >
-            <View style={styles.cardsScreen}>
-              <View style={styles.formPanel}>
-                <View style={styles.actionGrid}>
-                  {(selectedCard.stage === 'Адаптация'
-                    ? [
-                      ['adaptationStress', 'Стресс'],
-                      ['adaptationEnvironment', 'Среда'],
-                      ['adaptationHumidityReduction', 'Снижение влажности'],
-                      ['adaptationCare', 'Уход'],
-                      ['quarantine', 'Карантин'],
-                      ...((selectedCard.batchStatus || 'active') === 'quarantine'
-                        ? [['quarantineReleased', 'Снять карантин']]
-                        : []),
-                      ['death', 'Гибель'],
-                      ['discard', 'Выбраковка'],
-                      ['sale', 'Продажа'],
-                    ]
-                    : selectedCard.stage === 'Теплица'
-                      ? [
-                        ['greenhouseObservation', 'Наблюдение'],
-                        ['greenhouseCare', 'Уход'],
-                        ['greenhouseEnvironment', 'Среда'],
-                        ['greenhouseDisease', 'Болезни/вредители'],
-                        ['transplant', 'Пересадка'],
-                        ['quarantine', 'Карантин'],
-                        ...((selectedCard.batchStatus || 'active') === 'quarantine'
-                          ? [['quarantineReleased', 'Снять карантин']]
-                          : []),
-                        ['death', 'Гибель'],
-                        ['discard', 'Выбраковка'],
-                        ['sale', 'Продажа'],
-                      ]
-                    : [
-                      ['rooting', 'Укоренение'],
-                      ['death', 'Гибель'],
-                      ['discard', 'Выбраковка'],
-                      ['sale', 'Продажа'],
-                      ['propagation', 'Размножение'],
-                      ['quarantine', 'Карантин'],
-                    ]).map(([value, label]) => (
-                    <Pressable
-                      accessibilityRole="button"
-                      key={value}
-                      onPress={() => {
-                        setIntroActionType(value);
-                        setStatusForm(createEmptyStatusForm());
-                        setStatusFormError('');
-                        setStatusFormNotice('');
-                      }}
-                      style={[
-                        styles.actionChip,
-                        introActionType === value && styles.actionChipActive,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.actionChipText,
-                          introActionType === value && styles.actionChipTextActive,
-                        ]}
-                      >
-                        {label}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
+      <StatusChangeFormScreen
+        eventType={introActionType}
+        form={statusForm}
+        formError={statusFormError}
+        formNotice={statusFormNotice}
+        isEditing={Boolean(editingOperationId)}
+        onBack={closeStatusChangeForm}
+        onChangeField={updateStatusForm}
+        onSave={handleSaveStatusChange}
+        onSelectEventType={(value) => {
+          setIntroActionType(value);
+          setStatusForm(createEmptyStatusForm());
+          setStatusFormError('');
+          setStatusFormNotice('');
+        }}
+        selectedCard={selectedCard}
+        selectedDate={selectedCalendarDate}
+      />
+    );
 
-                {![
-                  'adaptationStress',
-                  'adaptationEnvironment',
-                  'adaptationHumidityReduction',
-                  'adaptationCare',
-                  'greenhouseObservation',
-                  'greenhouseCare',
-                  'greenhouseEnvironment',
-                  'greenhouseDisease',
-                  'quarantine',
-                  'quarantineReleased',
-                ].includes(introActionType) && (
-                  <View style={styles.field}>
-                    <Text style={styles.label}>Количество, шт. *</Text>
-                    <TextInput
-                      inputMode="numeric"
-                      keyboardType="numeric"
-                      onChangeText={(value) => updateStatusForm(
-                        {
-                          rooting: 'rootedCount',
-                          death: 'deathCount',
-                          discard: 'discardCount',
-                          sale: 'saleCount',
-                          propagation: 'propagationCount',
-                          transplant: 'transplantCount',
-                        }[introActionType || 'rooting'],
-                        value,
-                      )}
-                      placeholder="0"
-                      placeholderTextColor="#7C8A80"
-                      style={styles.input}
-                      value={statusForm[{
-                        rooting: 'rootedCount',
-                        death: 'deathCount',
-                        discard: 'discardCount',
-                        sale: 'saleCount',
-                        propagation: 'propagationCount',
-                        transplant: 'transplantCount',
-                      }[introActionType || 'rooting']]}
-                    />
-                  </View>
-                )}
+  }
 
-                {introActionType === 'adaptationStress' && (
-                  <>
-                    <View style={styles.field}>
-                      <Text style={styles.label}>Уровень стресса *</Text>
-                      <View style={styles.toggleRow}>
-                        {['Низкий', 'Средний', 'Высокий', 'Критический'].map((value) => (
-                          <Pressable
-                            accessibilityRole="button"
-                            key={value}
-                            onPress={() => updateStatusForm('stressLevel', value)}
-                            style={[
-                              styles.toggleButton,
-                              statusForm.stressLevel === value && styles.toggleButtonActive,
-                            ]}
-                          >
-                            <Text
-                              style={[
-                                styles.toggleButtonText,
-                                statusForm.stressLevel === value && styles.toggleButtonTextActive,
-                              ]}
-                            >
-                              {value}
-                            </Text>
-                          </Pressable>
-                        ))}
-                      </View>
-                    </View>
-                    <View style={styles.field}>
-                      <Text style={styles.label}>Описание состояния</Text>
-                      <TextInput
-                        multiline
-                        onChangeText={(value) => updateStatusForm('conditionDescription', value)}
-                        placeholder="Тургор, увядание, остановка развития"
-                        placeholderTextColor="#7C8A80"
-                        style={[styles.input, styles.multilineInput]}
-                        value={statusForm.conditionDescription}
-                      />
-                    </View>
-                    <View style={styles.field}>
-                      <Text style={styles.label}>Причина</Text>
-                      <TextInput
-                        onChangeText={(value) => updateStatusForm('reason', value)}
-                        placeholder="Причина, если известна"
-                        placeholderTextColor="#7C8A80"
-                        style={styles.input}
-                        value={statusForm.reason}
-                      />
-                    </View>
-                  </>
-                )}
-
-                {introActionType === 'adaptationEnvironment' && (
-                  <>
-                    <View style={styles.field}>
-                      <Text style={styles.label}>Фактическая температура</Text>
-                      <TextInput onChangeText={(value) => updateStatusForm('environmentTemperature', value)} placeholder="Например: 24 °C" placeholderTextColor="#7C8A80" style={styles.input} value={statusForm.environmentTemperature} />
-                    </View>
-                    <View style={styles.field}>
-                      <Text style={styles.label}>Влажность воздуха</Text>
-                      <TextInput onChangeText={(value) => updateStatusForm('environmentAirHumidity', value)} placeholder="Например: 75%" placeholderTextColor="#7C8A80" style={styles.input} value={statusForm.environmentAirHumidity} />
-                    </View>
-                    <View style={styles.field}>
-                      <Text style={styles.label}>Влажность субстрата</Text>
-                      <TextInput onChangeText={(value) => updateStatusForm('substrateHumidity', value)} placeholder="Например: умеренная или 45%" placeholderTextColor="#7C8A80" style={styles.input} value={statusForm.substrateHumidity} />
-                    </View>
-                    <View style={styles.field}>
-                      <Text style={styles.label}>Освещение</Text>
-                      <TextInput onChangeText={(value) => updateStatusForm('environmentLight', value)} placeholder="Фактическое освещение" placeholderTextColor="#7C8A80" style={styles.input} value={statusForm.environmentLight} />
-                    </View>
-                    <View style={styles.field}>
-                      <Text style={styles.label}>Проветривание</Text>
-                      <TextInput onChangeText={(value) => updateStatusForm('ventilation', value)} placeholder="Режим проветривания" placeholderTextColor="#7C8A80" style={styles.input} value={statusForm.ventilation} />
-                    </View>
-                  </>
-                )}
-
-                {introActionType === 'adaptationHumidityReduction' && (
-                  <>
-                    <View style={styles.field}>
-                      <Text style={styles.label}>Новое целевое снижение влажности</Text>
-                      <TextInput onChangeText={(value) => updateStatusForm('humidityReduction', value)} placeholder="Например: снизить до 75% за 3 дня" placeholderTextColor="#7C8A80" style={styles.input} value={statusForm.humidityReduction} />
-                    </View>
-                    <View style={styles.field}>
-                      <Text style={styles.label}>Влажность воздуха</Text>
-                      <TextInput onChangeText={(value) => updateStatusForm('environmentAirHumidity', value)} placeholder="Например: 75%" placeholderTextColor="#7C8A80" style={styles.input} value={statusForm.environmentAirHumidity} />
-                    </View>
-                    <View style={styles.field}>
-                      <Text style={styles.label}>Влажность субстрата</Text>
-                      <TextInput onChangeText={(value) => updateStatusForm('substrateHumidity', value)} placeholder="Например: умеренная или 45%" placeholderTextColor="#7C8A80" style={styles.input} value={statusForm.substrateHumidity} />
-                    </View>
-                  </>
-                )}
-
-                {['adaptationStress', 'adaptationEnvironment', 'adaptationHumidityReduction'].includes(introActionType) && (
-                  <>
-                    <View style={styles.field}>
-                      <Text style={styles.label}>Тургор</Text>
-                      <TextInput onChangeText={(value) => updateStatusForm('turgor', value)} placeholder="Например: нормальный, снижен" placeholderTextColor="#7C8A80" style={styles.input} value={statusForm.turgor} />
-                    </View>
-                    <View style={styles.field}>
-                      <Text style={styles.label}>Стабильность партии</Text>
-                      <View style={styles.toggleRow}>
-                        {['Стабильна', 'Нестабильна'].map((value) => (
-                          <Pressable
-                            accessibilityRole="button"
-                            key={value}
-                            onPress={() => updateStatusForm('stability', value)}
-                            style={[
-                              styles.toggleButton,
-                              statusForm.stability === value && styles.toggleButtonActive,
-                            ]}
-                          >
-                            <Text
-                              style={[
-                                styles.toggleButtonText,
-                                statusForm.stability === value && styles.toggleButtonTextActive,
-                              ]}
-                            >
-                              {value}
-                            </Text>
-                          </Pressable>
-                        ))}
-                      </View>
-                    </View>
-                  </>
-                )}
-
-                {introActionType === 'adaptationCare' && (
-                  <View style={styles.field}>
-                    <Text style={styles.label}>Тип ухода *</Text>
-                    <View style={styles.actionGrid}>
-                      {['Полив', 'Подкормка', 'Стимуляция', 'Профилактика', 'Лечение'].map((value) => (
-                        <Pressable
-                          accessibilityRole="button"
-                          key={value}
-                          onPress={() => updateStatusForm('careType', value)}
-                          style={[
-                            styles.actionChip,
-                            statusForm.careType === value && styles.actionChipActive,
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.actionChipText,
-                              statusForm.careType === value && styles.actionChipTextActive,
-                            ]}
-                          >
-                            {value}
-                          </Text>
-                        </Pressable>
-                      ))}
-                    </View>
-                  </View>
-                )}
-
-                {introActionType === 'greenhouseObservation' && (
-                  <>
-                    <View style={styles.field}>
-                      <Text style={styles.label}>Скорость роста</Text>
-                      <TextInput onChangeText={(value) => updateStatusForm('growthRate', value)} placeholder="Например: активный рост, замедление" placeholderTextColor="#7C8A80" style={styles.input} value={statusForm.growthRate} />
-                    </View>
-                    <View style={styles.field}>
-                      <Text style={styles.label}>Состояние</Text>
-                      <TextInput multiline onChangeText={(value) => updateStatusForm('conditionDescription', value)} placeholder="Листья, тургор, прирост, общее состояние" placeholderTextColor="#7C8A80" style={[styles.input, styles.multilineInput]} value={statusForm.conditionDescription} />
-                    </View>
-                  </>
-                )}
-
-                {['greenhouseObservation', 'greenhouseDisease', 'greenhouseCare', 'greenhouseEnvironment'].includes(introActionType) && (
-                  <View style={styles.field}>
-                    <Text style={styles.label}>Уровень риска</Text>
-                    <View style={styles.toggleRow}>
-                      {['Низкий', 'Средний', 'Высокий', 'Критический'].map((value) => (
-                        <Pressable
-                          accessibilityRole="button"
-                          key={value}
-                          onPress={() => updateStatusForm('riskLevel', value)}
-                          style={[
-                            styles.toggleButton,
-                            statusForm.riskLevel === value && styles.toggleButtonActive,
-                          ]}
-                        >
-                          <Text style={[
-                            styles.toggleButtonText,
-                            statusForm.riskLevel === value && styles.toggleButtonTextActive,
-                          ]}>
-                            {value}
-                          </Text>
-                        </Pressable>
-                      ))}
-                    </View>
-                  </View>
-                )}
-
-                {introActionType === 'greenhouseObservation' && (
-                  <>
-                    <View style={styles.field}>
-                      <Text style={styles.label}>Уровень стресса</Text>
-                      <View style={styles.toggleRow}>
-                        {['Низкий', 'Средний', 'Высокий', 'Критический'].map((value) => (
-                          <Pressable
-                            accessibilityRole="button"
-                            key={value}
-                            onPress={() => updateStatusForm('stressLevel', value)}
-                            style={[
-                              styles.toggleButton,
-                              statusForm.stressLevel === value && styles.toggleButtonActive,
-                            ]}
-                          >
-                            <Text style={[
-                              styles.toggleButtonText,
-                              statusForm.stressLevel === value && styles.toggleButtonTextActive,
-                            ]}>
-                              {value}
-                            </Text>
-                          </Pressable>
-                        ))}
-                      </View>
-                    </View>
-                    <View style={styles.field}>
-                      <Text style={styles.label}>Стабильность</Text>
-                      <View style={styles.toggleRow}>
-                        {['Стабильна', 'Нестабильна'].map((value) => (
-                          <Pressable
-                            accessibilityRole="button"
-                            key={value}
-                            onPress={() => updateStatusForm('stability', value)}
-                            style={[
-                              styles.toggleButton,
-                              statusForm.stability === value && styles.toggleButtonActive,
-                            ]}
-                          >
-                            <Text style={[
-                              styles.toggleButtonText,
-                              statusForm.stability === value && styles.toggleButtonTextActive,
-                            ]}>
-                              {value}
-                            </Text>
-                          </Pressable>
-                        ))}
-                      </View>
-                    </View>
-                  </>
-                )}
-
-                {introActionType === 'greenhouseCare' && (
-                  <>
-                    <View style={styles.field}>
-                      <Text style={styles.label}>Тип ухода *</Text>
-                      <View style={styles.actionGrid}>
-                        {['Полив', 'Подкормка', 'Профилактика', 'Лечение'].map((value) => (
-                          <Pressable
-                            accessibilityRole="button"
-                            key={value}
-                            onPress={() => updateStatusForm('careType', value)}
-                            style={[
-                              styles.actionChip,
-                              statusForm.careType === value && styles.actionChipActive,
-                            ]}
-                          >
-                            <Text style={[
-                              styles.actionChipText,
-                              statusForm.careType === value && styles.actionChipTextActive,
-                            ]}>
-                              {value}
-                            </Text>
-                          </Pressable>
-                        ))}
-                      </View>
-                    </View>
-                    <View style={styles.field}>
-                      <Text style={styles.label}>Интервал ухода, дней</Text>
-                      <TextInput inputMode="numeric" keyboardType="numeric" onChangeText={(value) => updateStatusForm('careIntervalDays', value)} placeholder="Например: 2" placeholderTextColor="#7C8A80" style={styles.input} value={statusForm.careIntervalDays} />
-                    </View>
-                    <View style={styles.field}>
-                      <Text style={styles.label}>Объем / препарат / дозировка</Text>
-                      <TextInput onChangeText={(value) => updateStatusForm('waterVolume', value)} placeholder="Объем полива, если нужен" placeholderTextColor="#7C8A80" style={styles.input} value={statusForm.waterVolume} />
-                    </View>
-                    <View style={styles.field}>
-                      <TextInput onChangeText={(value) => updateStatusForm('productName', value)} placeholder="Препарат" placeholderTextColor="#7C8A80" style={styles.input} value={statusForm.productName} />
-                    </View>
-                    <View style={styles.field}>
-                      <TextInput onChangeText={(value) => updateStatusForm('dosage', value)} placeholder="Дозировка" placeholderTextColor="#7C8A80" style={styles.input} value={statusForm.dosage} />
-                    </View>
-                    <View style={styles.field}>
-                      <TextInput onChangeText={(value) => updateStatusForm('applicationMethod', value)} placeholder="Способ внесения" placeholderTextColor="#7C8A80" style={styles.input} value={statusForm.applicationMethod} />
-                    </View>
-                    <View style={styles.field}>
-                      <TextInput onChangeText={(value) => updateStatusForm('plantReaction', value)} placeholder="Реакция растений" placeholderTextColor="#7C8A80" style={styles.input} value={statusForm.plantReaction} />
-                    </View>
-                  </>
-                )}
-
-                {introActionType === 'greenhouseEnvironment' && (
-                  <>
-                    <View style={styles.field}>
-                      <Text style={styles.label}>Температура</Text>
-                      <TextInput onChangeText={(value) => updateStatusForm('environmentTemperature', value)} placeholder="Например: 24 °C" placeholderTextColor="#7C8A80" style={styles.input} value={statusForm.environmentTemperature} />
-                    </View>
-                    <View style={styles.field}>
-                      <Text style={styles.label}>Влажность воздуха</Text>
-                      <TextInput onChangeText={(value) => updateStatusForm('environmentAirHumidity', value)} placeholder="Например: 65%" placeholderTextColor="#7C8A80" style={styles.input} value={statusForm.environmentAirHumidity} />
-                    </View>
-                    <View style={styles.field}>
-                      <Text style={styles.label}>Освещение</Text>
-                      <TextInput onChangeText={(value) => updateStatusForm('environmentLight', value)} placeholder="Фактическое освещение" placeholderTextColor="#7C8A80" style={styles.input} value={statusForm.environmentLight} />
-                    </View>
-                    <View style={styles.field}>
-                      <Text style={styles.label}>Проветривание</Text>
-                      <TextInput onChangeText={(value) => updateStatusForm('ventilation', value)} placeholder="Режим проветривания" placeholderTextColor="#7C8A80" style={styles.input} value={statusForm.ventilation} />
-                    </View>
-                    <View style={styles.field}>
-                      <Text style={styles.label}>Размещение</Text>
-                      <TextInput onChangeText={(value) => updateStatusForm('placement', value)} placeholder="Стеллаж, зона, кассеты" placeholderTextColor="#7C8A80" style={styles.input} value={statusForm.placement} />
-                    </View>
-                    <View style={styles.field}>
-                      <Text style={styles.label}>Плотность</Text>
-                      <TextInput onChangeText={(value) => updateStatusForm('densityChange', value)} placeholder="Изменение плотности" placeholderTextColor="#7C8A80" style={styles.input} value={statusForm.densityChange} />
-                    </View>
-                  </>
-                )}
-
-                {introActionType === 'greenhouseDisease' && (
-                  <>
-                    <View style={styles.field}>
-                      <Text style={styles.label}>Болезнь</Text>
-                      <TextInput onChangeText={(value) => updateStatusForm('diseaseName', value)} placeholder="Название болезни" placeholderTextColor="#7C8A80" style={styles.input} value={statusForm.diseaseName} />
-                    </View>
-                    <View style={styles.field}>
-                      <Text style={styles.label}>Вредитель</Text>
-                      <TextInput onChangeText={(value) => updateStatusForm('pestName', value)} placeholder="Название вредителя" placeholderTextColor="#7C8A80" style={styles.input} value={statusForm.pestName} />
-                    </View>
-                    <View style={styles.field}>
-                      <Text style={styles.label}>Степень поражения</Text>
-                      <View style={styles.toggleRow}>
-                        {['Легкая', 'Средняя', 'Тяжелая', 'Критическая'].map((value) => (
-                          <Pressable
-                            accessibilityRole="button"
-                            key={value}
-                            onPress={() => updateStatusForm('diseaseSeverity', value)}
-                            style={[
-                              styles.toggleButton,
-                              statusForm.diseaseSeverity === value && styles.toggleButtonActive,
-                            ]}
-                          >
-                            <Text style={[
-                              styles.toggleButtonText,
-                              statusForm.diseaseSeverity === value && styles.toggleButtonTextActive,
-                            ]}>
-                              {value}
-                            </Text>
-                          </Pressable>
-                        ))}
-                      </View>
-                    </View>
-                    <View style={styles.field}>
-                      <Text style={styles.label}>Препарат / дозировка / способ</Text>
-                      <TextInput onChangeText={(value) => updateStatusForm('productName', value)} placeholder="Препарат" placeholderTextColor="#7C8A80" style={styles.input} value={statusForm.productName} />
-                    </View>
-                    <View style={styles.field}>
-                      <TextInput onChangeText={(value) => updateStatusForm('dosage', value)} placeholder="Дозировка" placeholderTextColor="#7C8A80" style={styles.input} value={statusForm.dosage} />
-                    </View>
-                    <View style={styles.field}>
-                      <TextInput onChangeText={(value) => updateStatusForm('applicationMethod', value)} placeholder="Способ обработки" placeholderTextColor="#7C8A80" style={styles.input} value={statusForm.applicationMethod} />
-                    </View>
-                    <View style={styles.field}>
-                      <TextInput onChangeText={(value) => updateStatusForm('plantReaction', value)} placeholder="Реакция растений" placeholderTextColor="#7C8A80" style={styles.input} value={statusForm.plantReaction} />
-                    </View>
-                  </>
-                )}
-
-                {introActionType === 'transplant' && (
-                  <>
-                    <View style={styles.field}>
-                      <Text style={styles.label}>Размещение</Text>
-                      <TextInput onChangeText={(value) => updateStatusForm('placement', value)} placeholder="Куда пересажено" placeholderTextColor="#7C8A80" style={styles.input} value={statusForm.placement} />
-                    </View>
-                    <View style={styles.field}>
-                      <Text style={styles.label}>Изменение плотности</Text>
-                      <TextInput onChangeText={(value) => updateStatusForm('densityChange', value)} placeholder="Например: 40 -> 24 шт./м2" placeholderTextColor="#7C8A80" style={styles.input} value={statusForm.densityChange} />
-                    </View>
-                  </>
-                )}
-
-                {['death', 'discard', 'quarantine', 'quarantineReleased'].includes(introActionType) && (
-                  <View style={styles.field}>
-                    <Text style={styles.label}>
-                      {introActionType === 'quarantine'
-                        ? 'Причина карантина *'
-                        : introActionType === 'quarantineReleased'
-                          ? 'Причина снятия карантина *'
-                          : 'Причина *'}
-                    </Text>
-                    <TextInput
-                      onChangeText={(value) => updateStatusForm('reason', value)}
-                      placeholder={introActionType === 'quarantine'
-                        ? 'Укажите причину карантина'
-                        : introActionType === 'quarantineReleased'
-                          ? 'Укажите основание для снятия карантина'
-                          : 'Укажите причину'}
-                      placeholderTextColor="#7C8A80"
-                      style={styles.input}
-                      value={statusForm.reason}
-                    />
-                  </View>
-                )}
-
-                {introActionType === 'sale' && (
-                  <>
-                    <View style={styles.field}>
-                      <Text style={styles.label}>Тип реализации</Text>
-                      <TextInput
-                        onChangeText={(value) => updateStatusForm('saleType', value)}
-                        placeholder="Например: розница, опт, бронь"
-                        placeholderTextColor="#7C8A80"
-                        style={styles.input}
-                        value={statusForm.saleType}
-                      />
-                    </View>
-                    <View style={styles.field}>
-                      <Text style={styles.label}>Получатель</Text>
-                      <TextInput
-                        onChangeText={(value) => updateStatusForm('recipient', value)}
-                        placeholder="Получатель, если нужно"
-                        placeholderTextColor="#7C8A80"
-                        style={styles.input}
-                        value={statusForm.recipient}
-                      />
-                    </View>
-                    <View style={styles.field}>
-                      <Text style={styles.label}>Стоимость</Text>
-                      <TextInput
-                        inputMode="decimal"
-                        keyboardType="decimal-pad"
-                        onChangeText={(value) => updateStatusForm('saleAmount', value)}
-                        placeholder="Сумма, если нужно"
-                        placeholderTextColor="#7C8A80"
-                        style={styles.input}
-                        value={statusForm.saleAmount}
-                      />
-                    </View>
-                  </>
-                )}
-
-                {introActionType === 'propagation' && (
-                  <View style={styles.field}>
-                    <Text style={styles.label}>Способ размножения</Text>
-                    <TextInput
-                      onChangeText={(value) => updateStatusForm('propagationMethod', value)}
-                      placeholder="Укажите способ"
-                      placeholderTextColor="#7C8A80"
-                      style={styles.input}
-                      value={statusForm.propagationMethod}
-                    />
-                  </View>
-                )}
-
-                <View style={styles.field}>
-                  <Text style={styles.label}>Комментарий</Text>
-                  <TextInput
-                    multiline
-                    onChangeText={(value) => updateStatusForm('comment', value)}
-                    placeholder="Комментарий"
-                    placeholderTextColor="#7C8A80"
-                    style={[styles.input, styles.multilineInput]}
-                    value={statusForm.comment}
-                  />
-                </View>
-
-                <View style={styles.field}>
-                  <Text style={styles.label}>Фото</Text>
-                  <TextInput
-                    onChangeText={(value) => updateStatusForm('photoNote', value)}
-                    placeholder="Описание фото или ссылка"
-                    placeholderTextColor="#7C8A80"
-                    style={styles.input}
-                    value={statusForm.photoNote}
-                  />
-                </View>
-
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={handleSaveStatusChange}
-                  style={({ pressed }) => [
-                    styles.secondaryOutlineButton,
-                    styles.transparentOutlineButton,
-                    pressed && styles.linkButtonPressed,
-                  ]}
-                >
-                  <Text style={styles.secondaryOutlineButtonText}>
-                    {editingOperationId ? 'Сохранить правку' : 'Сохранить и добавить ещё'}
-                  </Text>
-                </Pressable>
-              </View>
-
-              <View style={styles.cultureFormFooter}>
-                {!!statusFormError && <Text style={styles.errorText}>{statusFormError}</Text>}
-                {!!statusFormNotice && <Text style={styles.noticeText}>{statusFormNotice}</Text>}
-
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={closeStatusChangeForm}
-                  style={({ pressed }) => [
-                    styles.primaryButton,
-                    pressed && styles.pressedButton,
-                  ]}
-                >
-                  <Text style={styles.primaryButtonText}>Готово</Text>
-                </Pressable>
-              </View>
-            </View>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </SafeAreaView>
+  if (
+    isAuthenticated &&
+    currentScreen === 'recommendations'
+  ) {
+    return (
+      <RecommendationsScreen
+        entries={recommendationEntries}
+        mode={recommendationsMode}
+        onBack={closeRecommendations}
+        onChangeMode={setRecommendationsMode}
+        showModeSwitch={Boolean(recommendationCard)}
+        stage={recommendationStage}
+        title={recommendationCard ? getCardDisplayName(recommendationCard) : 'Рекомендации'}
+      />
     );
   }
 
@@ -3746,6 +2884,31 @@ function AppContent() {
     );
   }
 
+  if (isAuthenticated && currentScreen === 'menu') {
+    return (
+      <MenuScreen
+        activeCardsCount={activeCardsCount}
+        bottomInset={bottomInset}
+        firstName={login}
+        lastName={password}
+        notice={notice}
+        onHomePress={() => setCurrentScreen('stages')}
+        onJournalPress={() => {
+          setJournalFilter('important');
+          setCurrentScreen('globalJournal');
+        }}
+        onLogout={handleLogout}
+        onMenuAction={(title) => setNotice(`${title}: раздел будет добавлен позже.`)}
+        onScheduleWateringReminder={handleScheduleTestWateringReminder}
+        onShareData={handleShareData}
+        onScanPress={() => setNotice('\u0421\u043a\u0430\u043d\u0435\u0440 \u0431\u0443\u0434\u0435\u0442 \u0434\u043e\u0431\u0430\u0432\u043b\u0435\u043d \u043f\u043e\u0437\u0434\u043d\u0435\u0435.')}
+        onTasksPress={() => setNotice('\u0417\u0430\u0434\u0430\u0447\u0438 \u0431\u0443\u0434\u0443\u0442 \u0434\u043e\u0431\u0430\u0432\u043b\u0435\u043d\u044b \u043f\u043e\u0437\u0434\u043d\u0435\u0435.')}
+        role={currentUser.role}
+        taskCount={0}
+      />
+    );
+  }
+
   if (isAuthenticated) {
     return (
       <SafeAreaView style={[styles.safeArea, styles.homeSafeArea]}>
@@ -3799,6 +2962,7 @@ function AppContent() {
             setJournalFilter('important');
             setCurrentScreen('globalJournal');
           }}
+          onMenuPress={openMenu}
           onScanPress={() => setNotice('\u0421\u043a\u0430\u043d\u0435\u0440 \u0431\u0443\u0434\u0435\u0442 \u0434\u043e\u0431\u0430\u0432\u043b\u0435\u043d \u043f\u043e\u0437\u0434\u043d\u0435\u0435.')}
           onTasksPress={() => setNotice('\u0417\u0430\u0434\u0430\u0447\u0438 \u0431\u0443\u0434\u0443\u0442 \u0434\u043e\u0431\u0430\u0432\u043b\u0435\u043d\u044b \u043f\u043e\u0437\u0434\u043d\u0435\u0435.')}
           taskCount={0}

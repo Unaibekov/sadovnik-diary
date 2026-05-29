@@ -1,11 +1,12 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import appStyles from '../../styles';
-import { ArrowBackIcon } from './icons';
+import { ArrowBackIcon, LampChargeIcon } from './icons';
 
 export default function StageHeader({
   action,
   children,
   onBack,
+  onOpenRecommendations,
   subtitle,
   title,
 }) {
@@ -31,6 +32,20 @@ export default function StageHeader({
           {subtitle}
         </View>
 
+        {onOpenRecommendations && (
+          <Pressable
+            accessibilityLabel="Рекомендации"
+            accessibilityRole="button"
+            onPress={onOpenRecommendations}
+            style={({ pressed }) => [
+              styles.recommendationsButton,
+              pressed && appStyles.linkButtonPressed,
+            ]}
+          >
+            <LampChargeIcon size={26} />
+          </Pressable>
+        )}
+
         {action}
       </View>
       {children}
@@ -48,7 +63,7 @@ const styles = StyleSheet.create({
   headerRow: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: 16,
+    gap: 8,
     marginBottom: 0,
   },
   headerRowWithChildren: {
@@ -56,18 +71,27 @@ const styles = StyleSheet.create({
   },
   backButton: {
     alignItems: 'center',
+    backgroundColor: 'transparent',
+    borderRadius: 999,
+    height: 48,
+    justifyContent: 'center',
+    marginLeft: -14,
+    width: 48,
+  },
+  recommendationsButton: {
+    alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderColor: '#F0F2F4',
-    borderRadius: 18,
+    borderColor: '#DCE7DE',
+    borderRadius: 999,
     borderWidth: 1,
     elevation: 2,
-    height: 48,
+    height: 44,
     justifyContent: 'center',
     shadowColor: '#101828',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.07,
     shadowRadius: 8,
-    width: 48,
+    width: 44,
   },
   title: {
     color: '#111827',

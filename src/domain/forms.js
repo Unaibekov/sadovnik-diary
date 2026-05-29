@@ -9,10 +9,6 @@ export function createEmptyCultureForm() {
     code: '',
     quantity: '',
     hasHormone: false,
-    temperatureRequirement: '',
-    lightRequirement: '',
-    humidityRequirement: '',
-    preventionItems: [],
     sourcePlantName: '',
     sourceMaterial: '',
     parentBatch: '',
@@ -20,14 +16,6 @@ export function createEmptyCultureForm() {
     startPhotoNote: '',
     batchStatus: '',
     qrStatus: 'none',
-  };
-}
-
-export function createEmptyPreventionDraft() {
-  return {
-    name: '',
-    applicationRate: '',
-    frequency: '',
   };
 }
 

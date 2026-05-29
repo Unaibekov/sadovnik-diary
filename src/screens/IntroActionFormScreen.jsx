@@ -3,7 +3,7 @@ import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import styles from '../../styles';
 import StageHeader from '../components/StageHeader';
-import { getCardDisplayName } from '../domain/batch';
+import { getCardCurrentQuantity, getCardDisplayName } from '../domain/batch';
 
 const introActionCommands = [
   ['comment', 'Комментарий'],
@@ -23,38 +23,52 @@ export default function IntroActionFormScreen({
   onSelectActionType,
   selectedCard,
 }) {
+  const selectedActionLabel = introActionCommands.find(([value]) => value === actionType)?.[1] || 'Запись';
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar style="dark" />
       <StageHeader
         onBack={onBack}
-        subtitle={<Text style={styles.stageHeaderSubtitle}>{getCardDisplayName(selectedCard)}</Text>}
         title={isEditing ? 'Редактировать действие' : 'Добавить действие'}
       />
 
       <ScrollView contentContainerStyle={styles.cultureFormScrollContent}>
         <View style={styles.cardsScreen}>
+          <View style={styles.cardsHeader}>
+            <Text style={styles.eventFormCardTitle}>
+              {getCardDisplayName(selectedCard)}
+            </Text>
+            <Text style={styles.cardsSubtitle}>
+              Текущее количество: {getCardCurrentQuantity(selectedCard)} шт.
+            </Text>
+          </View>
+
           <View style={[styles.surfacePanel, styles.formPanel]}>
-            <View style={styles.actionGrid}>
-              {introActionCommands.map(([value, label]) => (
-                <Pressable
-                  accessibilityRole="button"
-                  key={value}
-                  onPress={() => onSelectActionType(value)}
-                  style={[
-                    styles.actionChip,
-                    actionType === value && styles.actionChipActive,
-                  ]}
-                >
-                  <Text style={[
-                    styles.actionChipText,
-                    actionType === value && styles.actionChipTextActive,
-                  ]}>
-                    {label}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
+            {isEditing ? (
+              <Text style={styles.editActionTitle}>{selectedActionLabel}</Text>
+            ) : (
+              <View style={styles.actionGrid}>
+                {introActionCommands.map(([value, label]) => (
+                  <Pressable
+                    accessibilityRole="button"
+                    key={value}
+                    onPress={() => onSelectActionType(value)}
+                    style={[
+                      styles.actionChip,
+                      actionType === value && styles.actionChipActive,
+                    ]}
+                  >
+                    <Text style={[
+                      styles.actionChipText,
+                      actionType === value && styles.actionChipTextActive,
+                    ]}>
+                      {label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            )}
 
             {actionType === 'comment' && (
               <TextInput

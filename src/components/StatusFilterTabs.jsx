@@ -92,7 +92,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
     borderColor: '#EEF2F0',
-    borderRadius: 22,
+    borderRadius: 999,
     borderWidth: 1,
     elevation: 2,
     flexDirection: 'row',
@@ -118,7 +118,7 @@ const styles = StyleSheet.create({
   },
   filterButtonCount: {
     backgroundColor: '#F3F4F6',
-    borderRadius: 12,
+    borderRadius: 999,
     color: '#6B7280',
     fontSize: 11,
     fontWeight: '800',

@@ -1,5 +1,5 @@
-import { Text, View } from 'react-native';
-import styles from '../../styles';
+import { StyleSheet, Text, View } from 'react-native';
+import appStyles from '../../styles';
 import { BATCH_STATUS_LABELS, INTRO_STAGE, QR_STATUS_LABELS } from '../domain/constants';
 import { formatDisplayDate } from '../domain/dates';
 import { getQrStatus } from '../domain/batch';
@@ -16,7 +16,7 @@ export default function CulturePassportTab({
 
   return (
     <View style={styles.passportBlocks}>
-      <View style={[styles.surfacePanel, styles.passportPanel]}>
+      <View style={[appStyles.surfacePanel, styles.passportPanel]}>
         <Text style={styles.passportSectionTitle}>Сводка</Text>
         <View style={[styles.passportRow, styles.passportRowFirst]}>
           <Text style={styles.passportLabel}>Статус партии</Text>
@@ -84,7 +84,7 @@ export default function CulturePassportTab({
         </View>
       </View>
 
-      <View style={[styles.surfacePanel, styles.passportPanel]}>
+      <View style={[appStyles.surfacePanel, styles.passportPanel]}>
         <Text style={styles.passportSectionTitle}>Культура</Text>
         <View style={[styles.passportRow, styles.passportRowFirst]}>
           <Text style={styles.passportLabel}>Культура</Text>
@@ -112,7 +112,7 @@ export default function CulturePassportTab({
         )}
       </View>
 
-      <View style={[styles.surfacePanel, styles.passportPanel]}>
+      <View style={[appStyles.surfacePanel, styles.passportPanel]}>
         <Text style={styles.passportSectionTitle}>История</Text>
         <View style={[styles.passportRow, styles.passportRowFirst]}>
           <Text style={styles.passportLabel}>Дата создания</Text>
@@ -132,3 +132,42 @@ export default function CulturePassportTab({
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  passportBlocks: {
+    gap: 14,
+  },
+  passportPanel: {
+    gap: 10,
+    padding: 16,
+  },
+  passportLabel: {
+    color: '#66756B',
+    fontSize: 15,
+    lineHeight: 20,
+  },
+  passportRow: {
+    borderTopColor: '#E6EDE7',
+    borderTopWidth: 1,
+    gap: 3,
+    paddingTop: 8,
+  },
+  passportRowFirst: {
+    borderTopWidth: 0,
+    paddingTop: 0,
+  },
+  passportSectionTitle: {
+    color: '#15863F',
+    fontSize: 13,
+    fontWeight: '800',
+    lineHeight: 18,
+    marginBottom: 2,
+    textTransform: 'uppercase',
+  },
+  passportValue: {
+    color: '#1B3023',
+    fontSize: 15,
+    fontWeight: '700',
+    lineHeight: 20,
+  },
+});
