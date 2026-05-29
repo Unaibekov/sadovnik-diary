@@ -1,6 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
+import * as XLSX from 'xlsx';
 import { useEffect, useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -27,6 +28,7 @@ import {
 import {
   dateFromIso,
   formatDisplayDate,
+  formatDisplayDateTime,
   getMonthDays,
   getMonthTitle,
   getTodayIsoDate,
@@ -51,6 +53,7 @@ import {
   getGreenhouseCareSchedules,
   getGreenhouseStats,
   getNextStage,
+  getOperationSummaryItems,
   getQrStatus,
   getStageMoveButtonLabel,
   isPositiveInteger,
@@ -570,13 +573,20 @@ function getResolvedBatchStatus(card) {
   return batchStatus;
 }
 
-function formatCsvCell(value) {
-  const normalizedValue = String(value ?? '').replace(/\r?\n/g, ' ');
-  return `"${normalizedValue.replace(/"/g, '""')}"`;
+function normalizeReportCell(value) {
+  if (value === undefined || value === null) {
+    return '';
+  }
+
+  return String(value).replace(/\r?\n/g, ' ').trim();
 }
 
-function buildCultureCardsCsv(cards) {
-  const rows = [
+function setSheetColumnWidths(sheet, widths) {
+  sheet['!cols'] = widths.map((wch) => ({ wch }));
+}
+
+function buildCultureCardsReportWorkbook(cards) {
+  const partyRows = [
     [
       'Код',
       'Культура',
@@ -605,7 +615,71 @@ function buildCultureCardsCsv(cards) {
     }),
   ];
 
-  return `\uFEFF${rows.map((row) => row.map(formatCsvCell).join(';')).join('\r\n')}`;
+  const journalRows = [
+    [
+      'Код',
+      'Культура',
+      'Вид',
+      'Сорт',
+      'Стадия партии',
+      'Статус партии',
+      'Дата события',
+      'Тип события',
+      'Стадия события',
+      'Текущее количество',
+      'Остаток',
+      'Детали',
+      'Комментарий',
+      'Фото / заметка',
+      'Создано',
+    ],
+    ...cards
+      .flatMap((card) => {
+        const status = getResolvedBatchStatus(card);
+
+        return (card.operations || [])
+          .filter((operation) => operation.type !== 'stageSettingsUpdated')
+          .map((operation) => {
+            const summary = getOperationSummaryItems(operation, card)
+              .map(([label, value]) => `${label}: ${value}`)
+              .join('; ');
+
+            return {
+              sortDate: operation.createdAt || operation.date || '',
+              row: [
+                card.code,
+                card.cultureName,
+                card.speciesName,
+                card.varietyName,
+                card.stage || INTRO_STAGE,
+                BATCH_STATUS_LABELS[status] || status,
+                operation.date ? formatDisplayDate(operation.date) : '',
+                operation.title || operation.type || '',
+                operation.stage || operation.toStage || operation.fromStage || '',
+                getCardCurrentQuantity(card),
+                operation.currentQuantity ?? '',
+                summary,
+                operation.comment || operation.reason || operation.quarantineReason || '',
+                operation.photoNote || operation.contaminationNote || '',
+                operation.createdAt ? formatDisplayDateTime(operation.createdAt) : '',
+              ].map(normalizeReportCell),
+            };
+          });
+      })
+      .sort((first, second) => new Date(second.sortDate || 0) - new Date(first.sortDate || 0))
+      .map(({ row }) => row),
+  ];
+
+  const workbook = XLSX.utils.book_new();
+  const partiesSheet = XLSX.utils.aoa_to_sheet(partyRows);
+  const journalSheet = XLSX.utils.aoa_to_sheet(journalRows);
+
+  setSheetColumnWidths(partiesSheet, [20, 18, 18, 18, 22, 14, 12, 16, 18]);
+  setSheetColumnWidths(journalSheet, [20, 18, 18, 18, 22, 14, 16, 24, 22, 14, 12, 60, 36, 36, 18]);
+  XLSX.utils.book_append_sheet(workbook, partiesSheet, 'Партии');
+  XLSX.utils.book_append_sheet(workbook, journalSheet, 'Журнал');
+
+  return workbook;
 }
 
 function AppContent() {
@@ -912,16 +986,20 @@ function AppContent() {
 
   async function handleShareData() {
     const exportedAt = new Date().toISOString();
-    const fileName = `sadovnik-diary-${exportedAt.slice(0, 10)}.csv`;
-    const csv = buildCultureCardsCsv(cultureCards);
+    const fileName = `sadovnik-diary-${exportedAt.slice(0, 10)}.xlsx`;
+    const workbook = buildCultureCardsReportWorkbook(cultureCards);
+    const reportBase64 = XLSX.write(workbook, {
+      bookType: 'xlsx',
+      type: 'base64',
+    });
 
     try {
       if (Platform.OS === 'web' || !FileSystem.documentDirectory) {
         await Share.share({
           title: fileName,
-          message: csv,
+          message: 'Excel-отчет Sadovnik Diary подготовлен в мобильном приложении.',
         });
-        setNotice('CSV-отчет передан в системное меню отправки.');
+        setNotice('Excel-отчет подготовлен.');
         return;
       }
 
@@ -930,24 +1008,24 @@ function AppContent() {
       if (!isSharingAvailable) {
         await Share.share({
           title: fileName,
-          message: csv,
+          message: 'Excel-отчет Sadovnik Diary подготовлен, но отправка файлов недоступна.',
         });
-        setNotice('CSV-отчет передан как текст.');
+        setNotice('Отправка Excel-файла недоступна на устройстве.');
         return;
       }
 
       const fileUri = `${FileSystem.documentDirectory}${fileName}`;
-      await FileSystem.writeAsStringAsync(fileUri, csv, {
-        encoding: FileSystem.EncodingType.UTF8,
+      await FileSystem.writeAsStringAsync(fileUri, reportBase64, {
+        encoding: FileSystem.EncodingType.Base64,
       });
       await Sharing.shareAsync(fileUri, {
         dialogTitle: 'Поделиться отчетом Sadovnik Diary',
-        mimeType: 'text/csv',
-        UTI: 'public.comma-separated-values-text',
+        mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        UTI: 'org.openxmlformats.spreadsheetml.sheet',
       });
-      setNotice('CSV-файл отчета готов к отправке.');
+      setNotice('Excel-файл отчета готов к отправке.');
     } catch (shareError) {
-      setNotice('Не удалось подготовить CSV-отчет.');
+      setNotice('Не удалось подготовить Excel-отчет.');
     }
   }
 

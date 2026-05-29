@@ -56,7 +56,7 @@ export default function MenuScreen({
     {
       key: 'share',
       onPress: onShareData,
-      subtitle: 'CSV-файл для Excel через приложения телефона',
+      subtitle: 'Excel-файл с партиями и журналом',
       title: 'Поделиться отчетом',
     },
     {
