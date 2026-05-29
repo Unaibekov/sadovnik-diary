@@ -22,6 +22,7 @@ export default function CultureCalendarScreen({
   onOpenRecommendations,
   onRequestStageMove,
   showBottomActions,
+  stageActionError,
   stageMoveBlockedMessage,
   stageMoveButtonLabel,
   stageMoveTarget,
@@ -100,6 +101,14 @@ export default function CultureCalendarScreen({
               <Text style={styles.confirmModalText}>
                 Перенести серию в стадию {stageMoveTarget}?
               </Text>
+              {!!stageActionError && (
+                <View style={styles.confirmModalNotice}>
+                  <View style={styles.blockedNoticeIcon}>
+                    <Text style={styles.blockedNoticeIconText}>!</Text>
+                  </View>
+                  <Text style={styles.blockedNoticeText}>{stageActionError}</Text>
+                </View>
+              )}
               <View style={styles.confirmModalActions}>
                 <Pressable
                   accessibilityRole="button"

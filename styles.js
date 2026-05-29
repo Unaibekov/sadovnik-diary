@@ -264,14 +264,6 @@ export default StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
-  menuTitle: {
-    color: '#5F7065',
-    fontSize: 13,
-    fontWeight: '800',
-    letterSpacing: 0,
-    lineHeight: 18,
-    textTransform: 'uppercase',
-  },
   menuUserName: {
     color: '#111827',
     fontSize: 21,
@@ -288,7 +280,7 @@ export default StyleSheet.create({
   },
   menuStatsGrid: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 12,
     marginBottom: 14,
   },
   menuStatCard: {
@@ -297,9 +289,9 @@ export default StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     flex: 1,
-    minHeight: 78,
-    paddingHorizontal: 10,
-    paddingVertical: 12,
+    minHeight: 92,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
   },
   menuStatValue: {
     color: '#17251C',
@@ -500,6 +492,33 @@ export default StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
   },
+  taskSubList: {
+    borderTopColor: '#DCE7DE',
+    borderTopWidth: 1,
+    gap: 8,
+    marginTop: 10,
+    paddingTop: 10,
+  },
+  taskSubItem: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 10,
+    justifyContent: 'space-between',
+  },
+  taskSubItemTitle: {
+    color: '#1B3023',
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '800',
+    lineHeight: 18,
+  },
+  taskSubItemMeta: {
+    color: '#65756B',
+    flexShrink: 0,
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 18,
+  },
   tasksMore: {
     color: '#5F7065',
     fontSize: 13,
@@ -536,6 +555,18 @@ export default StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 8,
+  },
+  globalJournalTitle: {
+    color: '#111827',
+    fontSize: 30,
+    fontWeight: '800',
+    lineHeight: 36,
+    marginBottom: 16,
+  },
+  globalJournalFilterRow: {
+    flexDirection: 'row',
+    gap: 12,
+    paddingBottom: 18,
   },
   fixedCardsScrollContent: {
     paddingHorizontal: 16,
@@ -940,6 +971,16 @@ export default StyleSheet.create({
     color: '#65756B',
     fontSize: 15,
     lineHeight: 21,
+  },
+  confirmModalNotice: {
+    backgroundColor: '#FFF7F5',
+    borderColor: '#F2B8B5',
+    borderRadius: 14,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
   },
   confirmModalActions: {
     flexDirection: 'row',

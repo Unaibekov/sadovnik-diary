@@ -43,17 +43,10 @@ export default function MenuScreen({
   const displayName = fullName || 'Пользователь';
 
   const accountItems = [
-    ['Роль', roleLabels[role] || role],
     ['Активные партии', String(activeCardsCount)],
     ['Задачи', taskCount > 0 ? String(taskCount) : 'Нет новых'],
   ];
   const menuItems = [
-    {
-      key: 'profile',
-      onPress: () => onMenuAction('Профиль'),
-      subtitle: 'Данные сотрудника и контакты',
-      title: 'Профиль',
-    },
     {
       key: 'notifications',
       onPress: onScheduleWateringReminder,
@@ -93,7 +86,6 @@ export default function MenuScreen({
               <Text style={styles.menuAvatarText}>{initials}</Text>
             </View>
             <View style={styles.menuUserTextBlock}>
-              <Text style={styles.menuTitle}>Меню</Text>
               <Text style={styles.menuUserName} numberOfLines={1}>
                 {displayName}
               </Text>

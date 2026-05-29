@@ -27,7 +27,6 @@ import {
 import {
   dateFromIso,
   formatDisplayDate,
-  formatDisplayTime,
   getMonthDays,
   getMonthTitle,
   getTodayIsoDate,
@@ -44,13 +43,14 @@ import {
   createBatchCreatedOperation,
   generatePlantingCode,
   getAdaptationStats,
+  getAdaptationCareSchedules,
   getCardCurrentQuantity,
   getCardDisplayName,
   getCloneStats,
   getDaysInCurrentStage,
+  getGreenhouseCareSchedules,
   getGreenhouseStats,
   getNextStage,
-  getOperationSummaryItems,
   getQrStatus,
   getStageMoveButtonLabel,
   isPositiveInteger,
@@ -68,10 +68,12 @@ import {
 import AuthScreen from './src/screens/AuthScreen';
 import CultureCalendarScreen from './src/screens/CultureCalendarScreen';
 import CultureListScreen from './src/screens/CultureListScreen';
+import GlobalJournalScreen from './src/screens/GlobalJournalScreen';
 import IntroActionFormScreen from './src/screens/IntroActionFormScreen';
 import MenuScreen from './src/screens/MenuScreen';
 import RecommendationsScreen from './src/screens/RecommendationsScreen';
 import StatusChangeFormScreen from './src/screens/StatusChangeFormScreen';
+import TasksScreen from './src/screens/TasksScreen';
 import BottomTabBar from './src/components/BottomTabBar';
 import StageHeader from './src/components/StageHeader';
 import CultureCalendarTab from './src/components/CultureCalendarTab';
@@ -135,6 +137,81 @@ function getOperationTimestamp(operation) {
 
 function getChangeTimestamp(change) {
   return change?.changedAt || change?.date || '';
+}
+
+function getScheduleNextDate(schedule, card) {
+  if (schedule.nextDate) {
+    return schedule.nextDate;
+  }
+
+  const stageStartDate = card.stageChangedAt || card.createdAt;
+
+  if (!stageStartDate) {
+    return '';
+  }
+
+  return isoFromDate(new Date(
+    dateFromIso(stageStartDate).getTime() + schedule.intervalDays * 24 * 60 * 60 * 1000,
+  ));
+}
+
+function buildCareTasks(cards) {
+  const todayIso = getTodayIsoDate();
+  const todayDate = dateFromIso(todayIso);
+
+  return cards.flatMap((card) => {
+    if (
+      card.status === 'cancelled' ||
+      card.status === 'archived' ||
+      getResolvedBatchStatus(card) === 'sold'
+    ) {
+      return [];
+    }
+
+    const stage = card.stage || INTRO_STAGE;
+    const schedules = stage === 'Адаптация'
+      ? getAdaptationCareSchedules(card)
+      : stage === 'Теплица'
+        ? getGreenhouseCareSchedules(card)
+        : [];
+
+    return schedules.map((schedule) => {
+      const nextDate = getScheduleNextDate(schedule, card);
+
+      if (!nextDate) {
+        return null;
+      }
+
+      const nextDateValue = dateFromIso(nextDate);
+      const daysOverdue = Math.max(Math.floor(
+        (todayDate - nextDateValue) / (24 * 60 * 60 * 1000),
+      ), 0);
+      const isOverdue = daysOverdue > 0;
+      const isDueToday = nextDate === todayIso;
+
+      return {
+        id: `${card.id}-${stage}-${schedule.careType}`,
+        cardId: card.id,
+        cardName: getCardDisplayName(card),
+        code: card.code || '',
+        careType: schedule.careType,
+        currentQuantity: getCardCurrentQuantity(card),
+        daysOverdue,
+        isOverdue,
+        isDueToday,
+        nextDate,
+        stage,
+        status: isOverdue ? 'Просрочено' : isDueToday ? 'Сегодня' : 'Запланировано',
+        title: schedule.careType,
+      };
+    }).filter(Boolean);
+  }).sort((first, second) => (
+    Number(second.isOverdue) - Number(first.isOverdue) ||
+    Number(second.isDueToday) - Number(first.isDueToday) ||
+    second.daysOverdue - first.daysOverdue ||
+    new Date(first.nextDate) - new Date(second.nextDate) ||
+    first.cardName.localeCompare(second.cardName, 'ru')
+  ));
 }
 
 function getTimelineStageForOperation(operation, card) {
@@ -609,6 +686,8 @@ function AppContent() {
   const isSelectedCloneCard = selectedCard?.stage === 'Клонирование';
   const canReleaseQuarantine = ['agronomist', 'admin', 'superadmin'].includes(currentUser.role);
   const globalJournalEvents = getGlobalJournalEvents(cultureCards);
+  const careTasks = buildCareTasks(cultureCards);
+  const taskCount = careTasks.length;
   const activeCardsCount = cultureCards.filter((card) => (
     card.status !== 'cancelled' &&
     card.status !== 'archived' &&
@@ -805,11 +884,30 @@ function AppContent() {
     setCurrentScreen('globalJournal');
   }
 
+  function openTasks() {
+    setSelectedStage('');
+    setSelectedCardId(null);
+    setSelectedCalendarDate('');
+    setCurrentScreen('tasks');
+  }
+
   function openMenu() {
     setSelectedStage('');
     setSelectedCardId(null);
     setSelectedCalendarDate('');
     setCurrentScreen('menu');
+  }
+
+  function openTaskCard(task) {
+    const taskCard = cultureCards.find((card) => card.id === task.cardId);
+
+    if (!taskCard) {
+      setNotice('Партия для задачи не найдена.');
+      return;
+    }
+
+    setSelectedStage(taskCard.stage || INTRO_STAGE);
+    openCultureCalendar(taskCard);
   }
 
   async function handleShareData() {
@@ -1038,6 +1136,19 @@ function AppContent() {
     setCurrentScreen('cultureCalendar');
   }
 
+  function getStatusFormComment(operation) {
+    if (operation?.type !== 'adaptationStress') {
+      return operation?.comment || '';
+    }
+
+    return [
+      operation.comment,
+      operation.conditionDescription ? `Состояние: ${operation.conditionDescription}` : '',
+      operation.reason ? `Причина: ${operation.reason}` : '',
+      operation.turgor ? `Тургор: ${operation.turgor}` : '',
+    ].filter(Boolean).join('\n');
+  }
+
   function openEditOperation(operation) {
     if (!selectedCard || !operation) {
       return;
@@ -1072,7 +1183,7 @@ function AppContent() {
         ...createEmptyStatusForm(),
         ...(countField ? { [countField]: operation.count || '' } : {}),
         reason: operation.reason || operation.quarantineReason || '',
-        comment: operation.comment || '',
+        comment: getStatusFormComment(operation),
         photoNote: operation.photoNote || '',
         saleType: operation.saleType || '',
         recipient: operation.recipient || '',
@@ -1506,10 +1617,8 @@ function AppContent() {
 
     if (introActionType === 'adaptationStress' && ![
       statusForm.stressLevel,
-      statusForm.conditionDescription,
-      statusForm.reason,
-      statusForm.turgor,
       statusForm.stability,
+      statusForm.comment,
     ].some((value) => value.trim())) {
       setStatusFormError('Укажите хотя бы один параметр наблюдения');
       return;
@@ -1623,9 +1732,6 @@ function AppContent() {
       ...(introActionType === 'adaptationStress'
         ? {
           stressLevel: statusForm.stressLevel.trim(),
-          conditionDescription: statusForm.conditionDescription.trim(),
-          reason: statusForm.reason.trim(),
-          turgor: statusForm.turgor.trim(),
           stability: statusForm.stability.trim(),
         }
         : {}),
@@ -2550,8 +2656,12 @@ function AppContent() {
         onConfirmStageMove={handleAddStageChange}
         onConfirmOperationDelete={confirmDeleteOperation}
         onOpenRecommendations={() => openSelectedCardRecommendations('cultureCalendar')}
-        onRequestStageMove={() => setIsStageMoveConfirmVisible(true)}
+        onRequestStageMove={() => {
+          setStageActionError('');
+          setIsStageMoveConfirmVisible(true);
+        }}
         showBottomActions={cultureCalendarTab === 'calendar'}
+        stageActionError={stageActionError}
         stageMoveBlockedMessage={stageMoveBlockedMessage}
         stageMoveButtonLabel={stageMoveButtonLabel}
         stageMoveTarget={selectedCardNextStage}
@@ -2586,7 +2696,7 @@ function AppContent() {
                 operationDates={operationDates}
                 selectedDate={selectedDate}
                 selectedDateOperations={selectedDateOperations}
-                stageActionError={stageActionError}
+                stageActionError=""
                 stageMoveBlockedMessage={stageMoveBlockedMessage}
                 stageMoveTarget={selectedCardNextStage}
               />
@@ -2739,148 +2849,26 @@ function AppContent() {
 
   if (isAuthenticated && currentScreen === 'globalJournal') {
     return (
-      <SafeAreaView style={styles.safeArea}>
-        <StatusBar style="dark" />
-        <View style={styles.fixedCardsScreen}>
-          <StageHeader
-            onBack={() => setCurrentScreen('stages')}
-            title={'\u0416\u0443\u0440\u043d\u0430\u043b'}
-          >
-            <View style={styles.filterRow}>
-              {[
-                'important',
-                'all',
-                'contamination',
-                'quarantine',
-                'losses',
-                'sales',
-                'stageChange',
-              ].map((filter) => (
-                <Pressable
-                  accessibilityRole="button"
-                  key={filter}
-                  onPress={() => setJournalFilter(filter)}
-                  style={[
-                    styles.filterButton,
-                    journalFilter === filter && styles.filterButtonActive,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.filterButtonText,
-                      journalFilter === filter && styles.filterButtonTextActive,
-                    ]}
-                  >
-                    {getJournalFilterLabel(filter)}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          </StageHeader>
-          <ScrollView contentContainerStyle={styles.fixedCardsScrollContent}>
-            <View style={styles.journalPanel}>
-              <Text style={styles.journalTitle}>
-                {getJournalFilterLabel(journalFilter)} события
-              </Text>
-
-              {groupedGlobalJournalCards.length === 0 && (
-                <Text style={styles.journalEmpty}>Событий пока нет</Text>
-              )}
-
-              {groupedGlobalJournalCards.map(({ card, events }) => {
-                const isExpanded = expandedJournalCardIds.includes(card.id);
-
-                return (
-                  <View
-                    key={card.id}
-                    style={[
-                      styles.globalJournalCard,
-                      (card.sterilityStatus === 'contaminated' || getResolvedBatchStatus(card) === 'quarantine') &&
-                        styles.globalJournalCardWarning,
-                    ]}
-                  >
-                    <Pressable
-                      accessibilityRole="button"
-                      onPress={() => toggleJournalCard(card.id)}
-                      style={({ pressed }) => [
-                        styles.globalJournalCardHeader,
-                        pressed && styles.linkButtonPressed,
-                      ]}
-                    >
-                      <View style={styles.globalJournalCardTitleBlock}>
-                        <Text style={styles.journalItemTitle} numberOfLines={2}>
-                          {getCardDisplayName(card)}
-                        </Text>
-                        <Text style={styles.journalItemDate} numberOfLines={1}>
-                          {card.code} · {card.stage || INTRO_STAGE}
-                        </Text>
-                      </View>
-                      <View style={styles.globalJournalCardHeaderSide}>
-                        <Text style={styles.globalJournalBadge}>{events.length}</Text>
-                        <Text style={styles.globalJournalToggleText}>
-                          {isExpanded ? 'Свернуть' : 'Открыть'}
-                        </Text>
-                      </View>
-                    </Pressable>
-
-                    <Text style={styles.journalItemText} numberOfLines={1}>
-                      {BATCH_STATUS_LABELS[getResolvedBatchStatus(card)] || getResolvedBatchStatus(card)} · {getCardCurrentQuantity(card)} шт.
-                    </Text>
-
-                    {isExpanded && (
-                      <>
-                        <Pressable
-                          accessibilityRole="button"
-                          onPress={() => {
-                            setSelectedStage(card.stage || INTRO_STAGE);
-                            openCultureCalendar(card);
-                          }}
-                          style={({ pressed }) => [
-                            styles.globalJournalOpenCardButton,
-                            pressed && styles.linkButtonPressed,
-                          ]}
-                        >
-                          <Text style={styles.globalJournalOpenCardButtonText}>Открыть карточку</Text>
-                        </Pressable>
-
-                        <View style={styles.globalJournalEventList}>
-                          {events.map((event) => {
-                            const summaryItems = getOperationSummaryItems(event);
-
-                            return (
-                              <View
-                                key={`${event.cardId}-${event.id}`}
-                                style={[
-                                  styles.journalItem,
-                                  (['contamination', 'quarantine'].includes(event.type) ||
-                                    event.stressLevel === 'Критический') && styles.journalItemWarning,
-                                ]}
-                              >
-                                <Text style={styles.journalItemTitle}>{event.title || 'Событие'}</Text>
-                                {!!event.date && (
-                                  <Text style={styles.journalItemDate}>
-                                    {formatDisplayDate(event.date)}
-                                    {event.createdAt ? `, ${formatDisplayTime(event.createdAt)}` : ''}
-                                  </Text>
-                                )}
-                                {summaryItems.map(([label, value]) => (
-                                  <Text key={label} style={styles.journalItemText}>
-                                    {label}: {value}
-                                  </Text>
-                                ))}
-                              </View>
-                            );
-                          })}
-                        </View>
-                      </>
-                    )}
-                  </View>
-                );
-              })}
-            </View>
-          </ScrollView>
-        </View>
-      </SafeAreaView>
+      <GlobalJournalScreen
+        bottomInset={bottomInset}
+        expandedCardIds={expandedJournalCardIds}
+        getJournalFilterLabel={getJournalFilterLabel}
+        getResolvedBatchStatus={getResolvedBatchStatus}
+        groupedCards={groupedGlobalJournalCards}
+        journalFilter={journalFilter}
+        onChangeJournalFilter={setJournalFilter}
+        onHomePress={() => setCurrentScreen('stages')}
+        onJournalPress={openGlobalJournal}
+        onMenuPress={openMenu}
+        onOpenCard={(card) => {
+          setSelectedStage(card.stage || INTRO_STAGE);
+          openCultureCalendar(card);
+        }}
+        onScanPress={() => setNotice('\u0421\u043a\u0430\u043d\u0435\u0440 \u0431\u0443\u0434\u0435\u0442 \u0434\u043e\u0431\u0430\u0432\u043b\u0435\u043d \u043f\u043e\u0437\u0434\u043d\u0435\u0435.')}
+        onTasksPress={openTasks}
+        onToggleCard={toggleJournalCard}
+        taskCount={taskCount}
+      />
     );
   }
 
@@ -2902,9 +2890,23 @@ function AppContent() {
         onScheduleWateringReminder={handleScheduleTestWateringReminder}
         onShareData={handleShareData}
         onScanPress={() => setNotice('\u0421\u043a\u0430\u043d\u0435\u0440 \u0431\u0443\u0434\u0435\u0442 \u0434\u043e\u0431\u0430\u0432\u043b\u0435\u043d \u043f\u043e\u0437\u0434\u043d\u0435\u0435.')}
-        onTasksPress={() => setNotice('\u0417\u0430\u0434\u0430\u0447\u0438 \u0431\u0443\u0434\u0443\u0442 \u0434\u043e\u0431\u0430\u0432\u043b\u0435\u043d\u044b \u043f\u043e\u0437\u0434\u043d\u0435\u0435.')}
+        onTasksPress={openTasks}
         role={currentUser.role}
-        taskCount={0}
+        taskCount={taskCount}
+      />
+    );
+  }
+
+  if (isAuthenticated && currentScreen === 'tasks') {
+    return (
+      <TasksScreen
+        bottomInset={bottomInset}
+        onHomePress={() => setCurrentScreen('stages')}
+        onJournalPress={openGlobalJournal}
+        onMenuPress={openMenu}
+        onScanPress={() => setNotice('\u0421\u043a\u0430\u043d\u0435\u0440 \u0431\u0443\u0434\u0435\u0442 \u0434\u043e\u0431\u0430\u0432\u043b\u0435\u043d \u043f\u043e\u0437\u0434\u043d\u0435\u0435.')}
+        onTaskPress={openTaskCard}
+        tasks={careTasks}
       />
     );
   }
@@ -2964,8 +2966,8 @@ function AppContent() {
           }}
           onMenuPress={openMenu}
           onScanPress={() => setNotice('\u0421\u043a\u0430\u043d\u0435\u0440 \u0431\u0443\u0434\u0435\u0442 \u0434\u043e\u0431\u0430\u0432\u043b\u0435\u043d \u043f\u043e\u0437\u0434\u043d\u0435\u0435.')}
-          onTasksPress={() => setNotice('\u0417\u0430\u0434\u0430\u0447\u0438 \u0431\u0443\u0434\u0443\u0442 \u0434\u043e\u0431\u0430\u0432\u043b\u0435\u043d\u044b \u043f\u043e\u0437\u0434\u043d\u0435\u0435.')}
-          taskCount={0}
+          onTasksPress={openTasks}
+          taskCount={taskCount}
         />
       </SafeAreaView>
     );

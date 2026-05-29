@@ -13,6 +13,10 @@ export default function RecommendationsScreen({
   stage,
   title = 'Рекомендации',
 }) {
+  const visibleEntries = mode === 'all'
+    ? entries.filter((entry) => entry.items.length > 0)
+    : entries;
+
   return (
     <SafeAreaView style={appStyles.safeArea}>
       <StatusBar style="dark" />
@@ -51,15 +55,17 @@ export default function RecommendationsScreen({
           )}
 
           <View style={styles.recommendationsList}>
-            {entries.length === 0 && (
+            {visibleEntries.length === 0 && (
               <View style={appStyles.emptyState}>
                 <Text style={appStyles.emptyStateText}>
-                  Для этой стадии пока нет рекомендаций.
+                  {mode === 'all'
+                    ? 'Для этого растения пока нет рекомендаций.'
+                    : 'Для этой стадии пока нет рекомендаций.'}
                 </Text>
               </View>
             )}
 
-            {entries.map((entry) => (
+            {visibleEntries.map((entry) => (
               <View key={entry.key} style={[appStyles.surfacePanel, styles.recommendationCard]}>
                 <Text style={styles.recommendationCardTitle}>{entry.title}</Text>
                 {!!entry.subtitle && (

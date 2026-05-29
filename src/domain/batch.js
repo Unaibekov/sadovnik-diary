@@ -445,6 +445,52 @@ export function getGreenhouseStats(card) {
   };
 }
 
+export function getAdaptationCareSchedules(card) {
+  const operations = card?.operations || [];
+  const careTypes = [
+    { careType: 'Полив', emptyStatus: 'Нет полива', defaultIntervalDays: 2 },
+    { careType: 'Профилактика', emptyStatus: 'Нет профилактики', defaultIntervalDays: 14 },
+  ];
+  const todayIso = getTodayIsoDate();
+  const todayDate = dateFromIso(todayIso);
+
+  return careTypes.map(({ careType, emptyStatus, defaultIntervalDays }) => {
+    const latestCare = operations.find((operation) => (
+      operation.type === 'adaptationCare' && operation.careType === careType
+    ));
+    const savedInterval = card?.adaptationCareIntervals?.[careType];
+    const intervalDays = Number(savedInterval || defaultIntervalDays) || defaultIntervalDays;
+    const lastDate = latestCare?.date || '';
+    const nextDate = lastDate
+      ? isoFromDate(new Date(
+        dateFromIso(lastDate).getTime() + intervalDays * 24 * 60 * 60 * 1000,
+      ))
+      : '';
+    const nextDateValue = nextDate ? dateFromIso(nextDate) : null;
+    const daysOverdue = nextDateValue
+      ? Math.max(Math.floor((todayDate - nextDateValue) / (24 * 60 * 60 * 1000)), 0)
+      : 0;
+    const status = !lastDate
+      ? emptyStatus
+      : daysOverdue > 0
+        ? 'Просрочен'
+        : nextDate === todayIso
+          ? 'Сегодня'
+          : 'В графике';
+
+    return {
+      careType,
+      lastDate,
+      nextDate,
+      intervalDays,
+      status,
+      daysOverdue,
+      isOverdue: status === 'Просрочен',
+      isDueToday: status === 'Сегодня',
+    };
+  });
+}
+
 export function getGreenhouseCareSchedules(card) {
   const operations = card?.operations || [];
   const careTypes = [

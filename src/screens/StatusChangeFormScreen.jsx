@@ -36,6 +36,10 @@ export default function StatusChangeFormScreen({
   selectedDate,
 }) {
   const [isCareDropdownOpen, setIsCareDropdownOpen] = useState(false);
+  const [isDiseaseSeverityDropdownOpen, setIsDiseaseSeverityDropdownOpen] = useState(false);
+  const [isRiskDropdownOpen, setIsRiskDropdownOpen] = useState(false);
+  const [isStressDropdownOpen, setIsStressDropdownOpen] = useState(false);
+  const [isStabilityDropdownOpen, setIsStabilityDropdownOpen] = useState(false);
   const eventOptions = selectedCard.stage === 'Адаптация'
     ? [
       ['adaptationStress', 'Наблюдение'],
@@ -84,11 +88,35 @@ export default function StatusChangeFormScreen({
 
   useEffect(() => {
     setIsCareDropdownOpen(false);
+    setIsDiseaseSeverityDropdownOpen(false);
+    setIsRiskDropdownOpen(false);
+    setIsStressDropdownOpen(false);
+    setIsStabilityDropdownOpen(false);
   }, [eventType]);
 
   function selectCareType(value) {
     onChangeField('careType', value);
     setIsCareDropdownOpen(false);
+  }
+
+  function selectRiskLevel(value) {
+    onChangeField('riskLevel', value);
+    setIsRiskDropdownOpen(false);
+  }
+
+  function selectDiseaseSeverity(value) {
+    onChangeField('diseaseSeverity', value);
+    setIsDiseaseSeverityDropdownOpen(false);
+  }
+
+  function selectStressLevel(value) {
+    onChangeField('stressLevel', value);
+    setIsStressDropdownOpen(false);
+  }
+
+  function selectStability(value) {
+    onChangeField('stability', value);
+    setIsStabilityDropdownOpen(false);
   }
 
   return (
@@ -177,56 +205,95 @@ export default function StatusChangeFormScreen({
                 </View>
               )}
 
-              {/* Наблюдение на адаптации: реакция растения, стресс и стабильность. */}
+              {/* Наблюдение на адаптации: стресс и стабильность, детали в общем комментарии. */}
               {eventType === 'adaptationStress' && (
                 <>
                   <View style={styles.field}>
                     <Text style={styles.label}>Уровень стресса</Text>
-                    <View style={styles.toggleRow}>
-                      {['Низкий', 'Средний', 'Высокий', 'Критический'].map((value) => (
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => setIsStressDropdownOpen((current) => !current)}
+                      style={({ pressed }) => [
+                        styles.selectButton,
+                        pressed && styles.linkButtonPressed,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.selectButtonText,
+                          !form.stressLevel && styles.selectPlaceholder,
+                        ]}
+                      >
+                        {form.stressLevel || 'Выберите уровень стресса'}
+                      </Text>
+                      <View style={styles.selectButtonArrow}>
+                        <ChevronDownIcon />
+                      </View>
+                    </Pressable>
+
+                    {isStressDropdownOpen && (
+                      <View style={styles.dropdownList}>
+                        {['Низкий', 'Средний', 'Высокий', 'Критический'].map((value) => (
+                          <Pressable
+                            accessibilityRole="button"
+                            key={value}
+                            onPress={() => selectStressLevel(value)}
+                            style={({ pressed }) => [
+                              styles.dropdownItem,
+                              pressed && styles.linkButtonPressed,
+                            ]}
+                          >
+                            <Text style={styles.dropdownItemText}>{value}</Text>
+                          </Pressable>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                </>
+              )}
+
+              {eventType === 'adaptationStress' && (
+                <View style={styles.field}>
+                  <Text style={styles.label}>Стабильность партии</Text>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => setIsStabilityDropdownOpen((current) => !current)}
+                    style={({ pressed }) => [
+                      styles.selectButton,
+                      pressed && styles.linkButtonPressed,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.selectButtonText,
+                        !form.stability && styles.selectPlaceholder,
+                      ]}
+                    >
+                      {form.stability || 'Выберите стабильность партии'}
+                    </Text>
+                    <View style={styles.selectButtonArrow}>
+                      <ChevronDownIcon />
+                    </View>
+                  </Pressable>
+
+                  {isStabilityDropdownOpen && (
+                    <View style={styles.dropdownList}>
+                      {['Стабильна', 'Нестабильна'].map((value) => (
                         <Pressable
                           accessibilityRole="button"
                           key={value}
-                          onPress={() => onChangeField('stressLevel', value)}
-                          style={[
-                            styles.toggleButton,
-                            form.stressLevel === value && styles.toggleButtonActive,
+                          onPress={() => selectStability(value)}
+                          style={({ pressed }) => [
+                            styles.dropdownItem,
+                            pressed && styles.linkButtonPressed,
                           ]}
                         >
-                          <Text
-                            style={[
-                              styles.toggleButtonText,
-                              form.stressLevel === value && styles.toggleButtonTextActive,
-                            ]}
-                          >
-                            {value}
-                          </Text>
+                          <Text style={styles.dropdownItemText}>{value}</Text>
                         </Pressable>
                       ))}
                     </View>
-                  </View>
-                  <View style={styles.field}>
-                    <Text style={styles.label}>Описание состояния *</Text>
-                    <TextInput
-                      multiline
-                      onChangeText={(value) => onChangeField('conditionDescription', value)}
-                      placeholder="Тургор, увядание, остановка развития"
-                      placeholderTextColor="#7C8A80"
-                      style={[styles.input, styles.multilineInput]}
-                      value={form.conditionDescription}
-                    />
-                  </View>
-                  <View style={styles.field}>
-                    <Text style={styles.label}>Возможная причина</Text>
-                    <TextInput
-                      onChangeText={(value) => onChangeField('reason', value)}
-                      placeholder="Причина, если известна"
-                      placeholderTextColor="#7C8A80"
-                      style={styles.input}
-                      value={form.reason}
-                    />
-                  </View>
-                </>
+                  )}
+                </View>
               )}
 
               {/* Фактические параметры среды на адаптации. */}
@@ -276,7 +343,7 @@ export default function StatusChangeFormScreen({
                 </>
               )}
 
-              {['adaptationStress', 'adaptationEnvironment', 'adaptationHumidityReduction'].includes(eventType) && (
+              {['adaptationEnvironment', 'adaptationHumidityReduction'].includes(eventType) && (
                 <>
                   <View style={styles.field}>
                     <Text style={styles.label}>Тургор</Text>
@@ -370,26 +437,44 @@ export default function StatusChangeFormScreen({
               {['greenhouseObservation', 'greenhouseDisease', 'greenhouseCare', 'greenhouseEnvironment'].includes(eventType) && (
                 <View style={styles.field}>
                   <Text style={styles.label}>Уровень риска</Text>
-                  <View style={styles.toggleRow}>
-                    {['Низкий', 'Средний', 'Высокий', 'Критический'].map((value) => (
-                      <Pressable
-                        accessibilityRole="button"
-                        key={value}
-                        onPress={() => onChangeField('riskLevel', value)}
-                        style={[
-                          styles.toggleButton,
-                          form.riskLevel === value && styles.toggleButtonActive,
-                        ]}
-                      >
-                        <Text style={[
-                          styles.toggleButtonText,
-                          form.riskLevel === value && styles.toggleButtonTextActive,
-                        ]}>
-                          {value}
-                        </Text>
-                      </Pressable>
-                    ))}
-                  </View>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => setIsRiskDropdownOpen((current) => !current)}
+                    style={({ pressed }) => [
+                      styles.selectButton,
+                      pressed && styles.linkButtonPressed,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.selectButtonText,
+                        !form.riskLevel && styles.selectPlaceholder,
+                      ]}
+                    >
+                      {form.riskLevel || 'Выберите уровень риска'}
+                    </Text>
+                    <View style={styles.selectButtonArrow}>
+                      <ChevronDownIcon />
+                    </View>
+                  </Pressable>
+
+                  {isRiskDropdownOpen && (
+                    <View style={styles.dropdownList}>
+                      {['Низкий', 'Средний', 'Высокий', 'Критический'].map((value) => (
+                        <Pressable
+                          accessibilityRole="button"
+                          key={value}
+                          onPress={() => selectRiskLevel(value)}
+                          style={({ pressed }) => [
+                            styles.dropdownItem,
+                            pressed && styles.linkButtonPressed,
+                          ]}
+                        >
+                          <Text style={styles.dropdownItemText}>{value}</Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  )}
                 </View>
               )}
 
@@ -397,49 +482,85 @@ export default function StatusChangeFormScreen({
                 <>
                   <View style={styles.field}>
                     <Text style={styles.label}>Уровень стресса</Text>
-                    <View style={styles.toggleRow}>
-                      {['Низкий', 'Средний', 'Высокий', 'Критический'].map((value) => (
-                        <Pressable
-                          accessibilityRole="button"
-                          key={value}
-                          onPress={() => onChangeField('stressLevel', value)}
-                          style={[
-                            styles.toggleButton,
-                            form.stressLevel === value && styles.toggleButtonActive,
-                          ]}
-                        >
-                          <Text style={[
-                            styles.toggleButtonText,
-                            form.stressLevel === value && styles.toggleButtonTextActive,
-                          ]}>
-                            {value}
-                          </Text>
-                        </Pressable>
-                      ))}
-                    </View>
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => setIsStressDropdownOpen((current) => !current)}
+                      style={({ pressed }) => [
+                        styles.selectButton,
+                        pressed && styles.linkButtonPressed,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.selectButtonText,
+                          !form.stressLevel && styles.selectPlaceholder,
+                        ]}
+                      >
+                        {form.stressLevel || 'Выберите уровень стресса'}
+                      </Text>
+                      <View style={styles.selectButtonArrow}>
+                        <ChevronDownIcon />
+                      </View>
+                    </Pressable>
+
+                    {isStressDropdownOpen && (
+                      <View style={styles.dropdownList}>
+                        {['Низкий', 'Средний', 'Высокий', 'Критический'].map((value) => (
+                          <Pressable
+                            accessibilityRole="button"
+                            key={value}
+                            onPress={() => selectStressLevel(value)}
+                            style={({ pressed }) => [
+                              styles.dropdownItem,
+                              pressed && styles.linkButtonPressed,
+                            ]}
+                          >
+                            <Text style={styles.dropdownItemText}>{value}</Text>
+                          </Pressable>
+                        ))}
+                      </View>
+                    )}
                   </View>
                   <View style={styles.field}>
                     <Text style={styles.label}>Стабильность</Text>
-                    <View style={styles.toggleRow}>
-                      {['Стабильна', 'Нестабильна'].map((value) => (
-                        <Pressable
-                          accessibilityRole="button"
-                          key={value}
-                          onPress={() => onChangeField('stability', value)}
-                          style={[
-                            styles.toggleButton,
-                            form.stability === value && styles.toggleButtonActive,
-                          ]}
-                        >
-                          <Text style={[
-                            styles.toggleButtonText,
-                            form.stability === value && styles.toggleButtonTextActive,
-                          ]}>
-                            {value}
-                          </Text>
-                        </Pressable>
-                      ))}
-                    </View>
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => setIsStabilityDropdownOpen((current) => !current)}
+                      style={({ pressed }) => [
+                        styles.selectButton,
+                        pressed && styles.linkButtonPressed,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.selectButtonText,
+                          !form.stability && styles.selectPlaceholder,
+                        ]}
+                      >
+                        {form.stability || 'Выберите стабильность'}
+                      </Text>
+                      <View style={styles.selectButtonArrow}>
+                        <ChevronDownIcon />
+                      </View>
+                    </Pressable>
+
+                    {isStabilityDropdownOpen && (
+                      <View style={styles.dropdownList}>
+                        {['Стабильна', 'Нестабильна'].map((value) => (
+                          <Pressable
+                            accessibilityRole="button"
+                            key={value}
+                            onPress={() => selectStability(value)}
+                            style={({ pressed }) => [
+                              styles.dropdownItem,
+                              pressed && styles.linkButtonPressed,
+                            ]}
+                          >
+                            <Text style={styles.dropdownItemText}>{value}</Text>
+                          </Pressable>
+                        ))}
+                      </View>
+                    )}
                   </View>
                 </>
               )}
@@ -551,26 +672,44 @@ export default function StatusChangeFormScreen({
                   </View>
                   <View style={styles.field}>
                     <Text style={styles.label}>Степень поражения</Text>
-                    <View style={styles.toggleRow}>
-                      {['Легкая', 'Средняя', 'Тяжелая', 'Критическая'].map((value) => (
-                        <Pressable
-                          accessibilityRole="button"
-                          key={value}
-                          onPress={() => onChangeField('diseaseSeverity', value)}
-                          style={[
-                            styles.toggleButton,
-                            form.diseaseSeverity === value && styles.toggleButtonActive,
-                          ]}
-                        >
-                          <Text style={[
-                            styles.toggleButtonText,
-                            form.diseaseSeverity === value && styles.toggleButtonTextActive,
-                          ]}>
-                            {value}
-                          </Text>
-                        </Pressable>
-                      ))}
-                    </View>
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => setIsDiseaseSeverityDropdownOpen((current) => !current)}
+                      style={({ pressed }) => [
+                        styles.selectButton,
+                        pressed && styles.linkButtonPressed,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.selectButtonText,
+                          !form.diseaseSeverity && styles.selectPlaceholder,
+                        ]}
+                      >
+                        {form.diseaseSeverity || 'Выберите степень поражения'}
+                      </Text>
+                      <View style={styles.selectButtonArrow}>
+                        <ChevronDownIcon />
+                      </View>
+                    </Pressable>
+
+                    {isDiseaseSeverityDropdownOpen && (
+                      <View style={styles.dropdownList}>
+                        {['Легкая', 'Средняя', 'Тяжелая', 'Критическая'].map((value) => (
+                          <Pressable
+                            accessibilityRole="button"
+                            key={value}
+                            onPress={() => selectDiseaseSeverity(value)}
+                            style={({ pressed }) => [
+                              styles.dropdownItem,
+                              pressed && styles.linkButtonPressed,
+                            ]}
+                          >
+                            <Text style={styles.dropdownItemText}>{value}</Text>
+                          </Pressable>
+                        ))}
+                      </View>
+                    )}
                   </View>
                   <View style={styles.field}>
                     <Text style={styles.label}>Препарат / дозировка / способ</Text>
