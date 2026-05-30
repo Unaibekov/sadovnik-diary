@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import styles from '../../styles';
+import ScreenGradient from '../components/ScreenGradient';
 import { LogoIcon } from '../components/icons';
 
 export default function AuthScreen({
@@ -25,6 +26,7 @@ export default function AuthScreen({
 }) {
   return (
     <SafeAreaView style={[styles.safeArea, styles.authSafeArea]}>
+      <ScreenGradient />
       <StatusBar style="dark" />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}

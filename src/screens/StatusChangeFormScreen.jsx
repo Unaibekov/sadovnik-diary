@@ -5,7 +5,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import styles from '../../styles';
 import { formatDisplayDate } from '../domain/dates';
 import { getCardCurrentQuantity, getCardDisplayName } from '../domain/batch';
+import ScreenGradient from '../components/ScreenGradient';
 import StageHeader from '../components/StageHeader';
+import SelectBottomSheet from '../components/SelectBottomSheet';
 import { ChevronDownIcon } from '../components/icons';
 
 const countFieldByType = {
@@ -121,6 +123,7 @@ export default function StatusChangeFormScreen({
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <ScreenGradient />
       <StatusBar style="dark" />
       <StageHeader
         onBack={onBack}
@@ -231,23 +234,13 @@ export default function StatusChangeFormScreen({
                       </View>
                     </Pressable>
 
-                    {isStressDropdownOpen && (
-                      <View style={styles.dropdownList}>
-                        {['Низкий', 'Средний', 'Высокий', 'Критический'].map((value) => (
-                          <Pressable
-                            accessibilityRole="button"
-                            key={value}
-                            onPress={() => selectStressLevel(value)}
-                            style={({ pressed }) => [
-                              styles.dropdownItem,
-                              pressed && styles.linkButtonPressed,
-                            ]}
-                          >
-                            <Text style={styles.dropdownItemText}>{value}</Text>
-                          </Pressable>
-                        ))}
-                      </View>
-                    )}
+                    <SelectBottomSheet
+                      onClose={() => setIsStressDropdownOpen(false)}
+                      onSelect={selectStressLevel}
+                      options={['Низкий', 'Средний', 'Высокий', 'Критический']}
+                      title="Выберите уровень стресса"
+                      visible={isStressDropdownOpen}
+                    />
                   </View>
                 </>
               )}
@@ -276,23 +269,13 @@ export default function StatusChangeFormScreen({
                     </View>
                   </Pressable>
 
-                  {isStabilityDropdownOpen && (
-                    <View style={styles.dropdownList}>
-                      {['Стабильна', 'Нестабильна'].map((value) => (
-                        <Pressable
-                          accessibilityRole="button"
-                          key={value}
-                          onPress={() => selectStability(value)}
-                          style={({ pressed }) => [
-                            styles.dropdownItem,
-                            pressed && styles.linkButtonPressed,
-                          ]}
-                        >
-                          <Text style={styles.dropdownItemText}>{value}</Text>
-                        </Pressable>
-                      ))}
-                    </View>
-                  )}
+                  <SelectBottomSheet
+                    onClose={() => setIsStabilityDropdownOpen(false)}
+                    onSelect={selectStability}
+                    options={['Стабильна', 'Нестабильна']}
+                    title="Выберите стабильность партии"
+                    visible={isStabilityDropdownOpen}
+                  />
                 </View>
               )}
 
@@ -401,23 +384,13 @@ export default function StatusChangeFormScreen({
                     </View>
                   </Pressable>
 
-                  {isCareDropdownOpen && (
-                    <View style={styles.dropdownList}>
-                      {careOptions.map((value) => (
-                        <Pressable
-                          accessibilityRole="button"
-                          key={value}
-                          onPress={() => selectCareType(value)}
-                          style={({ pressed }) => [
-                            styles.dropdownItem,
-                            pressed && styles.linkButtonPressed,
-                          ]}
-                        >
-                          <Text style={styles.dropdownItemText}>{value}</Text>
-                        </Pressable>
-                      ))}
-                    </View>
-                  )}
+                  <SelectBottomSheet
+                    onClose={() => setIsCareDropdownOpen(false)}
+                    onSelect={selectCareType}
+                    options={careOptions}
+                    title="Выберите тип ухода"
+                    visible={isCareDropdownOpen}
+                  />
                 </View>
               )}
 
@@ -458,23 +431,13 @@ export default function StatusChangeFormScreen({
                     </View>
                   </Pressable>
 
-                  {isRiskDropdownOpen && (
-                    <View style={styles.dropdownList}>
-                      {['Низкий', 'Средний', 'Высокий', 'Критический'].map((value) => (
-                        <Pressable
-                          accessibilityRole="button"
-                          key={value}
-                          onPress={() => selectRiskLevel(value)}
-                          style={({ pressed }) => [
-                            styles.dropdownItem,
-                            pressed && styles.linkButtonPressed,
-                          ]}
-                        >
-                          <Text style={styles.dropdownItemText}>{value}</Text>
-                        </Pressable>
-                      ))}
-                    </View>
-                  )}
+                  <SelectBottomSheet
+                    onClose={() => setIsRiskDropdownOpen(false)}
+                    onSelect={selectRiskLevel}
+                    options={['Низкий', 'Средний', 'Высокий', 'Критический']}
+                    title="Выберите уровень риска"
+                    visible={isRiskDropdownOpen}
+                  />
                 </View>
               )}
 
@@ -503,23 +466,13 @@ export default function StatusChangeFormScreen({
                       </View>
                     </Pressable>
 
-                    {isStressDropdownOpen && (
-                      <View style={styles.dropdownList}>
-                        {['Низкий', 'Средний', 'Высокий', 'Критический'].map((value) => (
-                          <Pressable
-                            accessibilityRole="button"
-                            key={value}
-                            onPress={() => selectStressLevel(value)}
-                            style={({ pressed }) => [
-                              styles.dropdownItem,
-                              pressed && styles.linkButtonPressed,
-                            ]}
-                          >
-                            <Text style={styles.dropdownItemText}>{value}</Text>
-                          </Pressable>
-                        ))}
-                      </View>
-                    )}
+                    <SelectBottomSheet
+                      onClose={() => setIsStressDropdownOpen(false)}
+                      onSelect={selectStressLevel}
+                      options={['Низкий', 'Средний', 'Высокий', 'Критический']}
+                      title="Выберите уровень стресса"
+                      visible={isStressDropdownOpen}
+                    />
                   </View>
                   <View style={styles.field}>
                     <Text style={styles.label}>Стабильность</Text>
@@ -544,23 +497,13 @@ export default function StatusChangeFormScreen({
                       </View>
                     </Pressable>
 
-                    {isStabilityDropdownOpen && (
-                      <View style={styles.dropdownList}>
-                        {['Стабильна', 'Нестабильна'].map((value) => (
-                          <Pressable
-                            accessibilityRole="button"
-                            key={value}
-                            onPress={() => selectStability(value)}
-                            style={({ pressed }) => [
-                              styles.dropdownItem,
-                              pressed && styles.linkButtonPressed,
-                            ]}
-                          >
-                            <Text style={styles.dropdownItemText}>{value}</Text>
-                          </Pressable>
-                        ))}
-                      </View>
-                    )}
+                    <SelectBottomSheet
+                      onClose={() => setIsStabilityDropdownOpen(false)}
+                      onSelect={selectStability}
+                      options={['Стабильна', 'Нестабильна']}
+                      title="Выберите стабильность"
+                      visible={isStabilityDropdownOpen}
+                    />
                   </View>
                 </>
               )}
@@ -590,23 +533,13 @@ export default function StatusChangeFormScreen({
                       </View>
                     </Pressable>
 
-                    {isCareDropdownOpen && (
-                      <View style={styles.dropdownList}>
-                        {careOptions.map((value) => (
-                          <Pressable
-                            accessibilityRole="button"
-                            key={value}
-                            onPress={() => selectCareType(value)}
-                            style={({ pressed }) => [
-                              styles.dropdownItem,
-                              pressed && styles.linkButtonPressed,
-                            ]}
-                          >
-                            <Text style={styles.dropdownItemText}>{value}</Text>
-                          </Pressable>
-                        ))}
-                      </View>
-                    )}
+                    <SelectBottomSheet
+                      onClose={() => setIsCareDropdownOpen(false)}
+                      onSelect={selectCareType}
+                      options={careOptions}
+                      title="Выберите тип ухода"
+                      visible={isCareDropdownOpen}
+                    />
                   </View>
                   <View style={styles.field}>
                     <Text style={styles.label}>Интервал ухода, дней</Text>
@@ -693,23 +626,13 @@ export default function StatusChangeFormScreen({
                       </View>
                     </Pressable>
 
-                    {isDiseaseSeverityDropdownOpen && (
-                      <View style={styles.dropdownList}>
-                        {['Легкая', 'Средняя', 'Тяжелая', 'Критическая'].map((value) => (
-                          <Pressable
-                            accessibilityRole="button"
-                            key={value}
-                            onPress={() => selectDiseaseSeverity(value)}
-                            style={({ pressed }) => [
-                              styles.dropdownItem,
-                              pressed && styles.linkButtonPressed,
-                            ]}
-                          >
-                            <Text style={styles.dropdownItemText}>{value}</Text>
-                          </Pressable>
-                        ))}
-                      </View>
-                    )}
+                    <SelectBottomSheet
+                      onClose={() => setIsDiseaseSeverityDropdownOpen(false)}
+                      onSelect={selectDiseaseSeverity}
+                      options={['Легкая', 'Средняя', 'Тяжелая', 'Критическая']}
+                      title="Выберите степень поражения"
+                      visible={isDiseaseSeverityDropdownOpen}
+                    />
                   </View>
                   <View style={styles.field}>
                     <Text style={styles.label}>Препарат / дозировка / способ</Text>

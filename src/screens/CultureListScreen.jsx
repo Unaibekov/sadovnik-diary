@@ -2,6 +2,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import styles from '../../styles';
+import ScreenGradient from '../components/ScreenGradient';
 import StageHeader from '../components/StageHeader';
 import StatusFilterTabs from '../components/StatusFilterTabs';
 import {
@@ -56,6 +57,7 @@ export default function CultureListScreen({
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <ScreenGradient />
       <StatusBar style="dark" />
       <View style={styles.fixedCardsScreen}>
         <StageHeader

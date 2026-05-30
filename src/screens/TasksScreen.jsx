@@ -3,6 +3,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import styles from '../../styles';
 import BottomTabBar from '../components/BottomTabBar';
+import ScreenGradient from '../components/ScreenGradient';
 import { formatDisplayDate } from '../domain/dates';
 
 function groupTasksByCard(tasks) {
@@ -57,6 +58,7 @@ export default function TasksScreen({
 
   return (
     <SafeAreaView style={[styles.safeArea, styles.homeSafeArea]}>
+      <ScreenGradient />
       <StatusBar style="dark" />
       <ScrollView
         contentContainerStyle={styles.tasksScreenContent}

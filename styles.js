@@ -6,13 +6,13 @@ export default StyleSheet.create({
   },
   safeArea: {
     flex: 1,
-    backgroundColor: '#EFEFEF',
+    backgroundColor: '#F5F0D8',
   },
   homeSafeArea: {
-    backgroundColor: '#EFEFEF',
+    backgroundColor: '#F5F0D8',
   },
   authSafeArea: {
-    backgroundColor: '#EFEFEF',
+    backgroundColor: '#F5F0D8',
   },
   stagesScrollContent: {
     flexGrow: 1,
@@ -534,7 +534,7 @@ export default StyleSheet.create({
     paddingBottom: 32,
   },
   cardsScreen: {
-    backgroundColor: '#EFEFEF',
+    backgroundColor: 'transparent',
     flex: 1,
     paddingHorizontal: 16,
     paddingBottom: 28,
@@ -542,16 +542,16 @@ export default StyleSheet.create({
   },
   fixedCardsScreen: {
     flex: 1,
-    backgroundColor: '#EFEFEF',
+    backgroundColor: 'transparent',
   },
   calendarSummaryHeader: {
-    backgroundColor: '#EFEFEF',
+    backgroundColor: 'transparent',
     paddingHorizontal: 16,
     paddingBottom: 14,
     zIndex: 2,
   },
   fixedCardsControls: {
-    backgroundColor: '#EFEFEF',
+    backgroundColor: 'transparent',
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 8,
@@ -563,10 +563,14 @@ export default StyleSheet.create({
     lineHeight: 36,
     marginBottom: 16,
   },
+  globalJournalFilterScroll: {
+    marginHorizontal: -16,
+  },
   globalJournalFilterRow: {
     flexDirection: 'row',
     gap: 12,
     paddingBottom: 18,
+    paddingHorizontal: 16,
   },
   fixedCardsScrollContent: {
     paddingHorizontal: 16,
@@ -578,7 +582,7 @@ export default StyleSheet.create({
   },
   fixedAddButtonBar: {
     alignItems: 'center',
-    backgroundColor: '#EFEFEF',
+    backgroundColor: 'transparent',
     borderTopWidth: 0,
     bottom: 0,
     flexDirection: 'row',
@@ -626,7 +630,7 @@ export default StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     gap: 9,
-    minHeight: 52,
+    height: 52,
     paddingHorizontal: 14,
     shadowColor: '#101828',
     shadowOffset: { width: 0, height: 4 },
@@ -648,8 +652,9 @@ export default StyleSheet.create({
     color: '#111827',
     flex: 1,
     fontSize: 16,
-    minHeight: 48,
+    height: 52,
     paddingHorizontal: 0,
+    paddingVertical: 0,
   },
   filterRow: {
     flexDirection: 'row',
@@ -707,13 +712,8 @@ export default StyleSheet.create({
     borderRadius: 999,
     flexShrink: 0,
     justifyContent: 'center',
-    minHeight: 50,
-    paddingHorizontal: 12,
-  },
-  generateButtonText: {
-    color: '#15863F',
-    fontSize: 13,
-    fontWeight: '800',
+    minHeight: 56,
+    width: 56,
   },
   generateButtonDisabled: {
     backgroundColor: '#F3F4F6',
@@ -747,14 +747,14 @@ export default StyleSheet.create({
     flex: 1,
   },
   calendarPinnedContent: {
-    backgroundColor: '#EFEFEF',
+    backgroundColor: 'transparent',
     paddingHorizontal: 18,
     paddingTop: 6,
     paddingBottom: 8,
   },
   calendarContent: {
     paddingHorizontal: 18,
-    paddingTop: 0,
+    paddingTop: 9,
     paddingBottom: 130,
   },
   calendarStripPanel: {
@@ -885,7 +885,6 @@ export default StyleSheet.create({
     padding: 16,
   },
   calendarRecordsPanel: {
-    marginTop: 18,
     overflow: 'hidden',
     paddingHorizontal: 16,
     paddingTop: 0,
@@ -910,7 +909,7 @@ export default StyleSheet.create({
   },
   calendarBottomActions: {
     alignItems: 'center',
-    backgroundColor: '#EFEFEF',
+    backgroundColor: 'transparent',
     bottom: 0,
     flexDirection: 'row',
     gap: 12,
@@ -1098,7 +1097,6 @@ export default StyleSheet.create({
   },
   journalPanel: {
     gap: 10,
-    marginTop: 18,
     padding: 16,
   },
   journalTitle: {
@@ -1617,6 +1615,78 @@ export default StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
     marginTop: 3,
+  },
+  bottomSheetRoot: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  bottomSheetBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#00000066',
+  },
+  bottomSheetPanel: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '78%',
+    paddingBottom: 18,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+  },
+  bottomSheetHandle: {
+    alignSelf: 'center',
+    backgroundColor: '#CBD5D0',
+    borderRadius: 999,
+    height: 5,
+    marginBottom: 12,
+    width: 44,
+  },
+  bottomSheetTitle: {
+    color: '#132017',
+    fontSize: 18,
+    fontWeight: '800',
+    lineHeight: 24,
+    marginBottom: 8,
+    paddingHorizontal: 4,
+  },
+  bottomSheetOptions: {
+    paddingBottom: 8,
+  },
+  bottomSheetOption: {
+    borderBottomColor: '#E6EDE7',
+    borderBottomWidth: 1,
+    minHeight: 52,
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+    paddingVertical: 12,
+  },
+  bottomSheetOptionText: {
+    color: '#1B3023',
+    fontSize: 16,
+    fontWeight: '700',
+    lineHeight: 21,
+  },
+  bottomSheetCustomField: {
+    paddingTop: 16,
+  },
+  bottomSheetCustomLabel: {
+    color: '#132017',
+    fontSize: 15,
+    fontWeight: '800',
+    lineHeight: 20,
+    marginBottom: 8,
+  },
+  bottomSheetInput: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#EEF0F2',
+    borderRadius: 16,
+    borderWidth: 1,
+    color: '#132017',
+    fontSize: 16,
+    lineHeight: 21,
+    minHeight: 52,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
   },
   sectionHeaderRow: {
     alignItems: 'center',

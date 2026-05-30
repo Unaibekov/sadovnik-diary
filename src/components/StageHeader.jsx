@@ -55,7 +55,7 @@ export default function StageHeader({
 
 const styles = StyleSheet.create({
   header: {
-    backgroundColor: '#EFEFEF',
+    backgroundColor: 'transparent',
     paddingHorizontal: 16,
     paddingVertical: 16,
     zIndex: 2,

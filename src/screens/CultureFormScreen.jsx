@@ -2,6 +2,7 @@ import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-na
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import styles from '../../styles';
+import ScreenGradient from '../components/ScreenGradient';
 import StageHeader from '../components/StageHeader';
 
 export default function CultureFormScreen({
@@ -12,6 +13,7 @@ export default function CultureFormScreen({
 }) {
   return (
     <SafeAreaView style={styles.safeArea}>
+      <ScreenGradient />
       <StatusBar style="dark" />
       <View style={styles.fixedCardsScreen}>
         <StageHeader

@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import styles from '../../styles';
 import StageHeader from '../components/StageHeader';
 import CalendarTabs from '../components/CalendarTabs';
+import ScreenGradient from '../components/ScreenGradient';
 import { LampChargeIcon } from '../components/icons';
 
 export default function CultureCalendarScreen({
@@ -26,10 +27,12 @@ export default function CultureCalendarScreen({
   stageMoveBlockedMessage,
   stageMoveButtonLabel,
   stageMoveTarget,
+  subtitle,
   title,
 }) {
   return (
     <SafeAreaView style={styles.safeArea}>
+      <ScreenGradient />
       <StatusBar style="dark" />
       <View style={styles.calendarScreen}>
         <StageHeader
@@ -47,6 +50,7 @@ export default function CultureCalendarScreen({
             </Pressable>
           )}
           onBack={onBack}
+          subtitle={subtitle}
           title={title}
         />
         <CalendarTabs activeTab={activeTab} onChangeTab={onChangeTab} />

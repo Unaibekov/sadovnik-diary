@@ -78,11 +78,13 @@ import RecommendationsScreen from './src/screens/RecommendationsScreen';
 import StatusChangeFormScreen from './src/screens/StatusChangeFormScreen';
 import TasksScreen from './src/screens/TasksScreen';
 import BottomTabBar from './src/components/BottomTabBar';
+import ScreenGradient from './src/components/ScreenGradient';
 import StageHeader from './src/components/StageHeader';
 import CultureCalendarTab from './src/components/CultureCalendarTab';
 import CultureJournalTab from './src/components/CultureJournalTab';
 import CulturePassportTab from './src/components/CulturePassportTab';
-import { ChevronDownIcon, StageItemIcon } from './src/components/icons';
+import SelectBottomSheet from './src/components/SelectBottomSheet';
+import { ChevronDownIcon, QrGenerateIcon, StageItemIcon } from './src/components/icons';
 
 const NativeDateTimePicker = Platform.OS === 'web'
   ? null
@@ -2193,6 +2195,7 @@ function AppContent() {
   ) {
     return (
       <SafeAreaView style={styles.safeArea}>
+        <ScreenGradient />
         <StatusBar style="dark" />
         <StageHeader
           onBack={closeCultureForm}
@@ -2303,25 +2306,13 @@ function AppContent() {
                         </View>
                       </Pressable>
 
-                      {openDropdown === 'culture' && (
-                        <View style={styles.dropdownList}>
-                          <ScrollView nestedScrollEnabled>
-                            {cultureOptions.map((cultureName) => (
-                              <Pressable
-                                accessibilityRole="button"
-                                key={cultureName}
-                                onPress={() => handleSelectCulture(cultureName)}
-                                style={({ pressed }) => [
-                                  styles.dropdownItem,
-                                  pressed && styles.linkButtonPressed,
-                                ]}
-                              >
-                                <Text style={styles.dropdownItemText}>{cultureName}</Text>
-                              </Pressable>
-                            ))}
-                          </ScrollView>
-                        </View>
-                      )}
+                      <SelectBottomSheet
+                        onClose={() => setOpenDropdown('')}
+                        onSelect={handleSelectCulture}
+                        options={cultureOptions}
+                        title="Выберите культуру"
+                        visible={openDropdown === 'culture'}
+                      />
                     </>
                   )}
                 </View>
@@ -2356,25 +2347,13 @@ function AppContent() {
                         </View>
                       </Pressable>
 
-                      {openDropdown === 'species' && (
-                        <View style={styles.dropdownList}>
-                          <ScrollView nestedScrollEnabled>
-                            {speciesOptions.map((speciesName) => (
-                              <Pressable
-                                accessibilityRole="button"
-                                key={speciesName}
-                                onPress={() => handleSelectSpecies(speciesName)}
-                                style={({ pressed }) => [
-                                  styles.dropdownItem,
-                                  pressed && styles.linkButtonPressed,
-                                ]}
-                              >
-                                <Text style={styles.dropdownItemText}>{speciesName}</Text>
-                              </Pressable>
-                            ))}
-                          </ScrollView>
-                        </View>
-                      )}
+                      <SelectBottomSheet
+                        onClose={() => setOpenDropdown('')}
+                        onSelect={handleSelectSpecies}
+                        options={speciesOptions}
+                        title="Выберите вид"
+                        visible={openDropdown === 'species'}
+                      />
                     </>
                   )}
                 </View>
@@ -2409,25 +2388,13 @@ function AppContent() {
                         </View>
                       </Pressable>
 
-                      {openDropdown === 'variety' && (
-                        <View style={styles.dropdownList}>
-                          <ScrollView nestedScrollEnabled>
-                            {varietyOptions.map((varietyName) => (
-                              <Pressable
-                                accessibilityRole="button"
-                                key={varietyName}
-                                onPress={() => handleSelectVariety(varietyName)}
-                                style={({ pressed }) => [
-                                  styles.dropdownItem,
-                                  pressed && styles.linkButtonPressed,
-                                ]}
-                              >
-                                <Text style={styles.dropdownItemText}>{varietyName}</Text>
-                              </Pressable>
-                            ))}
-                          </ScrollView>
-                        </View>
-                      )}
+                      <SelectBottomSheet
+                        onClose={() => setOpenDropdown('')}
+                        onSelect={handleSelectVariety}
+                        options={varietyOptions}
+                        title="Выберите сорт"
+                        visible={openDropdown === 'variety'}
+                      />
                     </>
                   )}
                 </View>
@@ -2453,6 +2420,7 @@ function AppContent() {
                         value={cultureForm.code}
                       />
                       <Pressable
+                        accessibilityLabel={isEditingCard ? 'Сгенерировать новый код партии' : 'Сгенерировать код партии'}
                         accessibilityRole="button"
                         disabled={!canEditCurrentIdentity}
                         onPress={handleGenerateCode}
@@ -2462,9 +2430,10 @@ function AppContent() {
                           pressed && styles.pressedButton,
                         ]}
                       >
-                        <Text style={styles.generateButtonText}>
-                          {isEditingCard ? 'Сгенерировать новый' : 'Сгенерировать'}
-                        </Text>
+                        <QrGenerateIcon
+                          color={canEditCurrentIdentity ? '#15863F' : '#9CA3AF'}
+                          size={28}
+                        />
                       </Pressable>
                     </View>
                   )}
@@ -2565,44 +2534,24 @@ function AppContent() {
                               </View>
                             </Pressable>
 
-                          {openDropdown === 'sourceMaterial' && (
-                            <View style={styles.dropdownList}>
-                              <ScrollView nestedScrollEnabled>
-                                {SOURCE_MATERIAL_OPTIONS.map((option) => (
-                                  <Pressable
-                                    accessibilityRole="button"
-                                    key={option}
-                                    onPress={() => {
-                                      updateCultureForm('sourceMaterial', option === 'Другое' ? '' : option);
-                                      setOpenDropdown(option === 'Другое' ? 'sourceMaterialCustom' : '');
-                                    }}
-                                    style={({ pressed }) => [
-                                      styles.dropdownItem,
-                                      pressed && styles.linkButtonPressed,
-                                    ]}
-                                  >
-                                    <Text style={styles.dropdownItemText}>{option}</Text>
-                                  </Pressable>
-                                ))}
-                              </ScrollView>
-                            </View>
-                          )}
-
-                          {(
-                            openDropdown === 'sourceMaterialCustom' ||
-                            (cultureForm.sourceMaterial && !SOURCE_MATERIAL_OPTIONS.includes(cultureForm.sourceMaterial))
-                          ) && (
-                            <TextInput
-                              onChangeText={(value) => updateCultureForm('sourceMaterial', value)}
-                              placeholder="Укажите источник материала"
-                              placeholderTextColor="#7C8A80"
-                              style={[
-                                styles.input,
-                                isRequiredFieldMissing('sourceMaterial') && styles.inputInvalid,
-                              ]}
-                              value={cultureForm.sourceMaterial}
-                            />
-                          )}
+                          <SelectBottomSheet
+                            customInputLabel="Указать свое"
+                            customInputPlaceholder="Введите источник материала"
+                            customInputValue={
+                              SOURCE_MATERIAL_OPTIONS.includes(cultureForm.sourceMaterial)
+                                ? ''
+                                : cultureForm.sourceMaterial
+                            }
+                            onChangeCustomInput={(value) => updateCultureForm('sourceMaterial', value)}
+                            onClose={() => setOpenDropdown('')}
+                            onSelect={(option) => {
+                              updateCultureForm('sourceMaterial', option);
+                              setOpenDropdown('');
+                            }}
+                            options={SOURCE_MATERIAL_OPTIONS.filter((option) => option !== 'Другое')}
+                            title="Выберите источник материала"
+                            visible={openDropdown === 'sourceMaterial'}
+                          />
                         </>
                       )}
                     </View>
@@ -2639,28 +2588,18 @@ function AppContent() {
                           </View>
                         </Pressable>
 
-                        {openDropdown === 'batchStatus' && (
-                          <View style={styles.dropdownList}>
-                            <ScrollView nestedScrollEnabled>
-                              {cultureCreateBatchStatuses.map(([value, label]) => (
-                                <Pressable
-                                  accessibilityRole="button"
-                                  key={value}
-                                  onPress={() => {
-                                    updateCultureForm('batchStatus', value);
-                                    setOpenDropdown('');
-                                  }}
-                                  style={({ pressed }) => [
-                                    styles.dropdownItem,
-                                    pressed && styles.linkButtonPressed,
-                                  ]}
-                                >
-                                  <Text style={styles.dropdownItemText}>{label}</Text>
-                                </Pressable>
-                              ))}
-                            </ScrollView>
-                          </View>
-                        )}
+                        <SelectBottomSheet
+                          getKey={([value]) => value}
+                          getLabel={([, label]) => label}
+                          onClose={() => setOpenDropdown('')}
+                          onSelect={([value]) => {
+                            updateCultureForm('batchStatus', value);
+                            setOpenDropdown('');
+                          }}
+                          options={cultureCreateBatchStatuses}
+                          title="Выберите статус партии"
+                          visible={openDropdown === 'batchStatus'}
+                        />
                       </View>
                     )}
                   </>
@@ -2743,6 +2682,7 @@ function AppContent() {
         stageMoveBlockedMessage={stageMoveBlockedMessage}
         stageMoveButtonLabel={stageMoveButtonLabel}
         stageMoveTarget={selectedCardNextStage}
+        subtitle={<Text style={styles.stageHeaderSubtitle}>{selectedCard.stage || selectedStage}</Text>}
         title={getCardDisplayName(selectedCard)}
       >
             {cultureCalendarTab === 'calendar' && (
@@ -2992,6 +2932,7 @@ function AppContent() {
   if (isAuthenticated) {
     return (
       <SafeAreaView style={[styles.safeArea, styles.homeSafeArea]}>
+        <ScreenGradient />
         <StatusBar style="dark" />
         <ScrollView
           contentContainerStyle={styles.stagesScrollContent}

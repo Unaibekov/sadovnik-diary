@@ -3,6 +3,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import styles from '../../styles';
 import BottomTabBar from '../components/BottomTabBar';
+import ScreenGradient from '../components/ScreenGradient';
 import { BATCH_STATUS_LABELS, INTRO_STAGE } from '../domain/constants';
 import {
   getCardCurrentQuantity,
@@ -40,6 +41,7 @@ export default function GlobalJournalScreen({
 }) {
   return (
     <SafeAreaView style={styles.safeArea}>
+      <ScreenGradient />
       <StatusBar style="dark" />
       <View style={styles.fixedCardsScreen}>
         <View style={styles.fixedCardsControls}>
@@ -48,6 +50,7 @@ export default function GlobalJournalScreen({
             contentContainerStyle={styles.globalJournalFilterRow}
             horizontal
             showsHorizontalScrollIndicator={false}
+            style={styles.globalJournalFilterScroll}
           >
             {journalFilters.map((filter) => (
               <Pressable
