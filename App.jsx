@@ -1,14 +1,10 @@
 import { StatusBar } from 'expo-status-bar';
-import * as FileSystem from 'expo-file-system/legacy';
-import * as Sharing from 'expo-sharing';
-import * as XLSX from 'xlsx';
 import { useEffect, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
-  Share,
   Text,
   TextInput,
   View,
@@ -28,11 +24,9 @@ import {
 import {
   dateFromIso,
   formatDisplayDate,
-  formatDisplayDateTime,
   getMonthDays,
   getMonthTitle,
   getTodayIsoDate,
-  isoFromDate,
   parseDisplayDate,
 } from './src/domain/dates';
 import {
@@ -42,15 +36,12 @@ import {
 } from './src/domain/forms';
 import {
   canEditIdentityFields,
-  createBatchCreatedOperation,
   generatePlantingCode,
   getAdaptationStats,
-  getAdaptationCareSchedules,
   getCardCurrentQuantity,
   getCardDisplayName,
   getCloneStats,
   getDaysInCurrentStage,
-  getGreenhouseCareSchedules,
   getGreenhouseStats,
   getNextStage,
   getOperationSummaryItems,
@@ -58,6 +49,46 @@ import {
   getStageMoveButtonLabel,
   isPositiveInteger,
 } from './src/domain/batch';
+import {
+  getPlantCardStatusDotStyle,
+  getResolvedBatchStatus,
+  getUniqueOptions,
+} from './src/domain/cardSelectors';
+import {
+  cultureCreateBatchStatuses,
+  editableStatusOperationTypes,
+  introOperationFields,
+  protectedOperationTypes,
+  stageHomeItems as stageHomeItemsConfig,
+  statusEventCountFields,
+} from './src/domain/operationConfig';
+import {
+  buildGroupedGlobalJournalCards,
+  filterCultureCards,
+  getAllVisibleStageCardsCount,
+} from './src/domain/cultureSelectors';
+import {
+  findCatalogPlant,
+  getStagePlantRecommendationItems,
+  removeRecommendationFields,
+} from './src/domain/recommendations';
+import {
+  buildCloseRecommendationsState,
+  buildGlobalJournalNavigationState,
+  buildMenuNavigationState,
+  buildStageRecommendationsNavigationState,
+  buildTasksNavigationState,
+} from './src/domain/navigation';
+import {
+  applyCultureSelection,
+  applySpeciesSelection,
+  applyVarietySelection,
+  isDuplicateCardCode,
+  isRequiredFieldMissingInForm,
+} from './src/domain/cultureForm';
+import { buildCultureCardPayload } from './src/domain/cultureCardBuilder';
+import { validateCultureCardInput } from './src/domain/cultureFormValidation';
+import { updateFormField } from './src/domain/formState';
 import {
   clearCultureCardsForTests,
   loadCultureCardsFromStorage,
@@ -68,6 +99,22 @@ import {
   initializeLocalNotifications,
   scheduleWateringReminder,
 } from './src/services/localNotifications';
+import { shareCultureCardsReport } from './src/services/shareReportService';
+import {
+  doesJournalEventMatchFilter,
+  getGlobalJournalEvents,
+  getJournalFilterLabel,
+  getLatestFilledCalendarDate,
+  isOperationVisibleInCurrentStage,
+} from './src/domain/journal';
+import { buildCareTasks } from './src/domain/tasks';
+import { getStatusEventConfig } from './src/domain/statusOperations';
+import { getStatusBaseValidationError } from './src/domain/statusValidation';
+import { getAdaptationValidationError } from './src/domain/statusStageValidation';
+import { getGreenhouseValidationError } from './src/domain/statusGreenhouseValidation';
+import { buildStatusOperation } from './src/domain/statusOperationBuilder';
+import { getFallbackBatchStatus } from './src/domain/statusCardStatusResolver';
+import { getGreenhouseCareIntervalsPatch } from './src/domain/statusCardMutations';
 import AuthScreen from './src/screens/AuthScreen';
 import CultureCalendarScreen from './src/screens/CultureCalendarScreen';
 import CultureListScreen from './src/screens/CultureListScreen';
@@ -89,600 +136,6 @@ import { ChevronDownIcon, QrGenerateIcon, StageItemIcon } from './src/components
 const NativeDateTimePicker = Platform.OS === 'web'
   ? null
   : require('@react-native-community/datetimepicker/src/datetimepicker').default;
-
-const statusEventCountFields = {
-  rooting: 'rootedCount',
-  death: 'deathCount',
-  discard: 'discardCount',
-  sale: 'saleCount',
-  propagation: 'propagationCount',
-  transplant: 'transplantCount',
-};
-
-const introOperationFields = {
-  comment: 'comment',
-  photo: 'photoNote',
-  contamination: 'contaminationNote',
-  quarantine: 'quarantineReason',
-};
-
-const editableStatusOperationTypes = [
-  'rooting',
-  'death',
-  'discard',
-  'sale',
-  'propagation',
-  'quarantine',
-  'quarantineReleased',
-  'adaptationStress',
-  'adaptationEnvironment',
-  'adaptationHumidityReduction',
-  'adaptationCare',
-  'greenhouseObservation',
-  'greenhouseCare',
-  'greenhouseEnvironment',
-  'greenhouseDisease',
-  'transplant',
-];
-
-const protectedOperationTypes = [
-  'contamination',
-  'quarantine',
-  'quarantineReleased',
-];
-
-const cultureCreateBatchStatuses = [
-  ['active', BATCH_STATUS_LABELS.active],
-  ['draft', BATCH_STATUS_LABELS.draft],
-];
-
-function getOperationTimestamp(operation) {
-  return operation?.createdAt || operation?.date || '';
-}
-
-function getChangeTimestamp(change) {
-  return change?.changedAt || change?.date || '';
-}
-
-function getScheduleNextDate(schedule, card) {
-  if (schedule.nextDate) {
-    return schedule.nextDate;
-  }
-
-  const stageStartDate = card.stageChangedAt || card.createdAt;
-
-  if (!stageStartDate) {
-    return '';
-  }
-
-  return isoFromDate(new Date(
-    dateFromIso(stageStartDate).getTime() + schedule.intervalDays * 24 * 60 * 60 * 1000,
-  ));
-}
-
-function buildCareTasks(cards) {
-  const todayIso = getTodayIsoDate();
-  const todayDate = dateFromIso(todayIso);
-
-  return cards.flatMap((card) => {
-    if (
-      card.status === 'cancelled' ||
-      card.status === 'archived' ||
-      getResolvedBatchStatus(card) === 'sold'
-    ) {
-      return [];
-    }
-
-    const stage = card.stage || INTRO_STAGE;
-    const schedules = stage === 'Адаптация'
-      ? getAdaptationCareSchedules(card)
-      : stage === 'Теплица'
-        ? getGreenhouseCareSchedules(card)
-        : [];
-
-    return schedules.map((schedule) => {
-      const nextDate = getScheduleNextDate(schedule, card);
-
-      if (!nextDate) {
-        return null;
-      }
-
-      const nextDateValue = dateFromIso(nextDate);
-      const daysOverdue = Math.max(Math.floor(
-        (todayDate - nextDateValue) / (24 * 60 * 60 * 1000),
-      ), 0);
-      const isOverdue = daysOverdue > 0;
-      const isDueToday = nextDate === todayIso;
-
-      return {
-        id: `${card.id}-${stage}-${schedule.careType}`,
-        cardId: card.id,
-        cardName: getCardDisplayName(card),
-        code: card.code || '',
-        careType: schedule.careType,
-        currentQuantity: getCardCurrentQuantity(card),
-        daysOverdue,
-        isOverdue,
-        isDueToday,
-        nextDate,
-        stage,
-        status: isOverdue ? 'Просрочено' : isDueToday ? 'Сегодня' : 'Запланировано',
-        title: schedule.careType,
-      };
-    }).filter(Boolean);
-  }).sort((first, second) => (
-    Number(second.isOverdue) - Number(first.isOverdue) ||
-    Number(second.isDueToday) - Number(first.isDueToday) ||
-    second.daysOverdue - first.daysOverdue ||
-    new Date(first.nextDate) - new Date(second.nextDate) ||
-    first.cardName.localeCompare(second.cardName, 'ru')
-  ));
-}
-
-function getTimelineStageForOperation(operation, card) {
-  const operationTimestamp = getOperationTimestamp(operation);
-  const history = [...(card?.stageHistory || [])]
-    .filter((change) => change.fromStage && change.toStage)
-    .sort((first, second) => getChangeTimestamp(first).localeCompare(getChangeTimestamp(second)));
-
-  if (history.length > 0) {
-    let stage = history[0].fromStage;
-
-    history.forEach((change) => {
-      if (!operationTimestamp || getChangeTimestamp(change).localeCompare(operationTimestamp) <= 0) {
-        stage = change.toStage;
-      }
-    });
-
-    return stage;
-  }
-
-  if (card?.stageChangedAt && operation?.date) {
-    if (operation.date < card.stageChangedAt) {
-      const currentStageIndex = stages.indexOf(card.stage);
-      return stages[currentStageIndex - 1] || INTRO_STAGE;
-    }
-  }
-
-  return card?.stage || INTRO_STAGE;
-}
-
-function getOperationEffectiveStage(operation, card) {
-  if (!operation || !card) {
-    return INTRO_STAGE;
-  }
-
-  if (operation.stage) {
-    return operation.stage;
-  }
-
-  if (operation.type === 'stageChange') {
-    return operation.toStage || card.stage || INTRO_STAGE;
-  }
-
-  if (['batchCreated', 'qrGenerated', 'comment', 'photo', 'contamination'].includes(operation.type)) {
-    return INTRO_STAGE;
-  }
-
-  if (['rooting', 'propagation'].includes(operation.type)) {
-    return 'Клонирование';
-  }
-
-  if ([
-    'adaptationStress',
-    'adaptationEnvironment',
-    'adaptationHumidityReduction',
-    'adaptationCare',
-  ].includes(operation.type)) {
-    return 'Адаптация';
-  }
-
-  if ([
-    'greenhouseObservation',
-    'greenhouseCare',
-    'greenhouseEnvironment',
-    'greenhouseDisease',
-    'transplant',
-  ].includes(operation.type)) {
-    return 'Теплица';
-  }
-
-  if (operation.type === 'statusChange') {
-    if (operation.rootedCount || operation.propagationCount) {
-      return 'Клонирование';
-    }
-  }
-
-  return getTimelineStageForOperation(operation, card);
-}
-
-function isOperationVisibleInCurrentStage(operation, card) {
-  if (!operation || !card) {
-    return false;
-  }
-
-  if (['batchCreated', 'qrGenerated'].includes(operation.type)) {
-    return (card.stage || INTRO_STAGE) === INTRO_STAGE;
-  }
-
-  if (operation.type === 'stageChange') {
-    return operation.toStage === card.stage;
-  }
-
-  if ((card.stage || INTRO_STAGE) === INTRO_STAGE) {
-    return getOperationEffectiveStage(operation, card) === INTRO_STAGE;
-  }
-
-  return getOperationEffectiveStage(operation, card) === card.stage;
-}
-
-function getLatestFilledCalendarDate(card) {
-  const operationDates = (card?.operations || [])
-    .filter((operation) => isOperationVisibleInCurrentStage(operation, card))
-    .map((operation) => operation.date)
-    .filter(Boolean)
-    .sort();
-
-  return operationDates.at(-1) || card?.createdAt || getTodayIsoDate();
-}
-
-const stageHomeItems = [
-  {
-    iconName: 'intro',
-    iconBoxStyle: 'stageIconBoxGreen',
-    label: 'Введение\nв культуру',
-    title: stages[0],
-  },
-  {
-    iconName: 'clone',
-    iconBoxStyle: 'stageIconBoxMint',
-    label: 'Клонирование',
-    title: stages[1],
-  },
-  {
-    iconName: 'adaptation',
-    iconBoxStyle: 'stageIconBoxAqua',
-    label: 'Адаптация',
-    title: stages[2],
-  },
-  {
-    iconName: 'greenhouse',
-    iconBoxStyle: 'stageIconBoxLime',
-    label: 'Теплица',
-    title: stages[3],
-  },
-  {
-    iconName: 'hardening',
-    iconBoxStyle: 'stageIconBoxSky',
-    label: 'Закалка',
-    title: stages[4],
-  },
-  {
-    iconName: 'planting',
-    iconBoxStyle: 'stageIconBoxOrange',
-    label: 'Высадка',
-    title: stages[5],
-  },
-];
-
-function getGlobalJournalEvents(cards) {
-  return cards
-    .flatMap((card) => (card.operations || [])
-      .filter((operation) => operation.type !== 'stageSettingsUpdated')
-      .map((operation) => ({
-        ...operation,
-        cardId: card.id,
-        cardName: getCardDisplayName(card),
-        cardCode: card.code,
-        cardQuantity: card.quantity,
-        cardStage: card.stage || INTRO_STAGE,
-        cultureName: card.cultureName,
-        speciesName: card.speciesName,
-        varietyName: card.varietyName,
-      })))
-    .sort((first, second) => (
-      new Date(second.createdAt || second.date || 0) - new Date(first.createdAt || first.date || 0)
-    ));
-}
-
-function removeRecommendationFields(card) {
-  const {
-    temperatureRequirement,
-    lightRequirement,
-    humidityRequirement,
-    preventionItems,
-    ...cardWithoutRecommendations
-  } = card || {};
-
-  return {
-    ...cardWithoutRecommendations,
-    operations: (cardWithoutRecommendations.operations || [])
-      .filter((operation) => operation.type !== 'stageSettingsUpdated'),
-  };
-}
-
-function findCatalogPlant(card) {
-  return plantsCatalog.find((plant) => (
-    (plant.cultureName || EMPTY_CATALOG_VALUE) === card.cultureName &&
-    (plant.speciesName || EMPTY_CATALOG_VALUE) === card.speciesName &&
-    (plant.varietyName || EMPTY_CATALOG_VALUE) === card.varietyName
-  ));
-}
-
-function normalizeRecommendationText(value) {
-  if (Array.isArray(value)) {
-    return value
-      .map((item) => [item.name, item.applicationRate, item.frequency].filter(Boolean).join(' · '))
-      .filter(Boolean)
-      .join('\n');
-  }
-
-  return value || '';
-}
-
-function getPlantRecommendationItems(plant, stage) {
-  if (!plant) {
-    return [];
-  }
-
-  const isCloneStageRecommendation = stage === stages[1];
-  const temperature = isCloneStageRecommendation
-    ? plant.cloneTemperatureRequirement
-    : plant.adaptationTemperatureRequirement || plant.cloneTemperatureRequirement;
-  const light = isCloneStageRecommendation
-    ? plant.cloneLightRequirement
-    : plant.adaptationLightRequirement || plant.cloneLightRequirement;
-  const humidity = isCloneStageRecommendation
-    ? plant.cloneHumidityRange && `${plant.cloneHumidityRange}%`
-    : plant.adaptationHumidityRequirement || (plant.cloneHumidityRange && `${plant.cloneHumidityRange}%`);
-  const preventionItems = isCloneStageRecommendation
-    ? ''
-    : normalizeRecommendationText(plant.adaptationPreventionItems);
-
-  return [
-    { label: 'Температура', value: temperature },
-    { label: 'Освещение', value: light },
-    { label: 'Влажность', value: humidity },
-    { label: 'Подкормки', value: plant.preventionFertilizers },
-    { label: 'Препараты', value: plant.preventionChemicals },
-    { label: 'Стимуляторы', value: plant.preventionStimulators },
-    { label: 'Схема', value: plant.preventionApplicationRate },
-    { label: 'Период', value: plant.preventionFrequency },
-    { label: 'Профилактика', value: preventionItems },
-  ].filter((item) => Boolean(item.value));
-}
-
-function getStagePlantRecommendationItems(plant, stage) {
-  if (!plant || stage === stages[0]) {
-    return [];
-  }
-
-  if (stage === stages[1]) {
-    return [
-      { label: 'Температура', value: plant.cloneTemperatureRequirement },
-      { label: 'Освещение', value: plant.cloneLightRequirement },
-      { label: 'Влажность', value: plant.cloneHumidityRange && `${plant.cloneHumidityRange}%` },
-      { label: 'Подкормки', value: plant.preventionFertilizers },
-      { label: 'Стимуляторы', value: plant.preventionStimulators },
-      { label: 'Период', value: plant.preventionFrequency },
-    ].filter((item) => Boolean(item.value));
-  }
-
-  if (stage === stages[2]) {
-    return [
-      { label: 'Температура', value: plant.adaptationTemperatureRequirement || plant.cloneTemperatureRequirement },
-      { label: 'Освещение', value: plant.adaptationLightRequirement || plant.cloneLightRequirement },
-      { label: 'Влажность', value: plant.adaptationHumidityRequirement || (plant.cloneHumidityRange && `${plant.cloneHumidityRange}%`) },
-      { label: 'Профилактика', value: normalizeRecommendationText(plant.adaptationPreventionItems) },
-    ].filter((item) => Boolean(item.value));
-  }
-
-  return [
-    { label: 'Подкормки', value: plant.preventionFertilizers },
-    { label: 'Препараты', value: plant.preventionChemicals },
-    { label: 'Стимуляторы', value: plant.preventionStimulators },
-    { label: 'Схема', value: plant.preventionApplicationRate },
-    { label: 'Период', value: plant.preventionFrequency },
-  ].filter((item) => Boolean(item.value));
-}
-
-function isImportantJournalEvent(event) {
-  return [
-    'contamination',
-    'quarantine',
-    'death',
-    'discard',
-    'stageChange',
-  ].includes(event.type) || (
-    event.type === 'adaptationStress' &&
-    ['Высокий', 'Критический'].includes(event.stressLevel)
-  );
-}
-
-function doesJournalEventMatchFilter(event, filter) {
-  if (filter === 'all') {
-    return true;
-  }
-
-  if (filter === 'important') {
-    return isImportantJournalEvent(event);
-  }
-
-  if (filter === 'losses') {
-    return ['death', 'discard'].includes(event.type);
-  }
-
-  if (filter === 'sales') {
-    return event.type === 'sale';
-  }
-
-  return event.type === filter;
-}
-
-function getJournalFilterLabel(filter) {
-  return {
-    important: 'Важные',
-    all: 'Все',
-    contamination: 'Контаминация',
-    quarantine: 'Карантин',
-    losses: 'Потери',
-    sales: 'Продажи',
-    stageChange: 'Переходы',
-  }[filter] || filter;
-}
-
-function getUniqueOptions(items, field) {
-  return [...new Set(items.map((item) => item[field] || EMPTY_CATALOG_VALUE))]
-    .sort((first, second) => first.localeCompare(second, 'ru'));
-}
-
-function getPlantCardStatusDotStyle(batchStatus, sterilityStatus) {
-  if (batchStatus === 'draft') {
-    return styles.plantCardStatusDotDraft;
-  }
-
-  if (sterilityStatus === 'contaminated' || ['quarantine', 'problem'].includes(batchStatus)) {
-    return styles.plantCardStatusDotProblem;
-  }
-
-  if (batchStatus === 'partial') {
-    return styles.plantCardStatusDotPartial;
-  }
-
-  return styles.plantCardStatusDotActive;
-}
-
-function hasSaleOperation(card) {
-  return (card?.operations || []).some((operation) => (
-    (operation.type === 'sale' && Number(operation.count) > 0) ||
-    (operation.type === 'statusChange' && Number(operation.saleCount) > 0)
-  ));
-}
-
-function getResolvedBatchStatus(card) {
-  const batchStatus = card?.batchStatus || 'active';
-  const currentQuantity = getCardCurrentQuantity(card);
-  const hasSale = hasSaleOperation(card);
-
-  if (hasSale && currentQuantity === 0) {
-    return 'sold';
-  }
-
-  if (['sold', 'partial'].includes(batchStatus)) {
-    return hasSale ? 'partial' : 'active';
-  }
-
-  return batchStatus;
-}
-
-function normalizeReportCell(value) {
-  if (value === undefined || value === null) {
-    return '';
-  }
-
-  return String(value).replace(/\r?\n/g, ' ').trim();
-}
-
-function setSheetColumnWidths(sheet, widths) {
-  sheet['!cols'] = widths.map((wch) => ({ wch }));
-}
-
-function buildCultureCardsReportWorkbook(cards) {
-  const partyRows = [
-    [
-      'Код',
-      'Культура',
-      'Вид',
-      'Сорт',
-      'Стадия',
-      'Статус',
-      'Количество',
-      'Дата создания',
-      'Событий в журнале',
-    ],
-    ...cards.map((card) => {
-      const status = getResolvedBatchStatus(card);
-
-      return [
-        card.code,
-        card.cultureName,
-        card.speciesName,
-        card.varietyName,
-        card.stage || INTRO_STAGE,
-        BATCH_STATUS_LABELS[status] || status,
-        getCardCurrentQuantity(card),
-        card.createdAt ? formatDisplayDate(card.createdAt) : '',
-        (card.operations || []).length,
-      ];
-    }),
-  ];
-
-  const journalRows = [
-    [
-      'Код',
-      'Культура',
-      'Вид',
-      'Сорт',
-      'Стадия партии',
-      'Статус партии',
-      'Дата события',
-      'Тип события',
-      'Стадия события',
-      'Текущее количество',
-      'Остаток',
-      'Детали',
-      'Комментарий',
-      'Фото / заметка',
-      'Создано',
-    ],
-    ...cards
-      .flatMap((card) => {
-        const status = getResolvedBatchStatus(card);
-
-        return (card.operations || [])
-          .filter((operation) => operation.type !== 'stageSettingsUpdated')
-          .map((operation) => {
-            const summary = getOperationSummaryItems(operation, card)
-              .map(([label, value]) => `${label}: ${value}`)
-              .join('; ');
-
-            return {
-              sortDate: operation.createdAt || operation.date || '',
-              row: [
-                card.code,
-                card.cultureName,
-                card.speciesName,
-                card.varietyName,
-                card.stage || INTRO_STAGE,
-                BATCH_STATUS_LABELS[status] || status,
-                operation.date ? formatDisplayDate(operation.date) : '',
-                operation.title || operation.type || '',
-                operation.stage || operation.toStage || operation.fromStage || '',
-                getCardCurrentQuantity(card),
-                operation.currentQuantity ?? '',
-                summary,
-                operation.comment || operation.reason || operation.quarantineReason || '',
-                operation.photoNote || operation.contaminationNote || '',
-                operation.createdAt ? formatDisplayDateTime(operation.createdAt) : '',
-              ].map(normalizeReportCell),
-            };
-          });
-      })
-      .sort((first, second) => new Date(second.sortDate || 0) - new Date(first.sortDate || 0))
-      .map(({ row }) => row),
-  ];
-
-  const workbook = XLSX.utils.book_new();
-  const partiesSheet = XLSX.utils.aoa_to_sheet(partyRows);
-  const journalSheet = XLSX.utils.aoa_to_sheet(journalRows);
-
-  setSheetColumnWidths(partiesSheet, [20, 18, 18, 18, 22, 14, 12, 16, 18]);
-  setSheetColumnWidths(journalSheet, [20, 18, 18, 18, 22, 14, 16, 24, 22, 14, 12, 60, 36, 36, 18]);
-  XLSX.utils.book_append_sheet(workbook, partiesSheet, 'Партии');
-  XLSX.utils.book_append_sheet(workbook, journalSheet, 'Журнал');
-
-  return workbook;
-}
 
 function AppContent() {
   const safeAreaInsets = useSafeAreaInsets();
@@ -762,29 +215,19 @@ function AppContent() {
   const isSelectedCloneCard = selectedCard?.stage === 'Клонирование';
   const canReleaseQuarantine = ['agronomist', 'admin', 'superadmin'].includes(currentUser.role);
   const globalJournalEvents = getGlobalJournalEvents(cultureCards);
-  const careTasks = buildCareTasks(cultureCards);
+  const careTasks = buildCareTasks(cultureCards, getResolvedBatchStatus);
   const taskCount = careTasks.length;
   const activeCardsCount = cultureCards.filter((card) => (
     card.status !== 'cancelled' &&
     card.status !== 'archived' &&
     getResolvedBatchStatus(card) !== 'sold'
   )).length;
-  const groupedGlobalJournalCards = cultureCards
-    .map((card) => {
-      const cardEvents = globalJournalEvents.filter((event) => (
-        event.cardId === card.id && doesJournalEventMatchFilter(event, journalFilter)
-      ));
-
-      return {
-        card,
-        events: cardEvents,
-        latestEventAt: cardEvents[0]?.createdAt || cardEvents[0]?.date || '',
-      };
-    })
-    .filter((group) => group.events.length > 0)
-    .sort((first, second) => (
-      new Date(second.latestEventAt || 0) - new Date(first.latestEventAt || 0)
-    ));
+  const groupedGlobalJournalCards = buildGroupedGlobalJournalCards(
+    cultureCards,
+    globalJournalEvents,
+    journalFilter,
+    doesJournalEventMatchFilter,
+  );
 
   const cultureOptions = getUniqueOptions(plantsCatalog, 'cultureName');
   const speciesOptions = getUniqueOptions(
@@ -801,49 +244,24 @@ function AppContent() {
     'varietyName',
   );
 
-  const filteredCultureCards = cultureCards.filter((card) => {
-    const query = cardSearch.trim().toLowerCase();
-    const cardStage = card.stage || INTRO_STAGE;
-    const batchStatus = getResolvedBatchStatus(card);
-
-    if (card.status === 'cancelled' || (card.status === 'archived' && batchStatus === 'sold')) {
-      return false;
-    }
-
-    if (cardStage !== selectedStage) {
-      return false;
-    }
-
-    if (
-      (isCultureIntroStage || isCloneStage || isAdaptationStage || isGreenhouseStage) &&
-      batchStatusFilter !== 'all' &&
-      batchStatus !== batchStatusFilter
-    ) {
-      return false;
-    }
-
-    if (!query) {
-      return true;
-    }
-
-    return getCardDisplayName(card).toLowerCase().includes(query);
+  const filteredCultureCards = filterCultureCards(cultureCards, {
+    batchStatusFilter,
+    cardSearch,
+    getCardDisplayName,
+    getResolvedBatchStatus,
+    isAdaptationStage,
+    isCloneStage,
+    isCultureIntroStage,
+    isGreenhouseStage,
+    selectedStage,
   });
 
-  const allVisibleStageCardsCount = cultureCards.filter((card) => {
-    const query = cardSearch.trim().toLowerCase();
-    const cardStage = card.stage || INTRO_STAGE;
-    const batchStatus = getResolvedBatchStatus(card);
-
-    if (card.status === 'cancelled' || (card.status === 'archived' && batchStatus === 'sold')) {
-      return false;
-    }
-
-    if (cardStage !== selectedStage) {
-      return false;
-    }
-
-    return !query || getCardDisplayName(card).toLowerCase().includes(query);
-  }).length;
+  const allVisibleStageCardsCount = getAllVisibleStageCardsCount(cultureCards, {
+    cardSearch,
+    getCardDisplayName,
+    getResolvedBatchStatus,
+    selectedStage,
+  });
   const recommendationStage = recommendationsContext?.stage || selectedCard?.stage || selectedStage;
   const recommendationCard = recommendationsContext?.cardId
     ? cultureCards.find((card) => card.id === recommendationsContext.cardId)
@@ -857,7 +275,7 @@ function AppContent() {
     ));
   const recommendationEntries = recommendationCard && recommendationsMode === 'all'
     ? stages.map((stage) => {
-      const plant = findCatalogPlant(recommendationCard);
+      const plant = findCatalogPlant(recommendationCard, plantsCatalog);
 
       return {
         key: `${recommendationCard.id}-${stage}`,
@@ -878,7 +296,7 @@ function AppContent() {
         return entries;
       }
 
-      const plant = findCatalogPlant(card);
+      const plant = findCatalogPlant(card, plantsCatalog);
 
       return [
         ...entries,
@@ -953,25 +371,31 @@ function AppContent() {
   }
 
   function openGlobalJournal() {
+    const nextState = buildGlobalJournalNavigationState();
     setSelectedStage('');
     setSelectedCardId(null);
     setSelectedCalendarDate('');
-    setJournalFilter('important');
-    setCurrentScreen('globalJournal');
+    setJournalFilter(nextState.journalFilter);
+    setExpandedJournalCardIds(nextState.expandedJournalCardIds);
+    setCurrentScreen(nextState.currentScreen);
   }
 
   function openTasks() {
+    const nextState = buildTasksNavigationState();
     setSelectedStage('');
     setSelectedCardId(null);
     setSelectedCalendarDate('');
-    setCurrentScreen('tasks');
+    setCurrentScreen(nextState.currentScreen);
+    setNotice(nextState.notice);
   }
 
   function openMenu() {
+    const nextState = buildMenuNavigationState();
     setSelectedStage('');
     setSelectedCardId(null);
     setSelectedCalendarDate('');
-    setCurrentScreen('menu');
+    setCurrentScreen(nextState.currentScreen);
+    setNotice(nextState.notice);
   }
 
   function openTaskCard(task) {
@@ -987,50 +411,28 @@ function AppContent() {
   }
 
   async function handleShareData() {
-    const exportedAt = new Date().toISOString();
-    const fileName = `sadovnik-diary-${exportedAt.slice(0, 10)}.xlsx`;
-    const workbook = buildCultureCardsReportWorkbook(cultureCards);
-    const reportBase64 = XLSX.write(workbook, {
-      bookType: 'xlsx',
-      type: 'base64',
-    });
-
     try {
-      if (Platform.OS === 'web' || !FileSystem.documentDirectory) {
-        await Share.share({
-          title: fileName,
-          message: 'Excel-отчет Sadovnik Diary подготовлен в мобильном приложении.',
-        });
+      const shareResult = await shareCultureCardsReport(cultureCards, {
+        getCardCurrentQuantity,
+        getOperationSummaryItems,
+        getResolvedBatchStatus,
+      });
+
+      if (shareResult === 'web_ready') {
         setNotice('Excel-отчет подготовлен.');
         return;
       }
 
-      const isSharingAvailable = await Sharing.isAvailableAsync();
-
-      if (!isSharingAvailable) {
-        await Share.share({
-          title: fileName,
-          message: 'Excel-отчет Sadovnik Diary подготовлен, но отправка файлов недоступна.',
-        });
+      if (shareResult === 'native_unavailable') {
         setNotice('Отправка Excel-файла недоступна на устройстве.');
         return;
       }
 
-      const fileUri = `${FileSystem.documentDirectory}${fileName}`;
-      await FileSystem.writeAsStringAsync(fileUri, reportBase64, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-      await Sharing.shareAsync(fileUri, {
-        dialogTitle: 'Поделиться отчетом Sadovnik Diary',
-        mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        UTI: 'org.openxmlformats.spreadsheetml.sheet',
-      });
       setNotice('Excel-файл отчета готов к отправке.');
     } catch (shareError) {
       setNotice('Не удалось подготовить Excel-отчет.');
     }
   }
-
   async function handleScheduleTestWateringReminder() {
     try {
       await scheduleWateringReminder({
@@ -1044,12 +446,13 @@ function AppContent() {
   }
 
   function openStageRecommendations() {
+    const nextState = buildStageRecommendationsNavigationState(selectedStage);
     setRecommendationsContext({
+      ...nextState.recommendationsContext,
       backScreen: 'cultureList',
-      stage: selectedStage,
     });
-    setRecommendationsMode('current');
-    setCurrentScreen('recommendations');
+    setRecommendationsMode(nextState.recommendationsMode);
+    setCurrentScreen(nextState.currentScreen);
   }
 
   function openSelectedCardRecommendations(backScreen) {
@@ -1067,10 +470,12 @@ function AppContent() {
   }
 
   function closeRecommendations() {
-    const backScreen = recommendationsContext?.backScreen || 'cultureList';
-    setRecommendationsContext(null);
-    setRecommendationsMode('current');
-    setCurrentScreen(backScreen);
+    const nextState = buildCloseRecommendationsState(
+      recommendationsContext?.backScreen || 'cultureList',
+    );
+    setRecommendationsContext(nextState.recommendationsContext);
+    setRecommendationsMode(nextState.recommendationsMode);
+    setCurrentScreen(nextState.currentScreen);
   }
 
   function handleLogout() {
@@ -1105,24 +510,15 @@ function AppContent() {
   }
 
   function updateCultureForm(field, value) {
-    setCultureForm((currentForm) => ({
-      ...currentForm,
-      [field]: value,
-    }));
+    setCultureForm((currentForm) => updateFormField(currentForm, field, value));
   }
 
   function updateStatusForm(field, value) {
-    setStatusForm((currentForm) => ({
-      ...currentForm,
-      [field]: value,
-    }));
+    setStatusForm((currentForm) => updateFormField(currentForm, field, value));
   }
 
   function updateIntroActionForm(field, value) {
-    setIntroActionForm((currentForm) => ({
-      ...currentForm,
-      [field]: value,
-    }));
+    setIntroActionForm((currentForm) => updateFormField(currentForm, field, value));
   }
 
   function openCultureForm() {
@@ -1351,13 +747,7 @@ function AppContent() {
       return;
     }
 
-    setCultureForm((currentForm) => ({
-      ...currentForm,
-      cultureName,
-      speciesName: '',
-      varietyName: '',
-      sourcePlantName: '',
-    }));
+    setCultureForm((currentForm) => applyCultureSelection(currentForm, cultureName));
     setOpenDropdown('');
   }
 
@@ -1366,12 +756,7 @@ function AppContent() {
       return;
     }
 
-    setCultureForm((currentForm) => ({
-      ...currentForm,
-      speciesName,
-      varietyName: '',
-      sourcePlantName: '',
-    }));
+    setCultureForm((currentForm) => applySpeciesSelection(currentForm, speciesName));
     setOpenDropdown('');
   }
 
@@ -1380,16 +765,7 @@ function AppContent() {
       return;
     }
 
-    const selectedPlant = plantsCatalog.find((plant) => (
-      (plant.cultureName || EMPTY_CATALOG_VALUE) === cultureForm.cultureName &&
-      (plant.speciesName || EMPTY_CATALOG_VALUE) === cultureForm.speciesName &&
-      (plant.varietyName || EMPTY_CATALOG_VALUE) === varietyName
-    ));
-    setCultureForm((currentForm) => ({
-      ...currentForm,
-      varietyName,
-      sourcePlantName: selectedPlant?.originalName || '',
-    }));
+    setCultureForm((currentForm) => applyVarietySelection(currentForm, varietyName, plantsCatalog));
     setOpenDropdown('');
   }
 
@@ -1415,11 +791,7 @@ function AppContent() {
     }
 
     const code = generatePlantingCode(cultureForm.createdAt, selectedStage);
-    const isDuplicateCode = cultureCards.some((card) => (
-      card.id !== editingCardId &&
-      (card.code || '').trim().toLowerCase() === code.trim().toLowerCase()
-    ));
-
+    const isDuplicateCode = isDuplicateCardCode(cultureCards, code, editingCardId);
     if (isDuplicateCode) {
       setFormError('Код уже существует. Сгенерируйте код ещё раз.');
       return;
@@ -1583,76 +955,7 @@ function AppContent() {
       return;
     }
 
-    const eventConfig = {
-      rooting: {
-        title: 'Укоренение',
-        countField: 'rootedCount',
-      },
-      death: {
-        title: 'Гибель',
-        countField: 'deathCount',
-        requiresReason: true,
-      },
-      discard: {
-        title: 'Выбраковка',
-        countField: 'discardCount',
-        requiresReason: true,
-      },
-      sale: {
-        title: 'Продажа',
-        countField: 'saleCount',
-      },
-      propagation: {
-        title: 'Размножение',
-        countField: 'propagationCount',
-      },
-      quarantine: {
-        title: 'Карантин',
-        countField: '',
-        requiresReason: true,
-      },
-      quarantineReleased: {
-        title: 'Снятие карантина',
-        countField: '',
-        requiresReason: true,
-      },
-      adaptationStress: {
-        title: 'Наблюдение',
-        countField: '',
-      },
-      adaptationEnvironment: {
-        title: 'Изменение среды',
-        countField: '',
-      },
-      adaptationHumidityReduction: {
-        title: 'Снижение влажности',
-        countField: '',
-      },
-      adaptationCare: {
-        title: 'Уход',
-        countField: '',
-      },
-      greenhouseObservation: {
-        title: 'Наблюдение',
-        countField: '',
-      },
-      greenhouseCare: {
-        title: 'Уход',
-        countField: '',
-      },
-      greenhouseEnvironment: {
-        title: 'Среда',
-        countField: '',
-      },
-      greenhouseDisease: {
-        title: 'Болезни / вредители',
-        countField: '',
-      },
-      transplant: {
-        title: 'Пересадка',
-        countField: 'transplantCount',
-      },
-    }[introActionType || 'rooting'];
+    const eventConfig = getStatusEventConfig(introActionType);
     const count = eventConfig.countField ? statusForm[eventConfig.countField].trim() : '';
     const editedOperation = editingOperationId
       ? selectedCardOperations.find((operation) => operation.id === editingOperationId)
@@ -1664,240 +967,101 @@ function AppContent() {
       }
       : selectedCard;
     const currentQuantity = getCardCurrentQuantity(cardWithoutEditedOperation);
+    const baseValidationError = getStatusBaseValidationError({
+      eventConfig,
+      count,
+      introActionType,
+      currentQuantity,
+      reason: statusForm.reason,
+      canReleaseQuarantine,
+      isEditingOperation: Boolean(editingOperationId),
+      batchStatus: selectedCard.batchStatus,
+    });
 
-    if (eventConfig.countField && !isPositiveInteger(count)) {
+    if (baseValidationError === 'invalid_count') {
       setStatusFormError('Укажите корректное количество');
       return;
     }
 
-    if (
-      ['rooting', 'death', 'discard', 'sale'].includes(introActionType) &&
-      Number(count) > currentQuantity
-    ) {
+    if (baseValidationError === 'count_gt_current') {
       setStatusFormError('Количество не может быть больше текущего остатка');
       return;
     }
 
-    if (eventConfig.requiresReason && !statusForm.reason.trim()) {
+    if (baseValidationError === 'missing_reason') {
       setStatusFormError('Укажите причину');
       return;
     }
 
-    if (introActionType === 'quarantineReleased') {
-      if (!canReleaseQuarantine) {
-        setStatusFormError('Снять карантин может только агроном или администратор');
-        return;
-      }
-
-      if (!editingOperationId && (selectedCard.batchStatus || 'active') !== 'quarantine') {
-        setStatusFormError('Партия не находится в карантине');
-        return;
-      }
+    if (baseValidationError === 'release_forbidden') {
+      setStatusFormError('Снять карантин может только агроном или администратор');
+      return;
     }
 
-    if (introActionType === 'adaptationStress' && ![
-      statusForm.stressLevel,
-      statusForm.stability,
-      statusForm.comment,
-    ].some((value) => value.trim())) {
+    if (baseValidationError === 'not_in_quarantine') {
+      setStatusFormError('Партия не находится в карантине');
+      return;
+    }
+
+    const adaptationValidationError = getAdaptationValidationError(introActionType, statusForm);
+
+    if (adaptationValidationError === 'adaptation_stress_missing') {
       setStatusFormError('Укажите хотя бы один параметр наблюдения');
       return;
     }
 
-    if (introActionType === 'adaptationEnvironment' && ![
-      statusForm.environmentTemperature,
-      statusForm.environmentAirHumidity,
-      statusForm.environmentHumidity,
-      statusForm.substrateHumidity,
-      statusForm.environmentLight,
-      statusForm.ventilation,
-      statusForm.humidityReduction,
-    ].some((value) => value.trim())) {
+    if (adaptationValidationError === 'adaptation_environment_missing') {
       setStatusFormError('Укажите хотя бы один параметр среды');
       return;
     }
 
-    if (introActionType === 'adaptationHumidityReduction' && ![
-      statusForm.environmentAirHumidity,
-      statusForm.environmentHumidity,
-      statusForm.substrateHumidity,
-      statusForm.humidityReduction,
-      statusForm.turgor,
-      statusForm.stability,
-    ].some((value) => value.trim())) {
+    if (adaptationValidationError === 'adaptation_humidity_reduction_missing') {
       setStatusFormError('Укажите снижение влажности или состояние партии');
       return;
     }
 
-    if (introActionType === 'adaptationCare' && !statusForm.careType.trim()) {
+    if (adaptationValidationError === 'adaptation_care_type_missing') {
       setStatusFormError('Укажите тип ухода');
       return;
     }
 
-    if (introActionType === 'greenhouseObservation' && ![
-      statusForm.growthRate,
-      statusForm.stressLevel,
-      statusForm.stability,
-      statusForm.riskLevel,
-      statusForm.conditionDescription,
-    ].some((value) => value.trim())) {
+    const greenhouseValidationError = getGreenhouseValidationError(introActionType, statusForm);
+
+    if (greenhouseValidationError === 'greenhouse_observation_missing') {
       setStatusFormError('Укажите хотя бы один параметр наблюдения');
       return;
     }
 
-    if (introActionType === 'greenhouseCare' && !statusForm.careType.trim()) {
+    if (greenhouseValidationError === 'greenhouse_care_type_missing') {
       setStatusFormError('Укажите тип ухода');
       return;
     }
 
-    if (introActionType === 'greenhouseEnvironment' && ![
-      statusForm.environmentTemperature,
-      statusForm.environmentAirHumidity,
-      statusForm.environmentHumidity,
-      statusForm.environmentLight,
-      statusForm.ventilation,
-      statusForm.placement,
-      statusForm.densityChange,
-    ].some((value) => value.trim())) {
+    if (greenhouseValidationError === 'greenhouse_environment_missing') {
       setStatusFormError('Укажите хотя бы один параметр среды');
       return;
     }
 
-    if (introActionType === 'greenhouseDisease' && ![
-      statusForm.diseaseName,
-      statusForm.pestName,
-      statusForm.diseaseSeverity,
-      statusForm.riskLevel,
-      statusForm.productName,
-    ].some((value) => value.trim())) {
+    if (greenhouseValidationError === 'greenhouse_disease_missing') {
       setStatusFormError('Укажите болезнь, вредителя или уровень риска');
       return;
     }
 
-    const nextOperation = {
-      id: editingOperationId || `${Date.now()}`,
-      type: introActionType || 'rooting',
-      title: eventConfig.title,
-      stage: selectedCard.stage || INTRO_STAGE,
-      date: selectedCalendarDate,
-      ...(count ? { count } : {}),
-      totalQuantity: selectedCard.quantity,
-      ...(['death', 'discard', 'sale'].includes(introActionType)
-        ? { currentQuantity: Math.max(currentQuantity - Number(count), 0) }
-        : {}),
-      ...(introActionType === 'propagation'
-        ? { currentQuantity: currentQuantity + Number(count) }
-        : {}),
-      comment: statusForm.comment.trim(),
-      photoNote: statusForm.photoNote.trim(),
-      ...(['death', 'discard'].includes(introActionType)
-        ? { reason: statusForm.reason.trim() }
-        : {}),
-      ...(introActionType === 'quarantine'
-        ? { quarantineReason: statusForm.reason.trim() }
-        : {}),
-      ...(introActionType === 'quarantineReleased'
-        ? { reason: statusForm.reason.trim() }
-        : {}),
-      ...(introActionType === 'sale'
-        ? {
-          saleType: statusForm.saleType.trim(),
-          recipient: statusForm.recipient.trim(),
-          saleAmount: statusForm.saleAmount.trim(),
-        }
-        : {}),
-      ...(introActionType === 'propagation'
-        ? { propagationMethod: statusForm.propagationMethod.trim() }
-        : {}),
-      ...(introActionType === 'adaptationStress'
-        ? {
-          stressLevel: statusForm.stressLevel.trim(),
-          stability: statusForm.stability.trim(),
-        }
-        : {}),
-      ...(introActionType === 'adaptationEnvironment'
-        ? {
-          environmentTemperature: statusForm.environmentTemperature.trim(),
-          environmentAirHumidity: statusForm.environmentAirHumidity.trim() || statusForm.environmentHumidity.trim(),
-          substrateHumidity: statusForm.substrateHumidity.trim(),
-          environmentLight: statusForm.environmentLight.trim(),
-          ventilation: statusForm.ventilation.trim(),
-          humidityReduction: statusForm.humidityReduction.trim(),
-          turgor: statusForm.turgor.trim(),
-          stability: statusForm.stability.trim(),
-        }
-        : {}),
-      ...(introActionType === 'adaptationHumidityReduction'
-        ? {
-          environmentAirHumidity: statusForm.environmentAirHumidity.trim() || statusForm.environmentHumidity.trim(),
-          substrateHumidity: statusForm.substrateHumidity.trim(),
-          humidityReduction: statusForm.humidityReduction.trim(),
-          turgor: statusForm.turgor.trim(),
-          stability: statusForm.stability.trim(),
-        }
-        : {}),
-      ...(introActionType === 'adaptationCare'
-        ? { careType: statusForm.careType.trim() }
-        : {}),
-      ...(introActionType === 'greenhouseObservation'
-        ? {
-          growthRate: statusForm.growthRate.trim(),
-          stressLevel: statusForm.stressLevel.trim(),
-          stability: statusForm.stability.trim(),
-          riskLevel: statusForm.riskLevel.trim(),
-          conditionDescription: statusForm.conditionDescription.trim(),
-        }
-        : {}),
-      ...(introActionType === 'greenhouseCare'
-        ? {
-          careType: statusForm.careType.trim(),
-          careIntervalDays: statusForm.careIntervalDays.trim(),
-          wateringIntervalDays: statusForm.wateringIntervalDays.trim(),
-          waterVolume: statusForm.waterVolume.trim(),
-          productName: statusForm.productName.trim(),
-          dosage: statusForm.dosage.trim(),
-          applicationMethod: statusForm.applicationMethod.trim(),
-          plantReaction: statusForm.plantReaction.trim(),
-          riskLevel: statusForm.riskLevel.trim(),
-        }
-        : {}),
-      ...(introActionType === 'greenhouseEnvironment'
-        ? {
-          environmentTemperature: statusForm.environmentTemperature.trim(),
-          environmentAirHumidity: statusForm.environmentAirHumidity.trim() || statusForm.environmentHumidity.trim(),
-          environmentLight: statusForm.environmentLight.trim(),
-          ventilation: statusForm.ventilation.trim(),
-          placement: statusForm.placement.trim(),
-          densityChange: statusForm.densityChange.trim(),
-          growthRate: statusForm.growthRate.trim(),
-          stability: statusForm.stability.trim(),
-          riskLevel: statusForm.riskLevel.trim(),
-        }
-        : {}),
-      ...(introActionType === 'greenhouseDisease'
-        ? {
-          diseaseName: statusForm.diseaseName.trim(),
-          pestName: statusForm.pestName.trim(),
-          diseaseSeverity: statusForm.diseaseSeverity.trim(),
-          riskLevel: statusForm.riskLevel.trim(),
-          productName: statusForm.productName.trim(),
-          dosage: statusForm.dosage.trim(),
-          applicationMethod: statusForm.applicationMethod.trim(),
-          plantReaction: statusForm.plantReaction.trim(),
-        }
-        : {}),
-      ...(introActionType === 'transplant'
-        ? {
-          placement: statusForm.placement.trim(),
-          densityChange: statusForm.densityChange.trim(),
-          growthRate: statusForm.growthRate.trim(),
-          stability: statusForm.stability.trim(),
-        }
-        : {}),
-      createdAt: editedOperation?.createdAt || new Date().toISOString(),
-      createdBy: editedOperation?.createdBy || currentUser.id,
-      ...(editingOperationId ? { updatedAt: new Date().toISOString(), updatedBy: currentUser.id } : {}),
-    };
+    const nowIso = new Date().toISOString();
+    const nextOperation = buildStatusOperation({
+      editingOperationId,
+      introActionType,
+      eventConfig,
+      selectedCard,
+      introStage: INTRO_STAGE,
+      selectedCalendarDate,
+      count,
+      currentQuantity,
+      statusForm,
+      editedOperation,
+      userId: currentUser.id,
+      nowIso,
+    });
     const nextCards = cultureCards.map((card) => {
       if (card.id !== selectedCard.id) {
         return card;
@@ -1912,39 +1076,15 @@ function AppContent() {
       const nextCard = {
         ...card,
         operations: nextOperations,
-        ...(introActionType === 'greenhouseCare' && statusForm.careType.trim()
-          ? {
-            greenhouseCareIntervals: {
-              ...(card.greenhouseCareIntervals || {}),
-              [statusForm.careType.trim()]: statusForm.careIntervalDays.trim() ||
-                statusForm.wateringIntervalDays.trim() ||
-                card.greenhouseCareIntervals?.[statusForm.careType.trim()],
-            },
-          }
-          : {}),
+        ...getGreenhouseCareIntervalsPatch(card, introActionType, statusForm),
       };
       const nextQuantity = getCardCurrentQuantity(nextCard);
-      const fallbackBatchStatus = introActionType === 'sale' && nextQuantity === 0
-        ? 'sold'
-        : introActionType === 'quarantine'
-          ? 'quarantine'
-        : introActionType === 'quarantineReleased'
-          ? 'active'
-        : (
-          (introActionType === 'adaptationStress' && statusForm.stressLevel === 'Критический') ||
-          (
-            ['greenhouseObservation', 'greenhouseDisease', 'greenhouseCare'].includes(introActionType) &&
-            (
-              statusForm.stressLevel === 'Критический' ||
-              statusForm.riskLevel === 'Критический' ||
-              statusForm.diseaseSeverity === 'Критическая'
-            )
-          )
-        )
-          ? 'problem'
-        : introActionType === 'sale'
-          ? 'partial'
-          : card.batchStatus || 'active';
+      const fallbackBatchStatus = getFallbackBatchStatus(
+        card,
+        introActionType,
+        nextQuantity,
+        statusForm,
+      );
       const nextCardWithStatus = {
         ...nextCard,
         batchStatus: fallbackBatchStatus,
@@ -2083,50 +1223,38 @@ function AppContent() {
     const sourceMaterial = cultureForm.sourceMaterial.trim();
     const parentBatch = cultureForm.parentBatch.trim();
     const startPhotoNote = cultureForm.startPhotoNote.trim();
-    const isDuplicateCode = cultureCards.some((card) => (
-      card.id !== editingCardId &&
-      (card.code || '').trim().toLowerCase() === code.toLowerCase()
-    ));
-    if (
-      !createdAt ||
-      !cultureName ||
-      !speciesName ||
-      !varietyName ||
-      !code ||
-      !quantity ||
-      (isCultureIntroStage && !sourceMaterial)
-    ) {
+    const isDuplicateCode = isDuplicateCardCode(cultureCards, code, editingCardId);
+    const validationError = validateCultureCardInput({
+      createdAt,
+      cultureName,
+      speciesName,
+      varietyName,
+      code,
+      quantity,
+      sourceMaterial,
+      isCultureIntroStage,
+      isDuplicateCode,
+    });
+    if (validationError === 'missing_fields') {
       setFormError('Заполните все поля');
       return;
     }
 
-    if (!isPositiveInteger(quantity)) {
+    if (validationError === 'invalid_quantity') {
       setFormError('Количество указано некорректно');
       return;
     }
 
-    if (isDuplicateCode) {
+    if (validationError === 'duplicate_code') {
       setFormError('Код уже существует');
       return;
     }
 
     const nowIso = new Date().toISOString();
-    const qrStatus = cultureForm.qrStatus === 'printed' ? 'printed' : 'pending_print';
-    const batchCreatedOperation = createBatchCreatedOperation({
-      createdAt,
-      stage: selectedStage,
-      quantity,
-      code,
-      createdBy: currentUser.id,
-    }, nowIso);
-    const nextOperations = editingCardId
-      ? cultureForm.operations || []
-      : [batchCreatedOperation];
-    const cultureFormWithoutRecommendations = removeRecommendationFields(cultureForm);
-
-    const nextCard = {
-      ...cultureFormWithoutRecommendations,
-      id: editingCardId || `${Date.now()}`,
+    const nextCard = buildCultureCardPayload({
+      cultureForm,
+      editingCardId,
+      selectedStage,
       createdAt,
       cultureName,
       speciesName,
@@ -2135,20 +1263,10 @@ function AppContent() {
       quantity,
       sourceMaterial,
       parentBatch,
-      sterilityStatus: cultureForm.sterilityStatus || 'unchecked',
       startPhotoNote,
-      name: getCardDisplayName({ cultureName, speciesName, varietyName }),
-      stage: selectedStage,
-      qrPrinted: cultureForm.qrPrinted || false,
-      qrPrintedAt: cultureForm.qrPrintedAt || null,
-      qrPrintedBy: cultureForm.qrPrintedBy || null,
-      qrStatus,
-      batchStatus: cultureForm.batchStatus || 'active',
-      status: cultureForm.status || 'active',
-      cancelledAt: cultureForm.cancelledAt || null,
-      cancelledBy: cultureForm.cancelledBy || null,
-      operations: nextOperations,
-    };
+      userId: currentUser.id,
+      nowIso,
+    });
 
     const nextCards = editingCardId
       ? cultureCards.map((card) => (card.id === editingCardId ? nextCard : card))
@@ -2181,11 +1299,7 @@ function AppContent() {
   }
 
   function isRequiredFieldMissing(field) {
-    if (!touchedSubmit) {
-      return false;
-    }
-
-    return !`${cultureForm[field]}`.trim();
+    return isRequiredFieldMissingInForm(cultureForm, touchedSubmit, field);
   }
 
   if (
@@ -2940,7 +2054,7 @@ function AppContent() {
         >
           <View style={styles.stagesScreen}>
             <View style={styles.stageGrid}>
-              {stageHomeItems.map((stage) => (
+              {stageHomeItemsConfig.map((stage) => (
                 <Pressable
                   accessibilityRole="button"
                   key={stage.title}
@@ -3013,3 +2127,10 @@ export default function App() {
     </SafeAreaProvider>
   );
 }
+
+
+
+
+
+
+
