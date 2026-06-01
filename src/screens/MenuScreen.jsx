@@ -1,4 +1,4 @@
-import { StatusBar } from 'expo-status-bar';
+﻿import { StatusBar } from 'expo-status-bar';
 import {
   Pressable,
   ScrollView,
@@ -8,7 +8,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import styles from '../../styles';
 import BottomTabBar from '../components/BottomTabBar';
-import ScreenGradient from '../components/ScreenGradient';
+import { ExitIcon } from '../components/icons';
 
 const roleLabels = {
   admin: 'Администратор',
@@ -27,6 +27,7 @@ export default function MenuScreen({
   onJournalPress,
   onLogout,
   onMenuAction,
+  onClearCards,
   onScheduleWateringReminder,
   onShareData,
   onScanPress,
@@ -35,13 +36,8 @@ export default function MenuScreen({
   taskCount = 0,
 }) {
   const normalizedFirstName = firstName?.trim();
-  const normalizedLastName = lastName?.trim();
-  const fullName = [normalizedFirstName, normalizedLastName].filter(Boolean).join(' ');
-  const initials = [
-    normalizedFirstName?.[0],
-    normalizedLastName?.[0],
-  ].filter(Boolean).join('').toLocaleUpperCase('ru-RU') || 'SD';
-  const displayName = fullName || 'Пользователь';
+  const displayName = normalizedFirstName || 'Пользователь';
+  const initials = (displayName?.[0] || 'S').toLocaleUpperCase('ru-RU');
 
   const accountItems = [
     ['Активные партии', String(activeCardsCount)],
@@ -72,11 +68,16 @@ export default function MenuScreen({
       subtitle: 'Вопросы и обратная связь',
       title: 'Поддержка',
     },
+    {
+      key: 'clearCards',
+      onPress: onClearCards,
+      subtitle: 'Удалить все тестовые карточки партий',
+      title: 'Зачистить карточки',
+    },
   ];
 
   return (
-    <SafeAreaView style={[styles.safeArea, styles.homeSafeArea]}>
-      <ScreenGradient />
+    <SafeAreaView style={styles.safeArea}>
       <StatusBar style="dark" />
       <ScrollView
         contentContainerStyle={styles.menuScrollContent}
@@ -95,6 +96,17 @@ export default function MenuScreen({
                 {roleLabels[role] || role}
               </Text>
             </View>
+            <Pressable
+              accessibilityLabel="Выйти"
+              accessibilityRole="button"
+              onPress={onLogout}
+              style={({ pressed }) => [
+                styles.menuHeaderExitButton,
+                pressed && styles.linkButtonPressed,
+              ]}
+            >
+              <ExitIcon color="#15863F" size={26} />
+            </Pressable>
           </View>
 
           <View style={styles.menuStatsGrid}>
@@ -121,7 +133,7 @@ export default function MenuScreen({
                   <Text style={styles.menuItemTitle}>{item.title}</Text>
                   <Text style={styles.menuItemSubtitle}>{item.subtitle}</Text>
                 </View>
-                <Text style={styles.menuItemArrow}>›</Text>
+                <Text style={styles.menuItemArrow}>{'>'}</Text>
               </Pressable>
             ))}
           </View>
@@ -130,17 +142,6 @@ export default function MenuScreen({
             <Text style={styles.menuNoticeText}>{notice}</Text>
           )}
 
-          <Pressable
-            accessibilityRole="button"
-            onPress={onLogout}
-            style={({ pressed }) => [
-              styles.dangerButton,
-              styles.menuLogoutButton,
-              pressed && styles.linkButtonPressed,
-            ]}
-          >
-            <Text style={styles.dangerButtonText}>Выйти из аккаунта</Text>
-          </Pressable>
         </View>
       </ScrollView>
 

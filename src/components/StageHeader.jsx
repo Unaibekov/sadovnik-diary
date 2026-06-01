@@ -13,17 +13,19 @@ export default function StageHeader({
   return (
     <View style={styles.header}>
       <View style={[styles.headerRow, children && styles.headerRowWithChildren]}>
-        <Pressable
-          accessibilityLabel="Назад"
-          accessibilityRole="button"
-          onPress={onBack}
-          style={({ pressed }) => [
-            styles.backButton,
-            pressed && appStyles.linkButtonPressed,
-          ]}
-        >
-          <ArrowBackIcon size={22} />
-        </Pressable>
+        {onBack && (
+          <Pressable
+            accessibilityLabel="Назад"
+            accessibilityRole="button"
+            onPress={onBack}
+            style={({ pressed }) => [
+              styles.backButton,
+              pressed && appStyles.linkButtonPressed,
+            ]}
+          >
+            <ArrowBackIcon size={22} />
+          </Pressable>
+        )}
 
         <View style={styles.titleBlock}>
           <Text style={styles.title} numberOfLines={1}>
@@ -95,9 +97,9 @@ const styles = StyleSheet.create({
   },
   title: {
     color: '#111827',
-    fontSize: 18,
-    fontWeight: '700',
-    lineHeight: 24,
+    fontSize: 21,
+    fontWeight: '800',
+    lineHeight: 27,
   },
   titleBlock: {
     flex: 1,

@@ -125,7 +125,6 @@ import RecommendationsScreen from './src/screens/RecommendationsScreen';
 import StatusChangeFormScreen from './src/screens/StatusChangeFormScreen';
 import TasksScreen from './src/screens/TasksScreen';
 import BottomTabBar from './src/components/BottomTabBar';
-import ScreenGradient from './src/components/ScreenGradient';
 import StageHeader from './src/components/StageHeader';
 import CultureCalendarTab from './src/components/CultureCalendarTab';
 import CultureJournalTab from './src/components/CultureJournalTab';
@@ -1309,7 +1308,6 @@ function AppContent() {
   ) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <ScreenGradient />
         <StatusBar style="dark" />
         <StageHeader
           onBack={closeCultureForm}
@@ -2010,7 +2008,7 @@ function AppContent() {
         activeCardsCount={activeCardsCount}
         bottomInset={bottomInset}
         firstName={login}
-        lastName={password}
+        lastName=""
         notice={notice}
         onHomePress={() => setCurrentScreen('stages')}
         onJournalPress={() => {
@@ -2019,6 +2017,7 @@ function AppContent() {
         }}
         onLogout={handleLogout}
         onMenuAction={(title) => setNotice(`${title}: раздел будет добавлен позже.`)}
+        onClearCards={handleClearTestData}
         onScheduleWateringReminder={handleScheduleTestWateringReminder}
         onShareData={handleShareData}
         onScanPress={() => setNotice('\u0421\u043a\u0430\u043d\u0435\u0440 \u0431\u0443\u0434\u0435\u0442 \u0434\u043e\u0431\u0430\u0432\u043b\u0435\u043d \u043f\u043e\u0437\u0434\u043d\u0435\u0435.')}
@@ -2045,8 +2044,7 @@ function AppContent() {
 
   if (isAuthenticated) {
     return (
-      <SafeAreaView style={[styles.safeArea, styles.homeSafeArea]}>
-        <ScreenGradient />
+      <SafeAreaView style={styles.safeArea}>
         <StatusBar style="dark" />
         <ScrollView
           contentContainerStyle={styles.stagesScrollContent}
@@ -2063,26 +2061,14 @@ function AppContent() {
                     styles.stageCard,
                     pressed && styles.stageCardPressed,
                   ]}
-                >
+                  >
                   <View style={[styles.stageIconBox, styles[stage.iconBoxStyle]]}>
-                    <StageItemIcon name={stage.iconName} size={44} />
+                    <StageItemIcon name={stage.iconName} size={24} />
                   </View>
                   <Text style={styles.stageName}>{stage.label}</Text>
                 </Pressable>
               ))}
             </View>
-
-            <Pressable
-              accessibilityRole="button"
-              onPress={handleClearTestData}
-              style={({ pressed }) => [
-                styles.dangerButton,
-                styles.homeClearButton,
-                pressed && styles.linkButtonPressed,
-              ]}
-            >
-              <Text style={styles.dangerButtonText}>Зачистить карточки</Text>
-            </Pressable>
 
             {!!notice && <Text style={styles.homeNoticeText}>{notice}</Text>}
             {!!storageError && <Text style={styles.homeErrorText}>{storageError}</Text>}
@@ -2109,13 +2095,13 @@ function AppContent() {
   return (
     <AuthScreen
       error={error}
-      firstName={login}
+      login={login}
       focusedField={focusedField}
-      lastName={password}
-      onFirstNameChange={setLogin}
+      password={password}
+      onLoginChange={setLogin}
       onFocusedFieldChange={setFocusedField}
-      onLastNameChange={setPassword}
-      onLogin={handleLogin}
+      onPasswordChange={setPassword}
+      onSubmitLogin={handleLogin}
     />
   );
 }

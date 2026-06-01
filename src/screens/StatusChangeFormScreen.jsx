@@ -5,7 +5,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import styles from '../../styles';
 import { formatDisplayDate } from '../domain/dates';
 import { getCardCurrentQuantity, getCardDisplayName } from '../domain/batch';
-import ScreenGradient from '../components/ScreenGradient';
 import StageHeader from '../components/StageHeader';
 import SelectBottomSheet from '../components/SelectBottomSheet';
 import { ChevronDownIcon } from '../components/icons';
@@ -123,7 +122,6 @@ export default function StatusChangeFormScreen({
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScreenGradient />
       <StatusBar style="dark" />
       <StageHeader
         onBack={onBack}

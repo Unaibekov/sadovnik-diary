@@ -1,46 +1,478 @@
-import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import styles from '../../styles';
-import ScreenGradient from '../components/ScreenGradient';
+import SelectBottomSheet from '../components/SelectBottomSheet';
+import { ChevronDownIcon, QrGenerateIcon } from '../components/icons';
 import StageHeader from '../components/StageHeader';
+import { BATCH_STATUS_LABELS } from '../domain/constants';
+import { dateFromIso, formatDisplayDate, parseDisplayDate } from '../domain/dates';
+
+const NativeDateTimePicker = Platform.OS === 'web'
+  ? null
+  : require('@react-native-community/datetimepicker/src/datetimepicker').default;
 
 export default function CultureFormScreen({
-  children,
-  footer,
+  canEditCurrentIdentity,
+  canSaveCultureForm,
+  cultureCreateBatchStatuses,
+  cultureForm,
+  cultureOptions,
+  formError,
+  handleDateChange,
+  handleGenerateCode,
+  handleSaveCultureCard,
+  handleSelectCulture,
+  handleSelectSpecies,
+  handleSelectVariety,
+  isAdaptationStage,
+  isCloneStage,
+  isCultureIntroStage,
+  isEditingCard,
+  isRequiredFieldMissing,
   onBack,
-  title,
+  openDropdown,
+  selectedStage,
+  setOpenDropdown,
+  setShowDatePicker,
+  showDatePicker,
+  showIdentityAsText,
+  sourceMaterialOptions,
+  speciesOptions,
+  updateCultureForm,
+  varietyOptions,
 }) {
+  const title = isEditingCard
+    ? 'Паспорт партии'
+    : isCultureIntroStage
+      ? 'Создать партию'
+      : 'Добавить карточку';
+
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScreenGradient />
       <StatusBar style="dark" />
-      <View style={styles.fixedCardsScreen}>
-        <StageHeader
-          onBack={onBack}
-          title={title}
-        />
-
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.keyboardView}
+      <StageHeader
+        onBack={onBack}
+        subtitle={<Text style={styles.stageHeaderSubtitle}>{selectedStage}</Text>}
+        title={title}
+      />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardView}
+      >
+        <ScrollView
+          contentContainerStyle={styles.cardsScrollContent}
+          keyboardShouldPersistTaps="handled"
         >
-          <ScrollView
-            contentContainerStyle={styles.cultureFormScrollContent}
-            keyboardShouldPersistTaps="handled"
-          >
-            <View style={[styles.surfacePanel, styles.formPanel]}>
-              {children}
-            </View>
-            {!!footer && (
-              <View style={styles.cultureFormFooter}>
-                {footer}
+          <View style={styles.cardsScreen}>
+            <View style={styles.formPanel}>
+              {isEditingCard && (
+                <View style={styles.noticeBox}>
+                  <Text style={styles.noticeText}>
+                    Паспорт партии заблокирован после создания. В этой форме можно менять только настройки текущей стадии.
+                  </Text>
+                </View>
+              )}
+
+              <View style={styles.field}>
+                <Text style={styles.label}>{isAdaptationStage ? 'Дата посадки *' : 'Дата создания *'}</Text>
+                {showIdentityAsText ? (
+                  <Text style={styles.readonlyValue}>
+                    {formatDisplayDate(cultureForm.createdAt)}
+                  </Text>
+                ) : Platform.OS === 'web' ? (
+                  <TextInput
+                    editable={canEditCurrentIdentity}
+                    onChangeText={(value) => {
+                      updateCultureForm('createdAt', parseDisplayDate(value));
+                    }}
+                    placeholder="дд.мм.гггг"
+                    placeholderTextColor="#7C8A80"
+                    style={[
+                      styles.input,
+                      !canEditCurrentIdentity && styles.inputDisabled,
+                      isRequiredFieldMissing('createdAt') && styles.inputInvalid,
+                    ]}
+                    value={formatDisplayDate(cultureForm.createdAt)}
+                  />
+                ) : (
+                  <>
+                    <Pressable
+                      accessibilityRole="button"
+                      disabled={!canEditCurrentIdentity}
+                      onPress={() => setShowDatePicker(true)}
+                      style={({ pressed }) => [
+                        styles.dateButton,
+                        !canEditCurrentIdentity && styles.inputDisabled,
+                        isRequiredFieldMissing('createdAt') && styles.inputInvalid,
+                        pressed && styles.linkButtonPressed,
+                      ]}
+                    >
+                      <Text style={styles.dateButtonText}>
+                        {formatDisplayDate(cultureForm.createdAt)}
+                      </Text>
+                    </Pressable>
+
+                    {showDatePicker && NativeDateTimePicker && (
+                      <NativeDateTimePicker
+                        mode="date"
+                        onChange={handleDateChange}
+                        value={dateFromIso(cultureForm.createdAt)}
+                      />
+                    )}
+                  </>
+                )}
               </View>
-            )}
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </View>
+
+              <View style={styles.field}>
+                {showIdentityAsText ? (
+                  <Text style={styles.readonlyValue}>{cultureForm.cultureName}</Text>
+                ) : (
+                  <>
+                    <Pressable
+                      accessibilityRole="button"
+                      disabled={!canEditCurrentIdentity}
+                      onPress={() => setOpenDropdown(openDropdown === 'culture' ? '' : 'culture')}
+                      style={[
+                        styles.selectButton,
+                        !canEditCurrentIdentity && styles.selectButtonDisabled,
+                        isRequiredFieldMissing('cultureName') && styles.inputInvalid,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.selectButtonText,
+                          !cultureForm.cultureName && styles.selectPlaceholder,
+                        ]}
+                      >
+                        {cultureForm.cultureName || 'Выберите культуру'}
+                      </Text>
+                      <View style={styles.selectButtonArrow}>
+                        <ChevronDownIcon />
+                      </View>
+                    </Pressable>
+
+                    <SelectBottomSheet
+                      onClose={() => setOpenDropdown('')}
+                      onSelect={handleSelectCulture}
+                      options={cultureOptions}
+                      title="Выберите культуру"
+                      visible={openDropdown === 'culture'}
+                    />
+                  </>
+                )}
+              </View>
+
+              <View style={styles.field}>
+                {showIdentityAsText ? (
+                  <Text style={styles.readonlyValue}>{cultureForm.speciesName}</Text>
+                ) : (
+                  <>
+                    <Pressable
+                      accessibilityRole="button"
+                      disabled={!cultureForm.cultureName || !canEditCurrentIdentity}
+                      onPress={() => setOpenDropdown(openDropdown === 'species' ? '' : 'species')}
+                      style={[
+                        styles.selectButton,
+                        (!cultureForm.cultureName || !canEditCurrentIdentity) && styles.selectButtonDisabled,
+                        isRequiredFieldMissing('speciesName') && styles.inputInvalid,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.selectButtonText,
+                          !cultureForm.speciesName && styles.selectPlaceholder,
+                        ]}
+                      >
+                        {cultureForm.speciesName || 'Выберите вид'}
+                      </Text>
+                      <View style={styles.selectButtonArrow}>
+                        <ChevronDownIcon />
+                      </View>
+                    </Pressable>
+
+                    <SelectBottomSheet
+                      onClose={() => setOpenDropdown('')}
+                      onSelect={handleSelectSpecies}
+                      options={speciesOptions}
+                      title="Выберите вид"
+                      visible={openDropdown === 'species'}
+                    />
+                  </>
+                )}
+              </View>
+
+              <View style={styles.field}>
+                {showIdentityAsText ? (
+                  <Text style={styles.readonlyValue}>{cultureForm.varietyName}</Text>
+                ) : (
+                  <>
+                    <Pressable
+                      accessibilityRole="button"
+                      disabled={!cultureForm.speciesName || !canEditCurrentIdentity}
+                      onPress={() => setOpenDropdown(openDropdown === 'variety' ? '' : 'variety')}
+                      style={[
+                        styles.selectButton,
+                        (!cultureForm.speciesName || !canEditCurrentIdentity) && styles.selectButtonDisabled,
+                        isRequiredFieldMissing('varietyName') && styles.inputInvalid,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.selectButtonText,
+                          !cultureForm.varietyName && styles.selectPlaceholder,
+                        ]}
+                      >
+                        {cultureForm.varietyName || 'Выберите сорт'}
+                      </Text>
+                      <View style={styles.selectButtonArrow}>
+                        <ChevronDownIcon />
+                      </View>
+                    </Pressable>
+
+                    <SelectBottomSheet
+                      onClose={() => setOpenDropdown('')}
+                      onSelect={handleSelectVariety}
+                      options={varietyOptions}
+                      title="Выберите сорт"
+                      visible={openDropdown === 'variety'}
+                    />
+                  </>
+                )}
+              </View>
+
+              <View style={styles.field}>
+                <Text style={styles.label}>Код партии *</Text>
+                {showIdentityAsText ? (
+                  <Text style={styles.readonlyValue}>{cultureForm.code}</Text>
+                ) : (
+                  <View style={styles.codeInputRow}>
+                    <TextInput
+                      autoCapitalize="characters"
+                      editable={canEditCurrentIdentity}
+                      onChangeText={(value) => updateCultureForm('code', value)}
+                      placeholder={`${isCloneStage ? 'KL' : isAdaptationStage ? 'AD' : 'VK'}-YYYYMMDD-HHMMSS`}
+                      placeholderTextColor="#7C8A80"
+                      style={[
+                        styles.input,
+                        styles.codeInput,
+                        !canEditCurrentIdentity && styles.inputDisabled,
+                        isRequiredFieldMissing('code') && styles.inputInvalid,
+                      ]}
+                      value={cultureForm.code}
+                    />
+                    <Pressable
+                      accessibilityLabel={isEditingCard ? 'Сгенерировать новый код партии' : 'Сгенерировать код партии'}
+                      accessibilityRole="button"
+                      disabled={!canEditCurrentIdentity}
+                      onPress={handleGenerateCode}
+                      style={({ pressed }) => [
+                        styles.generateButton,
+                        !canEditCurrentIdentity && styles.generateButtonDisabled,
+                        pressed && styles.pressedButton,
+                      ]}
+                    >
+                      <QrGenerateIcon
+                        color={canEditCurrentIdentity ? '#15863F' : '#9CA3AF'}
+                        size={28}
+                      />
+                    </Pressable>
+                  </View>
+                )}
+              </View>
+
+              <View style={styles.field}>
+                <Text style={styles.label}>Количество *</Text>
+                {isEditingCard ? (
+                  <Text style={styles.readonlyValue}>{cultureForm.quantity}</Text>
+                ) : (
+                  <TextInput
+                    inputMode="numeric"
+                    keyboardType="numeric"
+                    onChangeText={(value) => updateCultureForm('quantity', value)}
+                    placeholder="Введите количество"
+                    placeholderTextColor="#7C8A80"
+                    style={[
+                      styles.input,
+                      isRequiredFieldMissing('quantity') && styles.inputInvalid,
+                    ]}
+                    value={cultureForm.quantity}
+                  />
+                )}
+              </View>
+
+              {isCultureIntroStage && (
+                <>
+                  <View style={styles.field}>
+                    <Text style={styles.label}>Гормон *</Text>
+                    {showIdentityAsText ? (
+                      <Text style={styles.readonlyValue}>{cultureForm.hasHormone ? 'Есть' : 'Нет'}</Text>
+                    ) : (
+                      <View style={styles.toggleRow}>
+                        <Pressable
+                          accessibilityRole="button"
+                          onPress={() => updateCultureForm('hasHormone', true)}
+                          style={[
+                            styles.toggleButton,
+                            cultureForm.hasHormone && styles.toggleButtonActive,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.toggleButtonText,
+                              cultureForm.hasHormone && styles.toggleButtonTextActive,
+                            ]}
+                          >
+                            Есть
+                          </Text>
+                        </Pressable>
+
+                        <Pressable
+                          accessibilityRole="button"
+                          onPress={() => updateCultureForm('hasHormone', false)}
+                          style={[
+                            styles.toggleButton,
+                            !cultureForm.hasHormone && styles.toggleButtonActive,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.toggleButtonText,
+                              !cultureForm.hasHormone && styles.toggleButtonTextActive,
+                            ]}
+                          >
+                            Нет
+                          </Text>
+                        </Pressable>
+                      </View>
+                    )}
+                  </View>
+
+                  <View style={styles.field}>
+                    {showIdentityAsText ? (
+                      <Text style={styles.readonlyValue}>{cultureForm.sourceMaterial}</Text>
+                    ) : (
+                      <>
+                        <Pressable
+                          accessibilityRole="button"
+                          onPress={() => setOpenDropdown(openDropdown === 'sourceMaterial' ? '' : 'sourceMaterial')}
+                          style={[
+                            styles.selectButton,
+                            isRequiredFieldMissing('sourceMaterial') && styles.inputInvalid,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.selectButtonText,
+                              !cultureForm.sourceMaterial && styles.selectPlaceholder,
+                            ]}
+                          >
+                            {cultureForm.sourceMaterial || 'Выберите источник материала'}
+                          </Text>
+                          <View style={styles.selectButtonArrow}>
+                            <ChevronDownIcon />
+                          </View>
+                        </Pressable>
+
+                        <SelectBottomSheet
+                          customInputLabel="Указать свое"
+                          customInputPlaceholder="Введите источник материала"
+                          customInputValue={
+                            sourceMaterialOptions.includes(cultureForm.sourceMaterial)
+                              ? ''
+                              : cultureForm.sourceMaterial
+                          }
+                          onChangeCustomInput={(value) => updateCultureForm('sourceMaterial', value)}
+                          onClose={() => setOpenDropdown('')}
+                          onSelect={(option) => {
+                            updateCultureForm('sourceMaterial', option);
+                            setOpenDropdown('');
+                          }}
+                          options={sourceMaterialOptions.filter((option) => option !== 'Другое')}
+                          title="Выберите источник материала"
+                          visible={openDropdown === 'sourceMaterial'}
+                        />
+                      </>
+                    )}
+                  </View>
+
+                  <View style={styles.field}>
+                    <Text style={styles.label}>Стартовое фото</Text>
+                    {showIdentityAsText ? (
+                      <Text style={styles.readonlyValue}>{cultureForm.startPhotoNote || 'Не добавлено'}</Text>
+                    ) : (
+                      <TextInput
+                        onChangeText={(value) => updateCultureForm('startPhotoNote', value)}
+                        placeholder="Описание фото или ссылка"
+                        placeholderTextColor="#7C8A80"
+                        style={styles.input}
+                        value={cultureForm.startPhotoNote}
+                      />
+                    )}
+                  </View>
+
+                  {!isEditingCard && (
+                    <View style={styles.field}>
+                      <Pressable
+                        accessibilityRole="button"
+                        onPress={() => setOpenDropdown(openDropdown === 'batchStatus' ? '' : 'batchStatus')}
+                        style={styles.selectButton}
+                      >
+                        <Text style={styles.selectButtonText}>
+                          {BATCH_STATUS_LABELS[cultureForm.batchStatus] || 'Выберите статус партии'}
+                        </Text>
+                        <View style={styles.selectButtonArrow}>
+                          <ChevronDownIcon />
+                        </View>
+                      </Pressable>
+
+                      <SelectBottomSheet
+                        getKey={([value]) => value}
+                        getLabel={([, label]) => label}
+                        onClose={() => setOpenDropdown('')}
+                        onSelect={([value]) => {
+                          updateCultureForm('batchStatus', value);
+                          setOpenDropdown('');
+                        }}
+                        options={cultureCreateBatchStatuses}
+                        title="Выберите статус партии"
+                        visible={openDropdown === 'batchStatus'}
+                      />
+                    </View>
+                  )}
+                </>
+              )}
+            </View>
+
+            <View style={styles.cultureFormFooter}>
+              {!!formError && <Text style={styles.errorText}>{formError}</Text>}
+
+              {canSaveCultureForm && (
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={handleSaveCultureCard}
+                  style={({ pressed }) => [
+                    styles.primaryButton,
+                    pressed && styles.pressedButton,
+                  ]}
+                >
+                  <Text style={styles.primaryButtonText}>
+                    {isEditingCard ? 'Сохранить настройки' : isCultureIntroStage ? 'Создать партию' : 'Сохранить'}
+                  </Text>
+                </Pressable>
+              )}
+            </View>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
-

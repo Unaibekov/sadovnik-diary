@@ -1,8 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
-import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import styles from '../../styles';
-import ScreenGradient from '../components/ScreenGradient';
 import StageHeader from '../components/StageHeader';
 import StatusFilterTabs from '../components/StatusFilterTabs';
 import {
@@ -57,7 +56,6 @@ export default function CultureListScreen({
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScreenGradient />
       <StatusBar style="dark" />
       <View style={styles.fixedCardsScreen}>
         <StageHeader
@@ -65,16 +63,16 @@ export default function CultureListScreen({
           onOpenRecommendations={!isCultureIntroStage ? onOpenRecommendations : undefined}
           title={selectedStage}
         >
-          <View style={styles.searchRow}>
-            <View style={styles.searchBox}>
-              <Text style={styles.searchIcon}>{'\u2315'}</Text>
+          <View style={localStyles.searchRow}>
+            <View style={localStyles.searchBox}>
+              <Text style={localStyles.searchIcon}>{'\u2315'}</Text>
               <TextInput
                 autoCapitalize="none"
                 autoCorrect={false}
                 onChangeText={onChangeSearch}
                 placeholder="Поиск по названию"
                 placeholderTextColor="#9AA3AF"
-                style={styles.searchInput}
+                style={localStyles.searchInput}
                 value={cardSearch}
               />
             </View>
@@ -97,10 +95,10 @@ export default function CultureListScreen({
           ]}
           keyboardShouldPersistTaps="handled"
         >
-          <View style={styles.plantCardList}>
+          <View style={localStyles.plantCardList}>
             {isCardsLoading && (
-              <View style={styles.emptyState}>
-                <Text style={styles.emptyStateText}>Загрузка карточек...</Text>
+              <View style={localStyles.emptyState}>
+                <Text style={localStyles.emptyStateText}>Загрузка карточек...</Text>
               </View>
             )}
 
@@ -225,8 +223,8 @@ export default function CultureListScreen({
             })}
 
             {!isCardsLoading && cards.length === 0 && (
-              <View style={styles.emptyState}>
-                <Text style={styles.emptyStateText}>
+              <View style={localStyles.emptyState}>
+                <Text style={localStyles.emptyStateText}>
                   {isCultureIntroStage && 'Партий пока нет. Нажмите "Создать партию", чтобы создать первую.'}
                   {isCloneStage && 'Карточек пока нет. Переведите растение из введения в культуру.'}
                   {isAdaptationStage && 'Карточек пока нет. Переведите растение из клонирования.'}
@@ -261,3 +259,63 @@ export default function CultureListScreen({
     </SafeAreaView>
   );
 }
+
+const localStyles = StyleSheet.create({
+  searchRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    marginBottom: 12,
+  },
+  searchBox: {
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderColor: '#EEF2F0',
+    borderRadius: 40,
+    borderWidth: 1,
+    elevation: 2,
+    flex: 1,
+    flexDirection: 'row',
+    gap: 9,
+    height: 52,
+    paddingHorizontal: 14,
+    shadowColor: '#101828',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+  },
+  searchIcon: {
+    color: '#9AA3AF',
+    fontSize: 19,
+    fontWeight: '700',
+    lineHeight: 22,
+    marginTop: 1,
+    textAlign: 'center',
+    width: 22,
+  },
+  searchInput: {
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    color: '#111827',
+    flex: 1,
+    fontSize: 16,
+    height: 52,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+  },
+  plantCardList: {
+    gap: 10,
+  },
+  emptyState: {
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderColor: '#D7E0D8',
+    borderRadius: 10,
+    borderWidth: 1,
+    padding: 24,
+  },
+  emptyStateText: {
+    color: '#65756B',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+});

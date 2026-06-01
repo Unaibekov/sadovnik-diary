@@ -6,13 +6,64 @@ export default StyleSheet.create({
   },
   safeArea: {
     flex: 1,
-    backgroundColor: '#F5F0D8',
+    backgroundColor: '#F5F5F5',
   },
-  homeSafeArea: {
-    backgroundColor: '#F5F0D8',
+  authFullScreen: {
+    backgroundColor: '#091C10',
+    flex: 1,
+    height: '100%',
+    overflow: 'hidden',
+    width: '100%',
   },
-  authSafeArea: {
-    backgroundColor: '#F5F0D8',
+  authBg: {
+    flex: 1,
+    height: '100%',
+    overflow: 'hidden',
+    width: '100%',
+  },
+  authOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#0000002A',
+  },
+  authScene: {
+    alignSelf: 'stretch',
+    flex: 1,
+    overflow: 'hidden',
+    width: '100%',
+  },
+  authTopZone: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  authBottomZone: {
+    overflow: 'hidden',
+    width: '100%',
+  },
+  authBrandStart: {
+    alignItems: 'center',
+  },
+  authBrandFinal: {
+    alignItems: 'center',
+    marginTop: 14,
+  },
+  authLogoOutline: {
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+    borderColor: '#FFFFFF',
+    borderRadius: 24,
+    borderWidth: 2,
+    height: 116,
+    justifyContent: 'center',
+    width: 116,
+  },
+  authBrandText: {
+    color: '#FFFFFF',
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: 0,
+    lineHeight: 28,
+    marginTop: 16,
+    textAlign: 'center',
   },
   stagesScrollContent: {
     flexGrow: 1,
@@ -102,9 +153,11 @@ export default StyleSheet.create({
     marginTop: 2,
   },
   stageGrid: {
+    columnGap: 9,
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
+    rowGap: 9,
   },
   homeClearButton: {
     marginTop: 6,
@@ -121,12 +174,15 @@ export default StyleSheet.create({
     paddingTop: 18,
     paddingBottom: 62,
     position: 'relative',
-    shadowColor: '#102015',
+    shadowColor: '#0e2f19',
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.055,
-    shadowRadius: 14,
-    marginBottom: 14,
-    width: '48%',
+    shadowOpacity: 0.15,
+    shadowRadius: 34,
+    marginBottom: 0,
+    flexBasis: '47%',
+    flexGrow: 1,
+    flexShrink: 1,
+    maxWidth: '48%',
   },
   stageCardPressed: {
     backgroundColor: '#FAFCFB',
@@ -134,32 +190,31 @@ export default StyleSheet.create({
   },
   stageIconBox: {
     alignItems: 'center',
-    backgroundColor: 'transparent',
-    borderRadius: 14,
+    borderRadius: 999,
     bottom: 14,
-    height: 52,
+    height: 40,
     justifyContent: 'center',
     position: 'absolute',
     right: 14,
-    width: 52,
+    width: 40,
   },
   stageIconBoxGreen: {
-    backgroundColor: 'transparent',
+    backgroundColor: 'rgba(21, 134, 63, 0.3)',
   },
   stageIconBoxMint: {
-    backgroundColor: 'transparent',
+    backgroundColor: 'rgba(16, 185, 129, 0.3)',
   },
   stageIconBoxAqua: {
-    backgroundColor: 'transparent',
+    backgroundColor: 'rgba(20, 184, 166, 0.3)',
   },
   stageIconBoxLime: {
-    backgroundColor: 'transparent',
+    backgroundColor: 'rgba(101, 163, 13, 0.3)',
   },
   stageIconBoxSky: {
-    backgroundColor: 'transparent',
+    backgroundColor: 'rgba(14, 165, 233, 0.3)',
   },
   stageIconBoxOrange: {
-    backgroundColor: 'transparent',
+    backgroundColor: 'rgba(251, 146, 60, 0.3)',
   },
   stageName: {
     color: '#111827',
@@ -278,6 +333,14 @@ export default StyleSheet.create({
     lineHeight: 20,
     marginTop: 2,
   },
+  menuHeaderExitButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
+    height: 40,
+    width: 40,
+    borderRadius: 999,
+  },
   menuStatsGrid: {
     flexDirection: 'row',
     gap: 12,
@@ -391,9 +454,9 @@ export default StyleSheet.create({
   },
   tasksPageTitle: {
     color: '#111827',
-    fontSize: 28,
+    fontSize: 21,
     fontWeight: '800',
-    lineHeight: 34,
+    lineHeight: 27,
   },
   tasksPageMeta: {
     color: '#6B7280',
@@ -558,9 +621,9 @@ export default StyleSheet.create({
   },
   globalJournalTitle: {
     color: '#111827',
-    fontSize: 30,
+    fontSize: 21,
     fontWeight: '800',
-    lineHeight: 36,
+    lineHeight: 27,
     marginBottom: 16,
   },
   globalJournalFilterScroll: {
@@ -709,7 +772,7 @@ export default StyleSheet.create({
     backgroundColor: '#15863F14',
     borderColor: '#15863F4D',
     borderWidth: 1,
-    borderRadius: 999,
+    borderRadius: 16,
     flexShrink: 0,
     justifyContent: 'center',
     minHeight: 56,
@@ -1360,22 +1423,21 @@ export default StyleSheet.create({
     letterSpacing: 0,
   },
   plantCardList: {
-    gap: 18,
+    gap: 10,
   },
   plantCard: {
     backgroundColor: '#FFFFFF',
     borderColor: '#EEF2F0',
-    borderRadius: 24,
-    borderWidth: 1,
+    borderRadius: 16,
     elevation: 2,
-    minHeight: 92,
-    paddingHorizontal: 18,
+    // minHeight: 92,
+    paddingHorizontal: 16,
     paddingVertical: 16,
     position: 'relative',
     shadowColor: '#102015',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.045,
-    shadowRadius: 10,
+    shadowRadius: 30,
   },
   plantCardActive: {
     borderColor: '#A7F3C4',
@@ -1426,11 +1488,11 @@ export default StyleSheet.create({
   },
   plantCardStatusDot: {
     borderRadius: 7,
-    height: 14,
+    height: 10,
     position: 'absolute',
     right: 18,
     top: 18,
-    width: 14,
+    width: 10,
     zIndex: 1,
   },
   plantCardStatusDotGroup: {
@@ -1571,14 +1633,11 @@ export default StyleSheet.create({
     opacity: 1,
   },
   selectButtonText: {
-    color: '#132017',
+    color: '#000000',
     flex: 1,
     fontSize: 17,
     fontWeight: '400',
     lineHeight: 22,
-  },
-  selectPlaceholder: {
-    color: '#7A8491',
   },
   selectButtonArrow: {
     alignItems: 'center',
@@ -1804,6 +1863,8 @@ export default StyleSheet.create({
   },
   keyboardView: {
     flex: 1,
+    overflow: 'hidden',
+    width: '100%',
   },
   scrollContent: {
     flexGrow: 1,
@@ -1855,13 +1916,22 @@ export default StyleSheet.create({
     borderColor: '#F0F2F4',
     borderRadius: 24,
     borderWidth: 1,
-    paddingHorizontal: 28,
+    paddingHorizontal: 24,
     paddingBottom: 28,
     paddingTop: 26,
     shadowColor: '#102015',
     shadowOffset: { width: 0, height: 14 },
     shadowOpacity: 0.06,
     shadowRadius: 24,
+  },
+  authPanelFloating: {
+    alignSelf: 'stretch',
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+    height: '100%',
+    paddingTop: 24,
+    paddingHorizontal: 24,
+    width: '100%',
   },
   formHeader: {
     marginBottom: 8,
@@ -1897,6 +1967,13 @@ export default StyleSheet.create({
     fontWeight: '700',
     lineHeight: 20,
   },
+  forgotPasswordTextCenter: {
+    color: '#15863F',
+    fontSize: 16,
+    fontWeight: '700',
+    lineHeight: 22,
+    textAlign: 'center',
+  },
   authInput: {
     backgroundColor: '#F9FAFB',
     borderColor: '#EEF0F2',
@@ -1911,10 +1988,23 @@ export default StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: 8,
   },
+  authInputRow: {
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  authInputIcon: {
+    left: 18,
+    position: 'absolute',
+    zIndex: 2,
+  },
+  authInputWithIcon: {
+    paddingLeft: 50,
+  },
   authInputFocused: {
     borderColor: '#15863F',
     borderWidth: 2,
     paddingHorizontal: 17,
+    paddingLeft: 49,
   },
   readonlyValue: {
     color: '#1B3023',

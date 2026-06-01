@@ -2,7 +2,6 @@ import { StatusBar } from 'expo-status-bar';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import appStyles from '../../styles';
-import ScreenGradient from '../components/ScreenGradient';
 import StageHeader from '../components/StageHeader';
 
 export default function RecommendationsScreen({
@@ -20,7 +19,6 @@ export default function RecommendationsScreen({
 
   return (
     <SafeAreaView style={appStyles.safeArea}>
-      <ScreenGradient />
       <StatusBar style="dark" />
       <View style={appStyles.fixedCardsScreen}>
         <StageHeader
