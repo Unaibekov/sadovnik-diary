@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { CameraView } from 'expo-camera';
 import plantsCatalog from './data/plantsCatalog';
 import styles from './styles';
 import {
@@ -99,6 +100,7 @@ import {
   initializeLocalNotifications,
   scheduleWateringReminder,
 } from './src/services/localNotifications';
+import { shareQrCode } from './src/services/shareQrCodeService';
 import { shareCultureCardsReport } from './src/services/shareReportService';
 import {
   doesJournalEventMatchFilter,
@@ -200,6 +202,9 @@ function AppContent() {
   const isAdaptationStage = selectedStage === 'Адаптация';
   const isGreenhouseStage = selectedStage === 'Теплица';
   const selectedCardNextStage = getNextStage(selectedCard?.stage || selectedStage);
+  const selectedCardActionLocked =
+    selectedCard?.batchStatus === 'quarantine' ||
+    selectedCard?.sterilityStatus === 'contaminated';
   const stageMoveButtonLabel = selectedCardNextStage
     ? `В ${stageMoveTargetLabels[selectedCardNextStage] || selectedCardNextStage.toLocaleLowerCase('ru-RU')}`
     : getStageMoveButtonLabel(selectedCardNextStage);
@@ -261,6 +266,16 @@ function AppContent() {
     getResolvedBatchStatus,
     selectedStage,
   });
+  const selectedStageCardsCount = cultureCards.filter((card) => {
+    const cardStage = card.stage || INTRO_STAGE;
+    const batchStatus = getResolvedBatchStatus(card);
+
+    if (card.status === 'cancelled' || (card.status === 'archived' && batchStatus === 'sold')) {
+      return false;
+    }
+
+    return cardStage === selectedStage;
+  }).length;
   const recommendationStage = recommendationsContext?.stage || selectedCard?.stage || selectedStage;
   const recommendationCard = recommendationsContext?.cardId
     ? cultureCards.find((card) => card.id === recommendationsContext.cardId)
@@ -395,6 +410,75 @@ function AppContent() {
     setSelectedCalendarDate('');
     setCurrentScreen(nextState.currentScreen);
     setNotice(nextState.notice);
+  }
+
+  async function handleScanPress() {
+    if (Platform.OS === 'web') {
+      setNotice('QR-сканер доступен только в мобильном приложении.');
+      return;
+    }
+
+    let subscription;
+
+    try {
+      let handled = false;
+      subscription = CameraView.onModernBarcodeScanned(async (event) => {
+        if (handled) {
+          return;
+        }
+
+        handled = true;
+        subscription.remove();
+
+        if (Platform.OS === 'ios') {
+          await CameraView.dismissScanner();
+        }
+
+        const scannedCode = `${event?.data || ''}`.trim();
+        const matchedCard = cultureCards.find((card) => (
+          `${card.code || ''}`.trim().toLowerCase() === scannedCode.toLowerCase()
+        ));
+
+        if (!matchedCard) {
+          setNotice(scannedCode
+            ? `Карточка с QR-кодом ${scannedCode} не найдена.`
+            : 'QR-код найден, но его значение пустое.');
+          return;
+        }
+
+        setSelectedStage(matchedCard.stage || INTRO_STAGE);
+        openCultureCalendar(matchedCard);
+        setNotice(`Открыта карточка: ${getCardDisplayName(matchedCard)}.`);
+      });
+
+      await CameraView.launchScanner({
+        barcodeTypes: ['qr'],
+      });
+    } catch (scanError) {
+      setNotice('Не удалось открыть сканер QR-кода.');
+    } finally {
+      subscription?.remove();
+    }
+  }
+
+  async function handleShareQrPress(card) {
+    try {
+      const shareResult = await shareQrCode(card?.code);
+
+      if (shareResult === 'web_ready') {
+        setNotice('QR-код подготовлен для отправки.');
+        return;
+      }
+
+      if (shareResult === 'native_unavailable') {
+        setNotice('Системное отправление недоступно, QR-код подготовлен текстом.');
+        return;
+      }
+
+      setNotice('QR-код отправлен через системное меню.');
+    } catch (shareError) {
+      setNotice('Не удалось отправить QR-код.');
+    }
   }
 
   function openTaskCard(task) {
@@ -1789,7 +1873,7 @@ function AppContent() {
           setStageActionError('');
           setIsStageMoveConfirmVisible(true);
         }}
-        showBottomActions={cultureCalendarTab === 'calendar'}
+        showBottomActions={cultureCalendarTab === 'calendar' && !selectedCardActionLocked}
         stageActionError={stageActionError}
         stageMoveBlockedMessage={stageMoveBlockedMessage}
         stageMoveButtonLabel={stageMoveButtonLabel}
@@ -1840,6 +1924,7 @@ function AppContent() {
                 currentQuantity={selectedCardCurrentQuantity}
                 daysInStage={selectedCardDaysInStage}
                 getResolvedBatchStatus={getResolvedBatchStatus}
+                onShareQrPress={() => handleShareQrPress(selectedCard)}
               />
             )}
 
@@ -1965,6 +2050,7 @@ function AppContent() {
         isCloneStage={isCloneStage}
         isCultureIntroStage={isCultureIntroStage}
         isGreenhouseStage={isGreenhouseStage}
+        selectedStageCardsCount={selectedStageCardsCount}
         onBack={() => setSelectedStage('')}
         onChangeBatchStatusFilter={setBatchStatusFilter}
         onChangeSearch={setCardSearch}
@@ -1994,7 +2080,7 @@ function AppContent() {
           setSelectedStage(card.stage || INTRO_STAGE);
           openCultureCalendar(card);
         }}
-        onScanPress={() => setNotice('\u0421\u043a\u0430\u043d\u0435\u0440 \u0431\u0443\u0434\u0435\u0442 \u0434\u043e\u0431\u0430\u0432\u043b\u0435\u043d \u043f\u043e\u0437\u0434\u043d\u0435\u0435.')}
+        onScanPress={handleScanPress}
         onTasksPress={openTasks}
         onToggleCard={toggleJournalCard}
         taskCount={taskCount}
@@ -2020,7 +2106,7 @@ function AppContent() {
         onClearCards={handleClearTestData}
         onScheduleWateringReminder={handleScheduleTestWateringReminder}
         onShareData={handleShareData}
-        onScanPress={() => setNotice('\u0421\u043a\u0430\u043d\u0435\u0440 \u0431\u0443\u0434\u0435\u0442 \u0434\u043e\u0431\u0430\u0432\u043b\u0435\u043d \u043f\u043e\u0437\u0434\u043d\u0435\u0435.')}
+        onScanPress={handleScanPress}
         onTasksPress={openTasks}
         role={currentUser.role}
         taskCount={taskCount}
@@ -2035,7 +2121,7 @@ function AppContent() {
         onHomePress={() => setCurrentScreen('stages')}
         onJournalPress={openGlobalJournal}
         onMenuPress={openMenu}
-        onScanPress={() => setNotice('\u0421\u043a\u0430\u043d\u0435\u0440 \u0431\u0443\u0434\u0435\u0442 \u0434\u043e\u0431\u0430\u0432\u043b\u0435\u043d \u043f\u043e\u0437\u0434\u043d\u0435\u0435.')}
+        onScanPress={handleScanPress}
         onTaskPress={openTaskCard}
         tasks={careTasks}
       />
@@ -2084,7 +2170,7 @@ function AppContent() {
             setCurrentScreen('globalJournal');
           }}
           onMenuPress={openMenu}
-          onScanPress={() => setNotice('\u0421\u043a\u0430\u043d\u0435\u0440 \u0431\u0443\u0434\u0435\u0442 \u0434\u043e\u0431\u0430\u0432\u043b\u0435\u043d \u043f\u043e\u0437\u0434\u043d\u0435\u0435.')}
+          onScanPress={handleScanPress}
           onTasksPress={openTasks}
           taskCount={taskCount}
         />

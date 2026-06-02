@@ -556,7 +556,7 @@ export function getDaysInCurrentStage(card) {
   const today = dateFromIso(getTodayIsoDate());
   const millisecondsInDay = 24 * 60 * 60 * 1000;
 
-  return Math.max(Math.floor((today - start) / millisecondsInDay), 0);
+  return Math.max(Math.floor((today - start) / millisecondsInDay) + 1, 1);
 }
 
 export function isPositiveInteger(value) {

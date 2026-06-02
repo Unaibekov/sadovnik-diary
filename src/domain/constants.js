@@ -37,9 +37,9 @@ export const STERILITY_STATUS_LABELS = {
 };
 
 export const QR_STATUS_LABELS = {
-  none: 'не создан',
-  pending_print: 'ожидает печати',
-  printed: 'напечатан',
+  none: 'Не создан',
+  pending_print: 'Ожидает печати',
+  printed: 'Напечатан',
 };
 
 export const SOURCE_MATERIAL_OPTIONS = [

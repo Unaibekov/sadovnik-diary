@@ -24,10 +24,10 @@ export default function RecommendationsScreen({
         <StageHeader
           onBack={onBack}
           subtitle={<Text style={appStyles.stageHeaderSubtitle}>{stage}</Text>}
-          title="Рекомендации"
+          title={title}
         />
 
-        <ScrollView contentContainerStyle={appStyles.fixedCardsScrollContent}>
+        <View style={styles.recommendationsHeader}>
           {showModeSwitch && (
             <View style={styles.recommendationModeRow}>
               {[
@@ -43,10 +43,12 @@ export default function RecommendationsScreen({
                     mode === value && styles.recommendationModeButtonActive,
                   ]}
                 >
-                  <Text style={[
-                    styles.recommendationModeButtonText,
-                    mode === value && styles.recommendationModeButtonTextActive,
-                  ]}>
+                  <Text
+                    style={[
+                      styles.recommendationModeButtonText,
+                      mode === value && styles.recommendationModeButtonTextActive,
+                    ]}
+                  >
                     {label}
                   </Text>
                 </Pressable>
@@ -54,6 +56,9 @@ export default function RecommendationsScreen({
             </View>
           )}
 
+        </View>
+
+        <ScrollView contentContainerStyle={styles.recommendationsScrollContent}>
           <View style={styles.recommendationsList}>
             {visibleEntries.length === 0 && (
               <View style={appStyles.emptyState}>
@@ -68,9 +73,6 @@ export default function RecommendationsScreen({
             {visibleEntries.map((entry) => (
               <View key={entry.key} style={[appStyles.surfacePanel, styles.recommendationCard]}>
                 <Text style={styles.recommendationCardTitle}>{entry.title}</Text>
-                {!!entry.subtitle && (
-                  <Text style={styles.recommendationCardSubtitle}>{entry.subtitle}</Text>
-                )}
 
                 {entry.items.length === 0 ? (
                   <Text style={styles.recommendationEmptyText}>
@@ -97,14 +99,8 @@ export default function RecommendationsScreen({
 
 const styles = StyleSheet.create({
   recommendationCard: {
+    gap: 14,
     padding: 16,
-  },
-  recommendationCardSubtitle: {
-    color: '#65756B',
-    fontSize: 13,
-    fontWeight: '700',
-    lineHeight: 18,
-    marginTop: 4,
   },
   recommendationCardTitle: {
     color: '#111827',
@@ -116,26 +112,20 @@ const styles = StyleSheet.create({
     color: '#65756B',
     fontSize: 14,
     lineHeight: 20,
-    marginTop: 12,
   },
   recommendationItem: {
-    backgroundColor: '#F7FAF8',
-    borderColor: '#E6ECE8',
-    borderRadius: 12,
-    borderWidth: 1,
-    padding: 12,
+    gap: 4,
+    paddingVertical: 8,
   },
   recommendationItemLabel: {
     color: '#15863F',
     fontSize: 12,
     fontWeight: '800',
     lineHeight: 16,
-    marginBottom: 4,
     textTransform: 'uppercase',
   },
   recommendationItemList: {
-    gap: 10,
-    marginTop: 14,
+    gap: 2,
   },
   recommendationItemValue: {
     color: '#17251C',
@@ -173,6 +163,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginBottom: 14,
     padding: 4,
+  },
+  recommendationsHeader: {
+    flexShrink: 0,
+    paddingHorizontal: 16,
+  },
+  recommendationsScrollContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 24,
   },
   recommendationsList: {
     gap: 14,

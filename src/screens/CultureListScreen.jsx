@@ -3,12 +3,15 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-
 import { SafeAreaView } from 'react-native-safe-area-context';
 import styles from '../../styles';
 import StageHeader from '../components/StageHeader';
+import CultureCardInfo from '../components/CultureCardInfo';
+import { CalendarIcon, InfoIcon, LeaveIcon, LogoElementIcon, TimeIcon } from '../components/icons';
 import StatusFilterTabs from '../components/StatusFilterTabs';
 import {
   getAdaptationStats,
   getCardCurrentQuantity,
   getCardDisplayName,
   getCloneStats,
+  getDaysInCurrentStage,
   getGreenhouseStats,
   getQrStatus,
 } from '../domain/batch';
@@ -28,6 +31,7 @@ export default function CultureListScreen({
   isCloneStage,
   isCultureIntroStage,
   isGreenhouseStage,
+  selectedStageCardsCount,
   onBack,
   onChangeBatchStatusFilter,
   onChangeSearch,
@@ -53,6 +57,20 @@ export default function CultureListScreen({
       ['draft', 'Черновик'],
       ['quarantine', 'Карантин'],
     ];
+  const formatDaysInStage = (days) => {
+    const value = Math.max(days, 1);
+    const lastDigit = value % 10;
+    const lastTwoDigits = value % 100;
+    const suffix = lastTwoDigits >= 11 && lastTwoDigits <= 14
+      ? 'дней'
+      : lastDigit === 1
+        ? 'день'
+        : lastDigit >= 2 && lastDigit <= 4
+          ? 'дня'
+          : 'дней';
+
+    return `${value} ${suffix} в стадии`;
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -92,6 +110,7 @@ export default function CultureListScreen({
           contentContainerStyle={[
             styles.fixedCardsScrollContent,
             isCultureIntroStage && styles.fixedCardsScrollContentWithActions,
+            !isCardsLoading && selectedStageCardsCount === 0 && localStyles.emptyScrollContent,
           ]}
           keyboardShouldPersistTaps="handled"
         >
@@ -113,6 +132,129 @@ export default function CultureListScreen({
               const cloneStats = getCloneStats(card);
               const adaptationStats = getAdaptationStats(card);
               const greenhouseStats = getGreenhouseStats(card);
+              const cardDaysInStage = getDaysInCurrentStage(card);
+              const isContaminated = card.sterilityStatus === 'contaminated';
+              const introMeta = [
+                {
+                  key: 'date',
+                  icon: <CalendarIcon color="#15863F" size={16} />,
+                  value: card.createdAt ? formatDisplayDate(card.createdAt) : '-',
+                },
+                {
+                  key: 'quantity',
+                  icon: <LeaveIcon color="#15863F" size={16} />,
+                  value: `${getCardCurrentQuantity(card)} шт.`,
+                },
+                {
+                  key: 'days',
+                  icon: <TimeIcon color="#15863F" size={16} />,
+                  value: formatDaysInStage(cardDaysInStage),
+                },
+              ];
+              const stageMeta = [
+                {
+                  key: 'date',
+                  icon: <CalendarIcon color="#15863F" size={16} />,
+                  value: (card.stageChangedAt || card.createdAt)
+                    ? formatDisplayDate(card.stageChangedAt || card.createdAt)
+                    : '-',
+                },
+                {
+                  key: 'quantity',
+                  icon: <LeaveIcon color="#15863F" size={16} />,
+                  value: `${getCardCurrentQuantity(card)} из ${card.quantity} шт.`,
+                },
+                {
+                  key: 'days',
+                  icon: <TimeIcon color="#15863F" size={16} />,
+                  value: formatDaysInStage(cardDaysInStage),
+                },
+              ];
+              const introStatuses = [
+                ...(batchStatus === 'quarantine'
+                  ? [{
+                    key: 'quarantine',
+                    icon: <InfoIcon color="#D92D20" size={14} />,
+                    text: 'Карантин',
+                    textStyle: { color: '#D92D20' },
+                  }]
+                  : []),
+                ...(isContaminated
+                  ? [{
+                    key: 'contaminated',
+                    icon: <InfoIcon color="#D92D20" size={14} />,
+                    text: 'Контаминация',
+                    textStyle: { color: '#D92D20' },
+                  }]
+                  : []),
+                ...(cardDaysInStage >= 14 && !isContaminated && batchStatus !== 'quarantine'
+                  ? [{
+                    key: 'stage-ready',
+                    icon: <TimeIcon color="#F59E0B" size={14} />,
+                    text: 'Готово к смене стадии',
+                  }]
+                  : []),
+                ...(cardDaysInStage < 14 &&
+                  getQrStatus(card) === 'pending_print' &&
+                  !isContaminated &&
+                  batchStatus !== 'quarantine'
+                  ? [{
+                    key: 'qr-pending',
+                    icon: <InfoIcon color="#9AA3AF" size={14} />,
+                    text: 'QR ожидает печати',
+                  }]
+                  : []),
+              ];
+              const stageStatuses = [
+                ...(batchStatus === 'quarantine'
+                  ? [{
+                    key: 'quarantine',
+                    icon: <InfoIcon color="#D92D20" size={14} />,
+                    text: 'Карантин',
+                    textStyle: { color: '#D92D20' },
+                  }]
+                  : []),
+                ...(isContaminated
+                  ? [{
+                    key: 'contaminated',
+                    icon: <InfoIcon color="#D92D20" size={14} />,
+                    text: 'Контаминация',
+                    textStyle: { color: '#D92D20' },
+                  }]
+                  : []),
+                ...(isCloneStage && cloneStats.riskStatus !== 'Нормальный'
+                  ? [{
+                    key: 'clone-risk',
+                    icon: <InfoIcon color="#D92D20" size={14} />,
+                    text: `Риск: ${cloneStats.riskStatus}`,
+                    textStyle: { color: '#D92D20' },
+                  }]
+                  : []),
+                ...(isAdaptationStage && adaptationStats.riskStatus !== 'Нормальный'
+                  ? [{
+                    key: 'adaptation-risk',
+                    icon: <InfoIcon color="#D92D20" size={14} />,
+                    text: `Риск: ${adaptationStats.riskStatus}`,
+                    textStyle: { color: '#D92D20' },
+                  }]
+                  : []),
+                ...(isGreenhouseStage && greenhouseStats.riskStatus !== 'Низкий'
+                  ? [{
+                    key: 'greenhouse-risk',
+                    icon: <InfoIcon color="#D92D20" size={14} />,
+                    text: `Риск: ${greenhouseStats.riskStatus}`,
+                    textStyle: { color: '#D92D20' },
+                  }]
+                  : []),
+                ...(isGreenhouseStage && greenhouseStats.hasOverdueCare
+                  ? [{
+                    key: 'overdue-care',
+                    icon: <InfoIcon color="#D92D20" size={14} />,
+                    text: 'Уход просрочен',
+                    textStyle: { color: '#D92D20' },
+                  }]
+                  : []),
+              ];
 
               return (
                 <Pressable
@@ -154,16 +296,7 @@ export default function CultureListScreen({
                             {getCardDisplayName(card)}
                           </Text>
                         </View>
-                        <View style={styles.plantCardMetaRow}>
-                          <Text style={styles.plantCardMetaText} numberOfLines={1}>
-                            {card.createdAt ? formatDisplayDate(card.createdAt) : '-'} {'\u2022'} {getCardCurrentQuantity(card)} шт.
-                          </Text>
-                          {getQrStatus(card) === 'pending_print' && (
-                            <Text style={styles.plantCardMetaText} numberOfLines={1}>
-                              Ожидает печати
-                            </Text>
-                          )}
-                        </View>
+                        <CultureCardInfo meta={introMeta} statuses={introStatuses} />
                         {batchStatus === 'draft' && (
                           <View style={styles.plantCardActions}>
                             <Pressable
@@ -185,36 +318,7 @@ export default function CultureListScreen({
                     ) : (
                       <>
                         <Text style={styles.plantCardName}>{getCardDisplayName(card)}</Text>
-                        <View style={styles.plantCardMetaRow}>
-                          <Text style={styles.plantCardMetaText} numberOfLines={1}>
-                            {(card.stageChangedAt || card.createdAt)
-                              ? formatDisplayDate(card.stageChangedAt || card.createdAt)
-                              : '-'} {'\u2022'} {getCardCurrentQuantity(card)} из {card.quantity} шт.
-                          </Text>
-                        </View>
-
-                        {isCloneStage && cloneStats.riskStatus !== 'Нормальный' && (
-                          <Text style={styles.plantCardWarningText}>
-                            Риск: {cloneStats.riskStatus}
-                          </Text>
-                        )}
-
-                        {isAdaptationStage && adaptationStats.riskStatus !== 'Нормальный' && (
-                          <Text style={styles.plantCardWarningText}>
-                            Риск: {adaptationStats.riskStatus}
-                          </Text>
-                        )}
-
-                        {isGreenhouseStage && greenhouseStats.riskStatus !== 'Низкий' && (
-                          <Text style={styles.plantCardWarningText}>
-                            Риск: {greenhouseStats.riskStatus}
-                          </Text>
-                        )}
-                        {isGreenhouseStage && greenhouseStats.hasOverdueCare && (
-                          <Text style={styles.plantCardWarningText}>
-                            Уход просрочен
-                          </Text>
-                        )}
+                        <CultureCardInfo meta={stageMeta} statuses={stageStatuses} />
                       </>
                     )}
                   </View>
@@ -222,10 +326,13 @@ export default function CultureListScreen({
               );
             })}
 
-            {!isCardsLoading && cards.length === 0 && (
+            {!isCardsLoading && selectedStageCardsCount === 0 && (
               <View style={localStyles.emptyState}>
+                <View style={localStyles.emptyStateIconWrap}>
+                  <LogoElementIcon color="#15863F" size={74} />
+                </View>
                 <Text style={localStyles.emptyStateText}>
-                  {isCultureIntroStage && 'Партий пока нет. Нажмите "Создать партию", чтобы создать первую.'}
+                  {isCultureIntroStage && 'Партии пока нет. \nНажмите «Создать партию», чтобы создать первую.'}
                   {isCloneStage && 'Карточек пока нет. Переведите растение из введения в культуру.'}
                   {isAdaptationStage && 'Карточек пока нет. Переведите растение из клонирования.'}
                   {isGreenhouseStage && 'Карточек пока нет. Переведите растение из адаптации.'}
@@ -305,17 +412,40 @@ const localStyles = StyleSheet.create({
   plantCardList: {
     gap: 10,
   },
+  emptyScrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+  },
   emptyState: {
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
     borderColor: '#D7E0D8',
-    borderRadius: 10,
+    borderRadius: 18,
     borderWidth: 1,
-    padding: 24,
+    gap: 16,
+    justifyContent: 'center',
+    minHeight: 220,
+    paddingHorizontal: 24,
+    paddingVertical: 28,
+    shadowColor: '#102015',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+  },
+  emptyStateIconWrap: {
+    alignItems: 'center',
+    backgroundColor: '#EAF6EE',
+    borderRadius: 999,
+    height: 104,
+    justifyContent: 'center',
+    width: 104,
   },
   emptyStateText: {
-    color: '#65756B',
+    color: '#15863F',
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: '700',
+    lineHeight: 24,
+    textAlign: 'center',
   },
 });
+

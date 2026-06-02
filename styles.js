@@ -1173,13 +1173,10 @@ export default StyleSheet.create({
     lineHeight: 20,
   },
   journalItem: {
-    borderTopColor: '#E6EDE7',
-    borderTopWidth: 1,
     gap: 4,
-    paddingTop: 12,
   },
   journalItemWarning: {
-    borderTopColor: '#F2B8B5',
+    // keep warning styling without an internal divider
   },
   journalItemTitle: {
     color: '#1B3023',
@@ -1520,12 +1517,22 @@ export default StyleSheet.create({
   plantCardStatusDotPartial: {
     backgroundColor: '#F59E0B',
   },
-  plantCardMetaRow: {
+  plantCardMetaGrid: {
+    flexDirection: 'row',
+    gap: 14,
+    marginTop: 12,
+  },
+  plantCardMetaBlock: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: 8,
-    marginTop: 8,
-    minWidth: 0,
+    flexShrink: 0,
+    gap: 6,
+  },
+  plantCardMetaValue: {
+    color: '#6B7280',
+    fontSize: 11,
+    fontWeight: '400',
+    lineHeight: 14,
   },
   plantCardCodePill: {
     backgroundColor: '#F3F4F6',
@@ -1538,21 +1545,9 @@ export default StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
   },
-  plantCardMetaText: {
-    color: '#9AA3AF',
-    fontSize: 13,
-    lineHeight: 18,
-  },
   plantCardMetaDanger: {
     color: '#B42318',
     fontWeight: '800',
-  },
-  plantCardWarningText: {
-    color: '#B42318',
-    fontSize: 18,
-    fontWeight: '800',
-    lineHeight: 24,
-    marginTop: 10,
   },
   emptyState: {
     alignItems: 'center',
@@ -1622,12 +1617,12 @@ export default StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
     borderColor: '#EEF0F2',
-    borderRadius: 999,
-    borderWidth: 1,
+    // borderRadius: 999,
+    // borderWidth: 1,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    minHeight: 56,
-    paddingHorizontal: 16,
+    minHeight: 52,
+    paddingHorizontal: 0,
   },
   selectButtonDisabled: {
     opacity: 1,
@@ -1636,7 +1631,7 @@ export default StyleSheet.create({
     color: '#000000',
     flex: 1,
     fontSize: 17,
-    fontWeight: '400',
+    fontWeight: '700',
     lineHeight: 22,
   },
   selectButtonArrow: {

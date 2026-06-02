@@ -281,7 +281,7 @@ const authStyles = StyleSheet.create({
     justifyContent: 'center',
   },
   authBottomZone: {
-    overflow: 'hidden',
+    overflow: 'visible',
     width: '100%',
   },
   authBrandStart: {
@@ -317,10 +317,18 @@ const authStyles = StyleSheet.create({
     paddingBottom: 28,
     paddingHorizontal: 24,
     paddingTop: 26,
-    shadowColor: '#102015',
-    shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.06,
-    shadowRadius: 24,
+    ...Platform.select({
+      android: {
+        elevation: 12,
+        shadowColor: '#102015',
+      },
+      default: {
+        shadowColor: '#102015',
+        shadowOffset: { width: 0, height: 14 },
+        shadowOpacity: 0.06,
+        shadowRadius: 24,
+      },
+    }),
   },
   authPanelFloating: {
     alignSelf: 'stretch',
@@ -358,10 +366,18 @@ const authStyles = StyleSheet.create({
     fontSize: 16,
     minHeight: 56,
     paddingHorizontal: 18,
-    shadowColor: '#101828',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
+    ...Platform.select({
+      android: {
+        elevation: 4,
+        shadowColor: '#101828',
+      },
+      default: {
+        shadowColor: '#101828',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 12,
+      },
+    }),
   },
   authInputWithIcon: {
     paddingLeft: 50,
@@ -397,10 +413,18 @@ const authStyles = StyleSheet.create({
     marginTop: 4,
     minHeight: 58,
     paddingHorizontal: 18,
-    shadowColor: '#15863F',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.14,
-    shadowRadius: 12,
+    ...Platform.select({
+      android: {
+        elevation: 7,
+        shadowColor: '#15863F',
+      },
+      default: {
+        shadowColor: '#15863F',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.14,
+        shadowRadius: 12,
+      },
+    }),
   },
   authPrimaryButtonText: {
     color: '#FFFFFF',

@@ -1,5 +1,6 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import appStyles from '../../styles';
+import { DownloadSquareIcon } from './icons';
 import { BATCH_STATUS_LABELS, INTRO_STAGE, QR_STATUS_LABELS } from '../domain/constants';
 import { formatDisplayDate } from '../domain/dates';
 import { getQrStatus } from '../domain/batch';
@@ -11,6 +12,7 @@ export default function CulturePassportTab({
   currentQuantity,
   daysInStage,
   getResolvedBatchStatus,
+  onShareQrPress,
 }) {
   const batchStatus = getResolvedBatchStatus(card);
 
@@ -71,11 +73,24 @@ export default function CulturePassportTab({
           </>
         )}
         {card.stage === INTRO_STAGE && (
-          <View style={styles.passportRow}>
-            <Text style={styles.passportLabel}>QR</Text>
-            <Text style={styles.passportValue}>
-              {QR_STATUS_LABELS[getQrStatus(card)] || getQrStatus(card)}
-            </Text>
+          <View style={styles.passportQrRow}>
+            <View style={styles.passportQrTextBlock}>
+              <Text style={styles.passportLabel}>QR</Text>
+              <Text ellipsizeMode="tail" numberOfLines={1} style={styles.passportValue}>
+                {QR_STATUS_LABELS[getQrStatus(card)] || getQrStatus(card)}
+              </Text>
+            </View>
+            <Pressable
+              accessibilityLabel="Поделиться QR-кодом"
+              accessibilityRole="button"
+              onPress={onShareQrPress}
+              style={({ pressed }) => [
+                styles.passportQrAction,
+                pressed && appStyles.linkButtonPressed,
+              ]}
+            >
+              <DownloadSquareIcon color="#15863F" size={26} />
+            </Pressable>
           </View>
         )}
         <View style={styles.passportRow}>
@@ -152,6 +167,18 @@ const styles = StyleSheet.create({
     gap: 3,
     paddingTop: 8,
   },
+  passportQrRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingTop: 8,
+    borderTopColor: '#E6EDE7',
+    borderTopWidth: 1,
+  },
+  passportQrTextBlock: {
+    flex: 1,
+    gap: 3,
+  },
   passportRowFirst: {
     borderTopWidth: 0,
     paddingTop: 0,
@@ -169,5 +196,14 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     lineHeight: 20,
+  },
+  passportQrAction: {
+    alignItems: 'center',
+    alignSelf: 'center',
+    borderRadius: 999,
+    height: 40,
+    justifyContent: 'center',
+    padding: 0,
+    width: 40,
   },
 });
