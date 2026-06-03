@@ -18,7 +18,7 @@ import { dateFromIso, formatDisplayDate, parseDisplayDate } from '../domain/date
 
 const NativeDateTimePicker = Platform.OS === 'web'
   ? null
-  : require('@react-native-community/datetimepicker/src/datetimepicker').default;
+  : require('@react-native-community/datetimepicker').default;
 
 export default function CultureFormScreen({
   canEditCurrentIdentity,

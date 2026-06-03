@@ -117,6 +117,25 @@ export function getLatestFilledCalendarDate(card) {
   return operationDates.at(-1) || card?.createdAt || getTodayIsoDate();
 }
 
+export function buildSelectedCardJournalData(selectedCard, selectedCalendarDate) {
+  const selectedCardOperations = (selectedCard?.operations || [])
+    .filter((operation) => operation.type !== 'stageSettingsUpdated');
+  const selectedCardCalendarOperations = selectedCardOperations.filter((operation) => (
+    isOperationVisibleInCurrentStage(operation, selectedCard)
+  ));
+  const operationDates = new Set(selectedCardCalendarOperations.map((operation) => operation.date));
+  const selectedDateOperations = selectedCardCalendarOperations.filter((operation) => (
+    operation.date === selectedCalendarDate
+  ));
+
+  return {
+    operationDates,
+    selectedCardCalendarOperations,
+    selectedCardOperations,
+    selectedDateOperations,
+  };
+}
+
 export function getGlobalJournalEvents(cards) {
   return cards
     .flatMap((card) => (card.operations || [])

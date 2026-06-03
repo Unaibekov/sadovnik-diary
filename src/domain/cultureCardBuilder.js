@@ -56,3 +56,26 @@ export function buildCultureCardPayload({
     operations: nextOperations,
   };
 }
+
+export function buildCancelledCultureCard(card, userId, nowIso) {
+  return {
+    ...card,
+    status: 'cancelled',
+    cancelledAt: nowIso,
+    cancelledBy: userId,
+  };
+}
+
+export function buildSavedCultureCards(cultureCards, editingCardId, nextCard) {
+  return editingCardId
+    ? cultureCards.map((card) => (card.id === editingCardId ? nextCard : card))
+    : [nextCard, ...cultureCards];
+}
+
+export function buildCancelledCultureCards(cultureCards, editingCardId, userId, nowIso) {
+  return cultureCards.map((card) => (
+    card.id !== editingCardId
+      ? card
+      : buildCancelledCultureCard(card, userId, nowIso)
+  ));
+}

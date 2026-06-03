@@ -1,17 +1,7 @@
-import { StatusBar } from 'expo-status-bar';
-import { useEffect, useState } from 'react';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+﻿import { useEffect, useState } from 'react';
+import { Platform } from 'react-native';
 import {
   SafeAreaProvider,
-  SafeAreaView,
   initialWindowMetrics,
   useSafeAreaInsets,
 } from 'react-native-safe-area-context';
@@ -31,9 +21,7 @@ import {
   dateFromIso,
   formatDisplayDate,
   getMonthDays,
-  getMonthTitle,
   getTodayIsoDate,
-  parseDisplayDate,
 } from './src/domain/dates';
 import {
   createEmptyCultureForm,
@@ -56,6 +44,7 @@ import {
   isPositiveInteger,
 } from './src/domain/batch';
 import {
+  buildCultureFormOptions,
   getPlantCardStatusDotStyle,
   getResolvedBatchStatus,
   getUniqueOptions,
@@ -70,12 +59,13 @@ import {
 } from './src/domain/operationConfig';
 import {
   buildGroupedGlobalJournalCards,
+  getActiveCardsCount,
   filterCultureCards,
   getAllVisibleStageCardsCount,
+  getSelectedStageCardsCount,
 } from './src/domain/cultureSelectors';
 import {
-  findCatalogPlant,
-  getStagePlantRecommendationItems,
+  buildRecommendationEntries,
   removeRecommendationFields,
 } from './src/domain/recommendations';
 import {
@@ -92,7 +82,11 @@ import {
   isDuplicateCardCode,
   isRequiredFieldMissingInForm,
 } from './src/domain/cultureForm';
-import { buildCultureCardPayload } from './src/domain/cultureCardBuilder';
+import {
+  buildCancelledCultureCards,
+  buildCultureCardPayload,
+  buildSavedCultureCards,
+} from './src/domain/cultureCardBuilder';
 import { validateCultureCardInput } from './src/domain/cultureFormValidation';
 import { updateFormField } from './src/domain/formState';
 import {
@@ -101,7 +95,7 @@ import {
   saveCultureCardsToStorage,
 } from './src/services/cultureCardsStorage';
 import {
-  getReminderDateFromIsoDate,
+  buildWateringReminderPayload,
   initializeLocalNotifications,
   scheduleWateringReminder,
 } from './src/services/localNotifications';
@@ -113,35 +107,24 @@ import {
   getJournalFilterLabel,
   getLatestFilledCalendarDate,
   isOperationVisibleInCurrentStage,
+  buildSelectedCardJournalData,
 } from './src/domain/journal';
 import { buildCareTasks } from './src/domain/tasks';
-import { getStatusEventConfig } from './src/domain/statusOperations';
+import { getIntroActionConfig, getStatusEventConfig } from './src/domain/statusOperations';
 import { getStatusBaseValidationError } from './src/domain/statusValidation';
 import { getAdaptationValidationError } from './src/domain/statusStageValidation';
 import { getGreenhouseValidationError } from './src/domain/statusGreenhouseValidation';
 import { buildStatusOperation } from './src/domain/statusOperationBuilder';
-import { getFallbackBatchStatus } from './src/domain/statusCardStatusResolver';
-import { getGreenhouseCareIntervalsPatch } from './src/domain/statusCardMutations';
+import { buildStatusFormFromOperation } from './src/domain/statusOperationForm';
+import { buildStageChangeOperation, buildStageTransitionCard } from './src/domain/stageTransition';
+import { buildIntroActionUpdatedCard } from './src/domain/introActionCardBuilder';
+import { buildUpdatedStatusCard } from './src/domain/statusCardBuilder';
+import { buildIntroActionOperation } from './src/domain/introActionOperationBuilder';
+import { buildStatusOperationContext } from './src/domain/statusOperationContext';
+import { buildDeletedOperationCard } from './src/domain/operationDeletion';
 import AuthScreen from './src/screens/AuthScreen';
-import CultureCalendarScreen from './src/screens/CultureCalendarScreen';
-import CultureListScreen from './src/screens/CultureListScreen';
-import GlobalJournalScreen from './src/screens/GlobalJournalScreen';
-import IntroActionFormScreen from './src/screens/IntroActionFormScreen';
-import MenuScreen from './src/screens/MenuScreen';
-import RecommendationsScreen from './src/screens/RecommendationsScreen';
-import StatusChangeFormScreen from './src/screens/StatusChangeFormScreen';
-import TasksScreen from './src/screens/TasksScreen';
-import BottomTabBar from './src/components/BottomTabBar';
-import StageHeader from './src/components/StageHeader';
-import CultureCalendarTab from './src/components/CultureCalendarTab';
-import CultureJournalTab from './src/components/CultureJournalTab';
-import CulturePassportTab from './src/components/CulturePassportTab';
-import SelectBottomSheet from './src/components/SelectBottomSheet';
-import { ChevronDownIcon, QrGenerateIcon, StageItemIcon } from './src/components/icons';
-
-const NativeDateTimePicker = Platform.OS === 'web'
-  ? null
-  : require('@react-native-community/datetimepicker/src/datetimepicker').default;
+import AppRouter from './AppRouter';
+import AppErrorBoundary from './AppErrorBoundary';
 
 function AppContent() {
   const safeAreaInsets = useSafeAreaInsets();
@@ -189,48 +172,42 @@ function AppContent() {
   const isEditingCard = Boolean(editingCardId);
   const canEditCurrentIdentity = canEditIdentityFields(currentUser, editingCard);
   const calendarDays = getMonthDays(calendarMonth);
-  const selectedCardOperations = (selectedCard?.operations || [])
-    .filter((operation) => operation.type !== 'stageSettingsUpdated');
-  const selectedCardCalendarOperations = selectedCardOperations.filter((operation) => (
-    isOperationVisibleInCurrentStage(operation, selectedCard)
-  ));
-  const operationDates = new Set(selectedCardCalendarOperations.map((operation) => operation.date));
+  const {
+    operationDates,
+    selectedCardCalendarOperations,
+    selectedCardOperations,
+    selectedDateOperations,
+  } = buildSelectedCardJournalData(selectedCard, selectedCalendarDate);
   const selectedCardCurrentQuantity = getCardCurrentQuantity(selectedCard);
   const selectedCardCloneStats = getCloneStats(selectedCard);
   const selectedCardAdaptationStats = getAdaptationStats(selectedCard);
   const selectedCardDaysInStage = getDaysInCurrentStage(selectedCard);
-  const selectedDateOperations = selectedCardCalendarOperations.filter((operation) => (
-    operation.date === selectedCalendarDate
-  ));
-  const isCultureIntroStage = selectedStage === 'Введение в культуру';
-  const isCloneStage = selectedStage === 'Клонирование';
-  const isAdaptationStage = selectedStage === 'Адаптация';
-  const isGreenhouseStage = selectedStage === 'Теплица';
+  const isCultureIntroStage = selectedStage === INTRO_STAGE;
+  const isCloneStage = selectedStage === stages[1];
+  const isAdaptationStage = selectedStage === stages[2];
+  const isGreenhouseStage = selectedStage === stages[3];
   const selectedCardNextStage = getNextStage(selectedCard?.stage || selectedStage);
   const selectedCardActionLocked =
     selectedCard?.batchStatus === 'quarantine' ||
     selectedCard?.sterilityStatus === 'contaminated';
+  const userRole = currentUser.role;
   const stageMoveButtonLabel = selectedCardNextStage
     ? `В ${stageMoveTargetLabels[selectedCardNextStage] || selectedCardNextStage.toLocaleLowerCase('ru-RU')}`
     : getStageMoveButtonLabel(selectedCardNextStage);
   const stageMoveBlockedMessage = selectedCard?.stage === INTRO_STAGE && selectedCard.sterilityStatus === 'contaminated'
-    ? 'Партия с контаминацией. Перевод в клонирование заблокирован.'
+    ? 'РџР°СЂС‚РёСЏ СЃ РєРѕРЅС‚Р°РјРёРЅР°С†РёРµР№. РџРµСЂРµРІРѕРґ РІ РєР»РѕРЅРёСЂРѕРІР°РЅРёРµ Р·Р°Р±Р»РѕРєРёСЂРѕРІР°РЅ.'
     : selectedCard?.stage === INTRO_STAGE && (selectedCard.batchStatus || 'active') === 'quarantine'
-      ? 'Партия на карантине. Перевод в клонирование заблокирован.'
+      ? 'РџР°СЂС‚РёСЏ РЅР° РєР°СЂР°РЅС‚РёРЅРµ. РџРµСЂРµРІРѕРґ РІ РєР»РѕРЅРёСЂРѕРІР°РЅРёРµ Р·Р°Р±Р»РѕРєРёСЂРѕРІР°РЅ.'
       : '';
   const showIdentityAsText = isEditingCard;
   const canSaveCultureForm = true;
   const isSupportedPlantingStage = stages.includes(selectedStage);
-  const isSelectedCloneCard = selectedCard?.stage === 'Клонирование';
+  const isSelectedCloneCard = selectedCard?.stage === stages[1];
   const canReleaseQuarantine = ['agronomist', 'admin', 'superadmin'].includes(currentUser.role);
   const globalJournalEvents = getGlobalJournalEvents(cultureCards);
   const careTasks = buildCareTasks(cultureCards, getResolvedBatchStatus);
   const taskCount = careTasks.length;
-  const activeCardsCount = cultureCards.filter((card) => (
-    card.status !== 'cancelled' &&
-    card.status !== 'archived' &&
-    getResolvedBatchStatus(card) !== 'sold'
-  )).length;
+  const activeCardsCount = getActiveCardsCount(cultureCards, getResolvedBatchStatus);
   const groupedGlobalJournalCards = buildGroupedGlobalJournalCards(
     cultureCards,
     globalJournalEvents,
@@ -238,20 +215,11 @@ function AppContent() {
     doesJournalEventMatchFilter,
   );
 
-  const cultureOptions = getUniqueOptions(plantsCatalog, 'cultureName');
-  const speciesOptions = getUniqueOptions(
-    plantsCatalog.filter((plant) => (
-      (plant.cultureName || EMPTY_CATALOG_VALUE) === cultureForm.cultureName
-    )),
-    'speciesName',
-  );
-  const varietyOptions = getUniqueOptions(
-    plantsCatalog.filter((plant) => (
-      (plant.cultureName || EMPTY_CATALOG_VALUE) === cultureForm.cultureName &&
-      (plant.speciesName || EMPTY_CATALOG_VALUE) === cultureForm.speciesName
-    )),
-    'varietyName',
-  );
+  const {
+    cultureOptions,
+    speciesOptions,
+    varietyOptions,
+  } = buildCultureFormOptions(plantsCatalog, cultureForm);
 
   const filteredCultureCards = filterCultureCards(cultureCards, {
     batchStatusFilter,
@@ -271,16 +239,11 @@ function AppContent() {
     getResolvedBatchStatus,
     selectedStage,
   });
-  const selectedStageCardsCount = cultureCards.filter((card) => {
-    const cardStage = card.stage || INTRO_STAGE;
-    const batchStatus = getResolvedBatchStatus(card);
-
-    if (card.status === 'cancelled' || (card.status === 'archived' && batchStatus === 'sold')) {
-      return false;
-    }
-
-    return cardStage === selectedStage;
-  }).length;
+  const selectedStageCardsCount = getSelectedStageCardsCount(
+    cultureCards,
+    selectedStage,
+    getResolvedBatchStatus,
+  );
   const recommendationStage = recommendationsContext?.stage || selectedCard?.stage || selectedStage;
   const recommendationCard = recommendationsContext?.cardId
     ? cultureCards.find((card) => card.id === recommendationsContext.cardId)
@@ -292,45 +255,13 @@ function AppContent() {
       card.status !== 'cancelled' &&
       card.status !== 'archived'
     ));
-  const recommendationEntries = recommendationCard && recommendationsMode === 'all'
-    ? stages.map((stage) => {
-      const plant = findCatalogPlant(recommendationCard, plantsCatalog);
-
-      return {
-        key: `${recommendationCard.id}-${stage}`,
-        plantKey: recommendationCard.id,
-        subtitle: getCardDisplayName(recommendationCard),
-        title: stage,
-        items: getStagePlantRecommendationItems(plant, stage),
-      };
-    })
-    : recommendationSourceCards.reduce((entries, card) => {
-      const plantKey = [
-        card.cultureName,
-        card.speciesName,
-        card.varietyName,
-      ].join('|');
-
-      if (!recommendationCard && entries.some((entry) => entry.plantKey === plantKey)) {
-        return entries;
-      }
-
-      const plant = findCatalogPlant(card, plantsCatalog);
-
-      return [
-        ...entries,
-        {
-          key: recommendationCard ? `${card.id}-${recommendationStage}` : plantKey,
-          plantKey,
-          subtitle: [
-            plant?.originalName,
-            recommendationCard ? recommendationStage : '',
-          ].filter(Boolean).join(' · '),
-          title: getCardDisplayName(card),
-          items: getStagePlantRecommendationItems(plant, recommendationStage),
-        },
-      ];
-    }, []);
+  const recommendationEntries = buildRecommendationEntries({
+    plantsCatalog,
+    recommendationCard,
+    recommendationMode: recommendationsMode,
+    recommendationSourceCards,
+    recommendationStage,
+  });
 
   useEffect(() => {
     loadCultureCards();
@@ -343,7 +274,7 @@ function AppContent() {
       setCultureCards(savedCards);
       setStorageError('');
     } catch (loadError) {
-      setStorageError('Не удалось загрузить локальные данные');
+      setStorageError('РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РіСЂСѓР·РёС‚СЊ Р»РѕРєР°Р»СЊРЅС‹Рµ РґР°РЅРЅС‹Рµ');
     } finally {
       setIsCardsLoading(false);
     }
@@ -356,7 +287,7 @@ function AppContent() {
       setCultureCards(cardsWithoutRecommendations);
       setStorageError('');
     } catch (saveError) {
-      setStorageError('Не удалось сохранить локальные данные');
+      setStorageError('РќРµ СѓРґР°Р»РѕСЃСЊ СЃРѕС…СЂР°РЅРёС‚СЊ Р»РѕРєР°Р»СЊРЅС‹Рµ РґР°РЅРЅС‹Рµ');
     }
   }
 
@@ -368,12 +299,12 @@ function AppContent() {
 
   function handleForgotPassword() {
     setError('');
-    setNotice('Восстановление пароля будет добавлено на следующем шаге.');
+    setNotice('Р’РѕСЃСЃС‚Р°РЅРѕРІР»РµРЅРёРµ РїР°СЂРѕР»СЏ Р±СѓРґРµС‚ РґРѕР±Р°РІР»РµРЅРѕ РЅР° СЃР»РµРґСѓСЋС‰РµРј С€Р°РіРµ.');
   }
 
   function handleRegister() {
     setError('');
-    setNotice('Регистрация будет добавлена отдельно. Роль назначает суперадминистратор.');
+    setNotice('Р РµРіРёСЃС‚СЂР°С†РёСЏ Р±СѓРґРµС‚ РґРѕР±Р°РІР»РµРЅР° РѕС‚РґРµР»СЊРЅРѕ. Р РѕР»СЊ РЅР°Р·РЅР°С‡Р°РµС‚ СЃСѓРїРµСЂР°РґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂ.');
   }
 
   function toggleJournalCard(cardId) {
@@ -419,7 +350,7 @@ function AppContent() {
 
   async function handleScanPress() {
     if (Platform.OS === 'web') {
-      setNotice('QR-сканер доступен только в мобильном приложении.');
+      setNotice('QR-СЃРєР°РЅРµСЂ РґРѕСЃС‚СѓРїРµРЅ С‚РѕР»СЊРєРѕ РІ РјРѕР±РёР»СЊРЅРѕРј РїСЂРёР»РѕР¶РµРЅРёРё.');
       return;
     }
 
@@ -446,21 +377,21 @@ function AppContent() {
 
         if (!matchedCard) {
           setNotice(scannedCode
-            ? `Карточка с QR-кодом ${scannedCode} не найдена.`
-            : 'QR-код найден, но его значение пустое.');
+            ? `РљР°СЂС‚РѕС‡РєР° СЃ QR-РєРѕРґРѕРј ${scannedCode} РЅРµ РЅР°Р№РґРµРЅР°.`
+            : 'QR-РєРѕРґ РЅР°Р№РґРµРЅ, РЅРѕ РµРіРѕ Р·РЅР°С‡РµРЅРёРµ РїСѓСЃС‚РѕРµ.');
           return;
         }
 
         setSelectedStage(matchedCard.stage || INTRO_STAGE);
         openCultureCalendar(matchedCard);
-        setNotice(`Открыта карточка: ${getCardDisplayName(matchedCard)}.`);
+        setNotice(`РћС‚РєСЂС‹С‚Р° РєР°СЂС‚РѕС‡РєР°: ${getCardDisplayName(matchedCard)}.`);
       });
 
       await CameraView.launchScanner({
         barcodeTypes: ['qr'],
       });
     } catch (scanError) {
-      setNotice('Не удалось открыть сканер QR-кода.');
+      setNotice('РќРµ СѓРґР°Р»РѕСЃСЊ РѕС‚РєСЂС‹С‚СЊ СЃРєР°РЅРµСЂ QR-РєРѕРґР°.');
     } finally {
       subscription?.remove();
     }
@@ -471,18 +402,18 @@ function AppContent() {
       const shareResult = await shareQrCode(card?.code);
 
       if (shareResult === 'web_ready') {
-        setNotice('QR-код подготовлен для отправки.');
+        setNotice('QR-РєРѕРґ РїРѕРґРіРѕС‚РѕРІР»РµРЅ РґР»СЏ РѕС‚РїСЂР°РІРєРё.');
         return;
       }
 
       if (shareResult === 'native_unavailable') {
-        setNotice('Системное отправление недоступно, QR-код подготовлен текстом.');
+        setNotice('РЎРёСЃС‚РµРјРЅРѕРµ РѕС‚РїСЂР°РІР»РµРЅРёРµ РЅРµРґРѕСЃС‚СѓРїРЅРѕ, QR-РєРѕРґ РїРѕРґРіРѕС‚РѕРІР»РµРЅ С‚РµРєСЃС‚РѕРј.');
         return;
       }
 
-      setNotice('QR-код отправлен через системное меню.');
+      setNotice('QR-РєРѕРґ РѕС‚РїСЂР°РІР»РµРЅ С‡РµСЂРµР· СЃРёСЃС‚РµРјРЅРѕРµ РјРµРЅСЋ.');
     } catch (shareError) {
-      setNotice('Не удалось отправить QR-код.');
+      setNotice('РќРµ СѓРґР°Р»РѕСЃСЊ РѕС‚РїСЂР°РІРёС‚СЊ QR-РєРѕРґ.');
     }
   }
 
@@ -490,7 +421,7 @@ function AppContent() {
     const taskCard = cultureCards.find((card) => card.id === task.cardId);
 
     if (!taskCard) {
-      setNotice('Партия для задачи не найдена.');
+      setNotice('РџР°СЂС‚РёСЏ РґР»СЏ Р·Р°РґР°С‡Рё РЅРµ РЅР°Р№РґРµРЅР°.');
       return;
     }
 
@@ -507,29 +438,29 @@ function AppContent() {
       });
 
       if (shareResult === 'web_ready') {
-        setNotice('Excel-отчет подготовлен.');
+        setNotice('Excel-РѕС‚С‡РµС‚ РїРѕРґРіРѕС‚РѕРІР»РµРЅ.');
         return;
       }
 
       if (shareResult === 'native_unavailable') {
-        setNotice('Отправка Excel-файла недоступна на устройстве.');
+        setNotice('РћС‚РїСЂР°РІРєР° Excel-С„Р°Р№Р»Р° РЅРµРґРѕСЃС‚СѓРїРЅР° РЅР° СѓСЃС‚СЂРѕР№СЃС‚РІРµ.');
         return;
       }
 
-      setNotice('Excel-файл отчета готов к отправке.');
+      setNotice('Excel-С„Р°Р№Р» РѕС‚С‡РµС‚Р° РіРѕС‚РѕРІ Рє РѕС‚РїСЂР°РІРєРµ.');
     } catch (shareError) {
-      setNotice('Не удалось подготовить Excel-отчет.');
+      setNotice('РќРµ СѓРґР°Р»РѕСЃСЊ РїРѕРґРіРѕС‚РѕРІРёС‚СЊ Excel-РѕС‚С‡РµС‚.');
     }
   }
-  async function handleScheduleTestWateringReminder() {
+  async function handleScheduleWateringReminder() {
     try {
       await scheduleWateringReminder({
-        body: 'Тестовое напоминание: пора проверить полив.',
+        body: 'РўРµСЃС‚РѕРІРѕРµ РЅР°РїРѕРјРёРЅР°РЅРёРµ: РїРѕСЂР° РїСЂРѕРІРµСЂРёС‚СЊ РїРѕР»РёРІ.',
         date: new Date(Date.now() + 60 * 1000),
       });
-      setNotice('Напоминание о поливе запланировано через 1 минуту.');
+      setNotice('РќР°РїРѕРјРёРЅР°РЅРёРµ Рѕ РїРѕР»РёРІРµ Р·Р°РїР»Р°РЅРёСЂРѕРІР°РЅРѕ С‡РµСЂРµР· 1 РјРёРЅСѓС‚Сѓ.');
     } catch (notificationError) {
-      setNotice('Не удалось включить уведомления. Проверьте разрешения телефона.');
+      setNotice('РќРµ СѓРґР°Р»РѕСЃСЊ РІРєР»СЋС‡РёС‚СЊ СѓРІРµРґРѕРјР»РµРЅРёСЏ. РџСЂРѕРІРµСЂСЊС‚Рµ СЂР°Р·СЂРµС€РµРЅРёСЏ С‚РµР»РµС„РѕРЅР°.');
     }
   }
 
@@ -574,6 +505,10 @@ function AppContent() {
     setIsAuthenticated(false);
   }
 
+  function handleMenuAction(title) {
+    setNotice(`${title}: СЂР°Р·РґРµР» Р±СѓРґРµС‚ РґРѕР±Р°РІР»РµРЅ РїРѕР·Р¶Рµ.`);
+  }
+
   async function handleClearTestData() {
     try {
       await clearCultureCardsForTests();
@@ -591,9 +526,9 @@ function AppContent() {
       setIsDateEntryExpanded(false);
       setCurrentScreen('stages');
       setStorageError('');
-      setNotice('Карточки стадий и журнал очищены.');
+      setNotice('РљР°СЂС‚РѕС‡РєРё СЃС‚Р°РґРёР№ Рё Р¶СѓСЂРЅР°Р» РѕС‡РёС‰РµРЅС‹.');
     } catch (clearError) {
-      setStorageError('Не удалось очистить карточки стадий');
+      setStorageError('РќРµ СѓРґР°Р»РѕСЃСЊ РѕС‡РёСЃС‚РёС‚СЊ РєР°СЂС‚РѕС‡РєРё СЃС‚Р°РґРёР№');
     }
   }
 
@@ -680,9 +615,9 @@ function AppContent() {
     setStatusForm(createEmptyStatusForm());
     setEditingOperationId(null);
     setIntroActionType(
-      selectedCard.stage === 'Адаптация'
+      selectedCard.stage === stages[2]
         ? 'adaptationStress'
-        : selectedCard.stage === 'Теплица'
+        : selectedCard.stage === stages[3]
           ? 'greenhouseObservation'
           : 'rooting',
     );
@@ -698,19 +633,6 @@ function AppContent() {
     setStatusFormNotice('');
     setIntroActionType('');
     setCurrentScreen('cultureCalendar');
-  }
-
-  function getStatusFormComment(operation) {
-    if (operation?.type !== 'adaptationStress') {
-      return operation?.comment || '';
-    }
-
-    return [
-      operation.comment,
-      operation.conditionDescription ? `Состояние: ${operation.conditionDescription}` : '',
-      operation.reason ? `Причина: ${operation.reason}` : '',
-      operation.turgor ? `Тургор: ${operation.turgor}` : '',
-    ].filter(Boolean).join('\n');
   }
 
   function openEditOperation(operation) {
@@ -745,40 +667,7 @@ function AppContent() {
       setIntroActionType(operation.type);
       setStatusForm({
         ...createEmptyStatusForm(),
-        ...(countField ? { [countField]: operation.count || '' } : {}),
-        reason: operation.reason || operation.quarantineReason || '',
-        comment: getStatusFormComment(operation),
-        photoNote: operation.photoNote || '',
-        saleType: operation.saleType || '',
-        recipient: operation.recipient || '',
-        saleAmount: operation.saleAmount || '',
-        propagationMethod: operation.propagationMethod || '',
-        stressLevel: operation.stressLevel || '',
-        conditionDescription: operation.conditionDescription || '',
-        environmentTemperature: operation.environmentTemperature || '',
-        environmentHumidity: operation.environmentHumidity || operation.environmentAirHumidity || '',
-        environmentAirHumidity: operation.environmentAirHumidity || '',
-        substrateHumidity: operation.substrateHumidity || '',
-        environmentLight: operation.environmentLight || '',
-        ventilation: operation.ventilation || '',
-        humidityReduction: operation.humidityReduction || '',
-        turgor: operation.turgor || '',
-        stability: operation.stability || '',
-        careType: operation.careType || '',
-        growthRate: operation.growthRate || '',
-        riskLevel: operation.riskLevel || '',
-        careIntervalDays: operation.careIntervalDays || '',
-        wateringIntervalDays: operation.wateringIntervalDays || '',
-        diseaseName: operation.diseaseName || '',
-        pestName: operation.pestName || '',
-        diseaseSeverity: operation.diseaseSeverity || '',
-        waterVolume: operation.waterVolume || '',
-        applicationMethod: operation.applicationMethod || '',
-        productName: operation.productName || '',
-        dosage: operation.dosage || '',
-        plantReaction: operation.plantReaction || '',
-        placement: operation.placement || '',
-        densityChange: operation.densityChange || '',
+        ...buildStatusFormFromOperation(operation, countField),
       });
       setCurrentScreen('statusChangeForm');
     }
@@ -791,18 +680,7 @@ function AppContent() {
 
     const nextCards = cultureCards.map((card) => (
       card.id === selectedCard.id
-        ? (() => {
-          const nextCard = {
-            ...card,
-            operations: (card.operations || []).filter((operation) => operation.id !== operationId),
-          };
-
-          return {
-            ...nextCard,
-            batchStatus: getResolvedBatchStatus(nextCard),
-            status: getResolvedBatchStatus(nextCard) === 'sold' ? 'archived' : 'active',
-          };
-        })()
+        ? buildDeletedOperationCard(card, operationId)
         : card
     ));
 
@@ -881,7 +759,7 @@ function AppContent() {
     const code = generatePlantingCode(cultureForm.createdAt, selectedStage);
     const isDuplicateCode = isDuplicateCardCode(cultureCards, code, editingCardId);
     if (isDuplicateCode) {
-      setFormError('Код уже существует. Сгенерируйте код ещё раз.');
+      setFormError('РљРѕРґ СѓР¶Рµ СЃСѓС‰РµСЃС‚РІСѓРµС‚. РЎРіРµРЅРµСЂРёСЂСѓР№С‚Рµ РєРѕРґ РµС‰С‘ СЂР°Р·.');
       return;
     }
 
@@ -912,116 +790,100 @@ function AppContent() {
     }
 
     if (selectedCard.sterilityStatus === 'contaminated') {
-      setStageActionError('Материал заражён: переход стадии заблокирован до решения администратора или агронома');
+      setStageActionError('РњР°С‚РµСЂРёР°Р» Р·Р°СЂР°Р¶С‘РЅ: РїРµСЂРµС…РѕРґ СЃС‚Р°РґРёРё Р·Р°Р±Р»РѕРєРёСЂРѕРІР°РЅ РґРѕ СЂРµС€РµРЅРёСЏ Р°РґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂР° РёР»Рё Р°РіСЂРѕРЅРѕРјР°');
       return;
     }
 
     if (selectedCard.stage === INTRO_STAGE) {
       if ((selectedCard.batchStatus || 'active') !== 'active') {
-        setStageActionError('Перевести можно только активную партию');
+        setStageActionError('РџРµСЂРµРІРµСЃС‚Рё РјРѕР¶РЅРѕ С‚РѕР»СЊРєРѕ Р°РєС‚РёРІРЅСѓСЋ РїР°СЂС‚РёСЋ');
         return;
       }
 
       if (getQrStatus(selectedCard) === 'none') {
-        setStageActionError('QR-код ещё не создан');
+        setStageActionError('QR-РєРѕРґ РµС‰С‘ РЅРµ СЃРѕР·РґР°РЅ');
         return;
       }
     }
 
-    if (selectedCard.stage === 'Клонирование') {
+    if (selectedCard.stage === stages[1]) {
       const cloneStats = getCloneStats(selectedCard);
 
       if ((selectedCard.batchStatus || 'active') === 'quarantine') {
-        setStageActionError('Партия в карантине и не может быть переведена дальше');
+        setStageActionError('РџР°СЂС‚РёСЏ РІ РєР°СЂР°РЅС‚РёРЅРµ Рё РЅРµ РјРѕР¶РµС‚ Р±С‹С‚СЊ РїРµСЂРµРІРµРґРµРЅР° РґР°Р»СЊС€Рµ');
         return;
       }
 
-      if ((selectedCard.batchStatus || 'active') === 'problem' || cloneStats.riskStatus === 'Критический') {
-        setStageActionError('Нельзя перевести партию с критическим статусом');
+      if ((selectedCard.batchStatus || 'active') === 'problem' || cloneStats.riskStatus === 'РљСЂРёС‚РёС‡РµСЃРєРёР№') {
+        setStageActionError('РќРµР»СЊР·СЏ РїРµСЂРµРІРµСЃС‚Рё РїР°СЂС‚РёСЋ СЃ РєСЂРёС‚РёС‡РµСЃРєРёРј СЃС‚Р°С‚СѓСЃРѕРј');
         return;
       }
 
       if (cloneStats.rootedCount <= 0) {
-        setStageActionError('Сначала зафиксируйте укоренившиеся растения');
+        setStageActionError('РЎРЅР°С‡Р°Р»Р° Р·Р°С„РёРєСЃРёСЂСѓР№С‚Рµ СѓРєРѕСЂРµРЅРёРІС€РёРµСЃСЏ СЂР°СЃС‚РµРЅРёСЏ');
         return;
       }
 
       if (cloneStats.currentQuantity <= 0) {
-        setStageActionError('Остаток партии должен быть больше 0');
+        setStageActionError('РћСЃС‚Р°С‚РѕРє РїР°СЂС‚РёРё РґРѕР»Р¶РµРЅ Р±С‹С‚СЊ Р±РѕР»СЊС€Рµ 0');
         return;
       }
     }
 
-    if (selectedCard.stage === 'Адаптация') {
+    if (selectedCard.stage === stages[2]) {
       const adaptationStats = getAdaptationStats(selectedCard);
 
       if ((selectedCard.batchStatus || 'active') === 'quarantine') {
-        setStageActionError('Партия в карантине и не может быть переведена дальше');
+        setStageActionError('РџР°СЂС‚РёСЏ РІ РєР°СЂР°РЅС‚РёРЅРµ Рё РЅРµ РјРѕР¶РµС‚ Р±С‹С‚СЊ РїРµСЂРµРІРµРґРµРЅР° РґР°Р»СЊС€Рµ');
         return;
       }
 
       if (selectedCard.sterilityStatus === 'contaminated') {
-        setStageActionError('Есть активная контаминация');
+        setStageActionError('Р•СЃС‚СЊ Р°РєС‚РёРІРЅР°СЏ РєРѕРЅС‚Р°РјРёРЅР°С†РёСЏ');
         return;
       }
 
-      if (adaptationStats.riskStatus === 'Критический') {
-        setStageActionError('Нельзя перевести партию с критическим стрессом');
+      if (adaptationStats.riskStatus === 'РљСЂРёС‚РёС‡РµСЃРєРёР№') {
+        setStageActionError('РќРµР»СЊР·СЏ РїРµСЂРµРІРµСЃС‚Рё РїР°СЂС‚РёСЋ СЃ РєСЂРёС‚РёС‡РµСЃРєРёРј СЃС‚СЂРµСЃСЃРѕРј');
         return;
       }
 
-      if (adaptationStats.stability !== 'Стабильна') {
-        setStageActionError('Сначала зафиксируйте стабильность партии');
+      if (adaptationStats.stability !== 'РЎС‚Р°Р±РёР»СЊРЅР°') {
+        setStageActionError('РЎРЅР°С‡Р°Р»Р° Р·Р°С„РёРєСЃРёСЂСѓР№С‚Рµ СЃС‚Р°Р±РёР»СЊРЅРѕСЃС‚СЊ РїР°СЂС‚РёРё');
         return;
       }
 
       if (adaptationStats.currentQuantity <= 0) {
-        setStageActionError('Остаток партии должен быть больше 0');
+        setStageActionError('РћСЃС‚Р°С‚РѕРє РїР°СЂС‚РёРё РґРѕР»Р¶РµРЅ Р±С‹С‚СЊ Р±РѕР»СЊС€Рµ 0');
         return;
       }
     }
 
-    const cloneTransitionStats = selectedCard.stage === 'Клонирование'
+    const cloneTransitionStats = selectedCard.stage === stages[1]
       ? getCloneStats(selectedCard)
       : null;
-    const nextOperation = {
-      id: `${Date.now()}`,
-      type: 'stageChange',
-      title: 'Изменение стадии',
-      fromStage: selectedCard.stage,
-      toStage: nextStage,
-      stage: nextStage,
-      date: selectedCalendarDate,
-      stageChangedAt: selectedCalendarDate,
-      rootedCount: cloneTransitionStats?.rootedCount,
-      rootingPercent: cloneTransitionStats?.rootingPercent,
-      currentQuantity: cloneTransitionStats?.currentQuantity,
-      createdAt: new Date().toISOString(),
-    };
+    const nextOperation = buildStageChangeOperation({
+      cloneTransitionStats,
+      currentQuantity: getCardCurrentQuantity(selectedCard),
+      nextStage,
+      nowIso: new Date().toISOString(),
+      selectedCard,
+      selectedCalendarDate,
+    });
     const nextCards = cultureCards.map((card) => {
       if (card.id !== selectedCard.id) {
         return card;
       }
 
-      const cardWithoutRecommendations = removeRecommendationFields(card);
-
-      return {
-        ...cardWithoutRecommendations,
-        stage: nextStage,
-        stageChangedAt: selectedCalendarDate,
-        stageChangedBy: currentUser.id,
-        stageHistory: [
-          {
-            fromStage: selectedCard.stage,
-            toStage: nextStage,
-            date: selectedCalendarDate,
-            changedAt: new Date().toISOString(),
-            changedBy: currentUser.id,
-          },
-          ...(card.stageHistory || []),
-        ],
-        operations: [nextOperation, ...(card.operations || [])],
-      };
+      return buildStageTransitionCard({
+        card,
+        nextOperation,
+        nextStage,
+        nowIso: new Date().toISOString(),
+        selectedCalendarDate,
+        selectedStage: selectedCard.stage,
+        userId: currentUser.id,
+      });
     });
 
     await saveCultureCards(nextCards);
@@ -1039,22 +901,20 @@ function AppContent() {
     }
 
     if (selectedCalendarDate !== getTodayIsoDate()) {
-      setStatusFormError('Производственные события можно фиксировать только на текущую дату');
+      setStatusFormError('РџСЂРѕРёР·РІРѕРґСЃС‚РІРµРЅРЅС‹Рµ СЃРѕР±С‹С‚РёСЏ РјРѕР¶РЅРѕ С„РёРєСЃРёСЂРѕРІР°С‚СЊ С‚РѕР»СЊРєРѕ РЅР° С‚РµРєСѓС‰СѓСЋ РґР°С‚Сѓ');
       return;
     }
 
     const eventConfig = getStatusEventConfig(introActionType);
     const count = eventConfig.countField ? statusForm[eventConfig.countField].trim() : '';
-    const editedOperation = editingOperationId
-      ? selectedCardOperations.find((operation) => operation.id === editingOperationId)
-      : null;
-    const cardWithoutEditedOperation = editedOperation
-      ? {
-        ...selectedCard,
-        operations: selectedCardOperations.filter((operation) => operation.id !== editingOperationId),
-      }
-      : selectedCard;
-    const currentQuantity = getCardCurrentQuantity(cardWithoutEditedOperation);
+    const {
+      editedOperation,
+      currentQuantity,
+    } = buildStatusOperationContext({
+      editingOperationId,
+      selectedCard,
+      selectedCardOperations,
+    });
     const baseValidationError = getStatusBaseValidationError({
       eventConfig,
       count,
@@ -1067,71 +927,71 @@ function AppContent() {
     });
 
     if (baseValidationError === 'invalid_count') {
-      setStatusFormError('Укажите корректное количество');
+      setStatusFormError('РЈРєР°Р¶РёС‚Рµ РєРѕСЂСЂРµРєС‚РЅРѕРµ РєРѕР»РёС‡РµСЃС‚РІРѕ');
       return;
     }
 
     if (baseValidationError === 'count_gt_current') {
-      setStatusFormError('Количество не может быть больше текущего остатка');
+      setStatusFormError('РљРѕР»РёС‡РµСЃС‚РІРѕ РЅРµ РјРѕР¶РµС‚ Р±С‹С‚СЊ Р±РѕР»СЊС€Рµ С‚РµРєСѓС‰РµРіРѕ РѕСЃС‚Р°С‚РєР°');
       return;
     }
 
     if (baseValidationError === 'missing_reason') {
-      setStatusFormError('Укажите причину');
+      setStatusFormError('РЈРєР°Р¶РёС‚Рµ РїСЂРёС‡РёРЅСѓ');
       return;
     }
 
     if (baseValidationError === 'release_forbidden') {
-      setStatusFormError('Снять карантин может только агроном или администратор');
+      setStatusFormError('РЎРЅСЏС‚СЊ РєР°СЂР°РЅС‚РёРЅ РјРѕР¶РµС‚ С‚РѕР»СЊРєРѕ Р°РіСЂРѕРЅРѕРј РёР»Рё Р°РґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂ');
       return;
     }
 
     if (baseValidationError === 'not_in_quarantine') {
-      setStatusFormError('Партия не находится в карантине');
+      setStatusFormError('РџР°СЂС‚РёСЏ РЅРµ РЅР°С…РѕРґРёС‚СЃСЏ РІ РєР°СЂР°РЅС‚РёРЅРµ');
       return;
     }
 
     const adaptationValidationError = getAdaptationValidationError(introActionType, statusForm);
 
     if (adaptationValidationError === 'adaptation_stress_missing') {
-      setStatusFormError('Укажите хотя бы один параметр наблюдения');
+      setStatusFormError('РЈРєР°Р¶РёС‚Рµ С…РѕС‚СЏ Р±С‹ РѕРґРёРЅ РїР°СЂР°РјРµС‚СЂ РЅР°Р±Р»СЋРґРµРЅРёСЏ');
       return;
     }
 
     if (adaptationValidationError === 'adaptation_environment_missing') {
-      setStatusFormError('Укажите хотя бы один параметр среды');
+      setStatusFormError('РЈРєР°Р¶РёС‚Рµ С…РѕС‚СЏ Р±С‹ РѕРґРёРЅ РїР°СЂР°РјРµС‚СЂ СЃСЂРµРґС‹');
       return;
     }
 
     if (adaptationValidationError === 'adaptation_humidity_reduction_missing') {
-      setStatusFormError('Укажите снижение влажности или состояние партии');
+      setStatusFormError('РЈРєР°Р¶РёС‚Рµ СЃРЅРёР¶РµРЅРёРµ РІР»Р°Р¶РЅРѕСЃС‚Рё РёР»Рё СЃРѕСЃС‚РѕСЏРЅРёРµ РїР°СЂС‚РёРё');
       return;
     }
 
     if (adaptationValidationError === 'adaptation_care_type_missing') {
-      setStatusFormError('Укажите тип ухода');
+      setStatusFormError('РЈРєР°Р¶РёС‚Рµ С‚РёРї СѓС…РѕРґР°');
       return;
     }
 
     const greenhouseValidationError = getGreenhouseValidationError(introActionType, statusForm);
 
     if (greenhouseValidationError === 'greenhouse_observation_missing') {
-      setStatusFormError('Укажите хотя бы один параметр наблюдения');
+      setStatusFormError('РЈРєР°Р¶РёС‚Рµ С…РѕС‚СЏ Р±С‹ РѕРґРёРЅ РїР°СЂР°РјРµС‚СЂ РЅР°Р±Р»СЋРґРµРЅРёСЏ');
       return;
     }
 
     if (greenhouseValidationError === 'greenhouse_care_type_missing') {
-      setStatusFormError('Укажите тип ухода');
+      setStatusFormError('РЈРєР°Р¶РёС‚Рµ С‚РёРї СѓС…РѕРґР°');
       return;
     }
 
     if (greenhouseValidationError === 'greenhouse_environment_missing') {
-      setStatusFormError('Укажите хотя бы один параметр среды');
+      setStatusFormError('РЈРєР°Р¶РёС‚Рµ С…РѕС‚СЏ Р±С‹ РѕРґРёРЅ РїР°СЂР°РјРµС‚СЂ СЃСЂРµРґС‹');
       return;
     }
 
     if (greenhouseValidationError === 'greenhouse_disease_missing') {
-      setStatusFormError('Укажите болезнь, вредителя или уровень риска');
+      setStatusFormError('РЈРєР°Р¶РёС‚Рµ Р±РѕР»РµР·РЅСЊ, РІСЂРµРґРёС‚РµР»СЏ РёР»Рё СѓСЂРѕРІРµРЅСЊ СЂРёСЃРєР°');
       return;
     }
 
@@ -1155,50 +1015,23 @@ function AppContent() {
         return card;
       }
 
-      const currentOperations = card.operations || [];
-      const nextOperations = editingOperationId
-        ? currentOperations.map((operation) => (
-          operation.id === editingOperationId ? nextOperation : operation
-        ))
-        : [nextOperation, ...currentOperations];
-      const nextCard = {
-        ...card,
-        operations: nextOperations,
-        ...getGreenhouseCareIntervalsPatch(card, introActionType, statusForm),
-      };
-      const nextQuantity = getCardCurrentQuantity(nextCard);
-      const fallbackBatchStatus = getFallbackBatchStatus(
-        card,
+      return buildUpdatedStatusCard(card, {
+        editingOperationId,
         introActionType,
-        nextQuantity,
+        nextOperation,
         statusForm,
-      );
-      const nextCardWithStatus = {
-        ...nextCard,
-        batchStatus: fallbackBatchStatus,
-      };
-
-      return {
-        ...nextCardWithStatus,
-        batchStatus: getResolvedBatchStatus(nextCardWithStatus),
-        status: getResolvedBatchStatus(nextCardWithStatus) === 'sold'
-          ? 'archived'
-          : 'active',
-      };
+      });
     });
 
     await saveCultureCards(nextCards);
 
-    if (introActionType === 'greenhouseCare' && statusForm.careType.trim() === 'Полив') {
+    if (introActionType === 'greenhouseCare' && statusForm.careType.trim() === 'РџРѕР»РёРІ') {
       const updatedCard = nextCards.find((card) => card.id === selectedCard.id);
       const wateringStats = getGreenhouseStats(updatedCard);
-      const reminderDate = getReminderDateFromIsoDate(wateringStats.nextWateringDate);
+      const reminderPayload = buildWateringReminderPayload(updatedCard, wateringStats);
 
-      if (reminderDate) {
-        scheduleWateringReminder({
-          body: `${getCardDisplayName(updatedCard)}: следующий полив ${formatDisplayDate(wateringStats.nextWateringDate)}.`,
-          date: reminderDate,
-        }).catch(() => {});
+      if (reminderPayload) {
+        scheduleWateringReminder(reminderPayload).catch(() => {});
       }
     }
 
@@ -1214,7 +1047,7 @@ function AppContent() {
       return;
     }
 
-    setStatusFormNotice('Событие сохранено. Можно добавить следующее.');
+    setStatusFormNotice('РЎРѕР±С‹С‚РёРµ СЃРѕС…СЂР°РЅРµРЅРѕ. РњРѕР¶РЅРѕ РґРѕР±Р°РІРёС‚СЊ СЃР»РµРґСѓСЋС‰РµРµ.');
   }
 
   async function handleSaveIntroAction() {
@@ -1223,32 +1056,7 @@ function AppContent() {
     }
 
     const nowIso = new Date().toISOString();
-    const actionConfig = {
-      comment: {
-        field: 'comment',
-        type: 'comment',
-        title: 'Комментарий',
-        error: 'Введите комментарий',
-      },
-      photo: {
-        field: 'photoNote',
-        type: 'photo',
-        title: 'Фото',
-        error: 'Добавьте описание фото или ссылку',
-      },
-      contamination: {
-        field: 'contaminationNote',
-        type: 'contamination',
-        title: 'Контаминация',
-        error: 'Опишите контаминацию',
-      },
-      quarantine: {
-        field: 'quarantineReason',
-        type: 'quarantine',
-        title: 'Перевод в карантин',
-        error: 'Укажите причину карантина',
-      },
-    }[introActionType];
+    const actionConfig = getIntroActionConfig(introActionType);
     if (!actionConfig) {
       return false;
     }
@@ -1260,35 +1068,31 @@ function AppContent() {
       return false;
     }
 
-    const editedOperation = editingOperationId
-      ? selectedCardOperations.find((operation) => operation.id === editingOperationId)
-      : null;
-    const nextOperation = {
-      id: editingOperationId || `${actionConfig.type}-${Date.now()}`,
-      type: actionConfig.type,
-      title: actionConfig.title,
-      stage: selectedCard.stage || INTRO_STAGE,
-      date: selectedCalendarDate,
-      [actionConfig.field]: value,
-      createdAt: editedOperation?.createdAt || nowIso,
-      createdBy: editedOperation?.createdBy || currentUser.id,
-      ...(editingOperationId ? { updatedAt: nowIso, updatedBy: currentUser.id } : {}),
-    };
+    const { editedOperation } = buildStatusOperationContext({
+      editingOperationId,
+      selectedCard,
+      selectedCardOperations,
+    });
+    const nextOperation = buildIntroActionOperation({
+      actionConfig,
+      editingOperationId,
+      editedOperation,
+      nowIso,
+      selectedCalendarDate,
+      selectedStage: selectedCard.stage || INTRO_STAGE,
+      userId: currentUser.id,
+      value,
+    });
     const nextCards = cultureCards.map((card) => {
       if (card.id !== selectedCard.id) {
         return card;
       }
 
-      return {
-        ...card,
-        batchStatus: introActionType === 'quarantine' ? 'quarantine' : card.batchStatus || 'active',
-        sterilityStatus: introActionType === 'contamination' ? 'contaminated' : card.sterilityStatus || 'unchecked',
-        operations: editingOperationId
-          ? (card.operations || []).map((operation) => (
-            operation.id === editingOperationId ? nextOperation : operation
-          ))
-          : [nextOperation, ...(card.operations || [])],
-      };
+      return buildIntroActionUpdatedCard(card, {
+        editingOperationId,
+        introActionType,
+        nextOperation,
+      });
     });
 
     await saveCultureCards(nextCards);
@@ -1324,17 +1128,17 @@ function AppContent() {
       isDuplicateCode,
     });
     if (validationError === 'missing_fields') {
-      setFormError('Заполните все поля');
+      setFormError('Р—Р°РїРѕР»РЅРёС‚Рµ РІСЃРµ РїРѕР»СЏ');
       return;
     }
 
     if (validationError === 'invalid_quantity') {
-      setFormError('Количество указано некорректно');
+      setFormError('РљРѕР»РёС‡РµСЃС‚РІРѕ СѓРєР°Р·Р°РЅРѕ РЅРµРєРѕСЂСЂРµРєС‚РЅРѕ');
       return;
     }
 
     if (validationError === 'duplicate_code') {
-      setFormError('Код уже существует');
+      setFormError('РљРѕРґ СѓР¶Рµ СЃСѓС‰РµСЃС‚РІСѓРµС‚');
       return;
     }
 
@@ -1356,9 +1160,7 @@ function AppContent() {
       nowIso,
     });
 
-    const nextCards = editingCardId
-      ? cultureCards.map((card) => (card.id === editingCardId ? nextCard : card))
-      : [nextCard, ...cultureCards];
+    const nextCards = buildSavedCultureCards(cultureCards, editingCardId, nextCard);
 
     await saveCultureCards(nextCards);
     closeCultureForm();
@@ -1369,18 +1171,8 @@ function AppContent() {
       return;
     }
 
-    const nextCards = cultureCards.map((card) => {
-      if (card.id !== editingCardId) {
-        return card;
-      }
-
-      return {
-        ...card,
-        status: 'cancelled',
-        cancelledAt: new Date().toISOString(),
-        cancelledBy: currentUser.id,
-      };
-    });
+    const nowIso = new Date().toISOString();
+    const nextCards = buildCancelledCultureCards(cultureCards, editingCardId, currentUser.id, nowIso);
 
     await saveCultureCards(nextCards);
     closeCultureForm();
@@ -1390,797 +1182,145 @@ function AppContent() {
     return isRequiredFieldMissingInForm(cultureForm, touchedSubmit, field);
   }
 
-  if (
-    isAuthenticated &&
-    isSupportedPlantingStage &&
-    currentScreen === 'cultureForm'
-  ) {
-    return (
-      <SafeAreaView style={styles.safeArea}>
-        <StatusBar style="dark" />
-        <StageHeader
-          onBack={closeCultureForm}
-          subtitle={<Text style={styles.stageHeaderSubtitle}>{selectedStage}</Text>}
-          title={
-            isEditingCard
-              ? 'Паспорт партии'
-              : isCultureIntroStage
-                ? 'Создать партию'
-                : 'Добавить карточку'
-          }
-        />
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.keyboardView}
-        >
-          <ScrollView
-            contentContainerStyle={styles.cardsScrollContent}
-            keyboardShouldPersistTaps="handled"
-        >
-          <View style={styles.cardsScreen}>
-              <View style={styles.formPanel}>
-                {isEditingCard && (
-                  <View style={styles.noticeBox}>
-                    <Text style={styles.noticeText}>
-                      Паспорт партии заблокирован после создания. В этой форме можно менять только настройки текущей стадии.
-                    </Text>
-                  </View>
-                )}
+  const routerState = {
+    activeCardsCount,
+    allVisibleStageCardsCount,
+    batchStatusFilter,
+    bottomInset,
+    cardSearch,
+    careTasks,
+    calendarDays,
+    calendarMonth,
+    canEditCurrentIdentity,
+    canSaveCultureForm: true,
+    cultureCalendarTab,
+    cultureForm,
+    cultureOptions,
+    currentScreen,
+    editingOperationId,
+    expandedJournalCardIds,
+    filteredCultureCards,
+    formError,
+    getJournalFilterLabel,
+    getPlantCardStatusDotStyle,
+    getResolvedBatchStatus,
+    groupedGlobalJournalCards,
+    introActionForm,
+    introActionType,
+    isAdaptationStage,
+    isCardsLoading,
+    isCloneStage,
+    isCultureIntroStage,
+    isEditingCard,
+    isGreenhouseStage,
+    isStageMoveConfirmVisible,
+    isSupportedPlantingStage,
+    journalFilter,
+    login,
+    notice,
+    openDropdown,
+    operationDates,
+    operationDeleteCandidateId,
+    recommendationsMode,
+    recommendationCard,
+    recommendationEntries,
+    recommendationStage,
+    selectedCard,
+    selectedCardActionLocked,
+    selectedCardAdaptationStats,
+    selectedCardCloneStats,
+    selectedCardCurrentQuantity,
+    selectedCardDaysInStage,
+    selectedCardNextStage,
+    selectedCardOperations,
+    selectedCalendarDate,
+    selectedDateOperations,
+    selectedStage,
+    selectedStageCardsCount,
+    showDatePicker,
+    showIdentityAsText,
+    speciesOptions,
+    stageActionError,
+    stageMoveBlockedMessage,
+    stageMoveButtonLabel,
+    storageError,
+    statusForm,
+    statusFormError,
+    statusFormNotice,
+    taskCount,
+    userRole,
+    varietyOptions,
+  };
 
-                <View style={styles.field}>
-                  <Text style={styles.label}>{isAdaptationStage ? 'Дата посадки *' : 'Дата создания *'}</Text>
-                  {showIdentityAsText ? (
-                    <Text style={styles.readonlyValue}>
-                      {formatDisplayDate(cultureForm.createdAt)}
-                    </Text>
-                  ) : Platform.OS === 'web' ? (
-                    <TextInput
-                      editable={canEditCurrentIdentity}
-                      onChangeText={(value) => {
-                        updateCultureForm('createdAt', parseDisplayDate(value));
-                      }}
-                      placeholder="дд.мм.гггг"
-                      placeholderTextColor="#7C8A80"
-                      style={[
-                        styles.input,
-                        !canEditCurrentIdentity && styles.inputDisabled,
-                        isRequiredFieldMissing('createdAt') && styles.inputInvalid,
-                      ]}
-                      value={formatDisplayDate(cultureForm.createdAt)}
-                    />
-                  ) : (
-                    <>
-                      <Pressable
-                        accessibilityRole="button"
-                        disabled={!canEditCurrentIdentity}
-                        onPress={() => setShowDatePicker(true)}
-                        style={({ pressed }) => [
-                          styles.dateButton,
-                          !canEditCurrentIdentity && styles.inputDisabled,
-                          isRequiredFieldMissing('createdAt') && styles.inputInvalid,
-                          pressed && styles.linkButtonPressed,
-                        ]}
-                      >
-                        <Text style={styles.dateButtonText}>
-                          {formatDisplayDate(cultureForm.createdAt)}
-                        </Text>
-                      </Pressable>
-
-                      {showDatePicker && NativeDateTimePicker && (
-                        <NativeDateTimePicker
-                          mode="date"
-                          onChange={handleDateChange}
-                          value={dateFromIso(cultureForm.createdAt)}
-                        />
-                      )}
-                    </>
-                  )}
-                </View>
-
-                <View style={styles.field}>
-                  {showIdentityAsText ? (
-                    <Text style={styles.readonlyValue}>{cultureForm.cultureName}</Text>
-                  ) : (
-                    <>
-                      <Pressable
-                        accessibilityRole="button"
-                        disabled={!canEditCurrentIdentity}
-                        onPress={() => setOpenDropdown(
-                          openDropdown === 'culture' ? '' : 'culture',
-                        )}
-                        style={[
-                          styles.selectButton,
-                          !canEditCurrentIdentity && styles.selectButtonDisabled,
-                          isRequiredFieldMissing('cultureName') && styles.inputInvalid,
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.selectButtonText,
-                            !cultureForm.cultureName && styles.selectPlaceholder,
-                          ]}
-                        >
-                          {cultureForm.cultureName || 'Выберите культуру'}
-                        </Text>
-                        <View style={styles.selectButtonArrow}>
-                          <ChevronDownIcon />
-                        </View>
-                      </Pressable>
-
-                      <SelectBottomSheet
-                        onClose={() => setOpenDropdown('')}
-                        onSelect={handleSelectCulture}
-                        options={cultureOptions}
-                        title="Выберите культуру"
-                        visible={openDropdown === 'culture'}
-                      />
-                    </>
-                  )}
-                </View>
-
-                <View style={styles.field}>
-                  {showIdentityAsText ? (
-                    <Text style={styles.readonlyValue}>{cultureForm.speciesName}</Text>
-                  ) : (
-                    <>
-                      <Pressable
-                        accessibilityRole="button"
-                        disabled={!cultureForm.cultureName || !canEditCurrentIdentity}
-                        onPress={() => setOpenDropdown(
-                          openDropdown === 'species' ? '' : 'species',
-                        )}
-                        style={[
-                          styles.selectButton,
-                          (!cultureForm.cultureName || !canEditCurrentIdentity) && styles.selectButtonDisabled,
-                          isRequiredFieldMissing('speciesName') && styles.inputInvalid,
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.selectButtonText,
-                            !cultureForm.speciesName && styles.selectPlaceholder,
-                          ]}
-                        >
-                          {cultureForm.speciesName || 'Выберите вид'}
-                        </Text>
-                        <View style={styles.selectButtonArrow}>
-                          <ChevronDownIcon />
-                        </View>
-                      </Pressable>
-
-                      <SelectBottomSheet
-                        onClose={() => setOpenDropdown('')}
-                        onSelect={handleSelectSpecies}
-                        options={speciesOptions}
-                        title="Выберите вид"
-                        visible={openDropdown === 'species'}
-                      />
-                    </>
-                  )}
-                </View>
-
-                <View style={styles.field}>
-                  {showIdentityAsText ? (
-                    <Text style={styles.readonlyValue}>{cultureForm.varietyName}</Text>
-                  ) : (
-                    <>
-                      <Pressable
-                        accessibilityRole="button"
-                        disabled={!cultureForm.speciesName || !canEditCurrentIdentity}
-                        onPress={() => setOpenDropdown(
-                          openDropdown === 'variety' ? '' : 'variety',
-                        )}
-                        style={[
-                          styles.selectButton,
-                          (!cultureForm.speciesName || !canEditCurrentIdentity) && styles.selectButtonDisabled,
-                          isRequiredFieldMissing('varietyName') && styles.inputInvalid,
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.selectButtonText,
-                            !cultureForm.varietyName && styles.selectPlaceholder,
-                          ]}
-                        >
-                          {cultureForm.varietyName || 'Выберите сорт'}
-                        </Text>
-                        <View style={styles.selectButtonArrow}>
-                          <ChevronDownIcon />
-                        </View>
-                      </Pressable>
-
-                      <SelectBottomSheet
-                        onClose={() => setOpenDropdown('')}
-                        onSelect={handleSelectVariety}
-                        options={varietyOptions}
-                        title="Выберите сорт"
-                        visible={openDropdown === 'variety'}
-                      />
-                    </>
-                  )}
-                </View>
-
-                <View style={styles.field}>
-                  <Text style={styles.label}>Код партии *</Text>
-                  {showIdentityAsText ? (
-                    <Text style={styles.readonlyValue}>{cultureForm.code}</Text>
-                  ) : (
-                    <View style={styles.codeInputRow}>
-                      <TextInput
-                        autoCapitalize="characters"
-                        editable={canEditCurrentIdentity}
-                        onChangeText={(value) => updateCultureForm('code', value)}
-                        placeholder={`${isCloneStage ? 'KL' : isAdaptationStage ? 'AD' : 'VK'}-YYYYMMDD-HHMMSS`}
-                        placeholderTextColor="#7C8A80"
-                        style={[
-                          styles.input,
-                          styles.codeInput,
-                          !canEditCurrentIdentity && styles.inputDisabled,
-                          isRequiredFieldMissing('code') && styles.inputInvalid,
-                        ]}
-                        value={cultureForm.code}
-                      />
-                      <Pressable
-                        accessibilityLabel={isEditingCard ? 'Сгенерировать новый код партии' : 'Сгенерировать код партии'}
-                        accessibilityRole="button"
-                        disabled={!canEditCurrentIdentity}
-                        onPress={handleGenerateCode}
-                        style={({ pressed }) => [
-                          styles.generateButton,
-                          !canEditCurrentIdentity && styles.generateButtonDisabled,
-                          pressed && styles.pressedButton,
-                        ]}
-                      >
-                        <QrGenerateIcon
-                          color={canEditCurrentIdentity ? '#15863F' : '#9CA3AF'}
-                          size={28}
-                        />
-                      </Pressable>
-                    </View>
-                  )}
-                </View>
-
-                <View style={styles.field}>
-                  <Text style={styles.label}>Количество *</Text>
-                  {isEditingCard ? (
-                    <Text style={styles.readonlyValue}>{cultureForm.quantity}</Text>
-                  ) : (
-                    <TextInput
-                      inputMode="numeric"
-                      keyboardType="numeric"
-                      onChangeText={(value) => updateCultureForm('quantity', value)}
-                      placeholder="Введите количество"
-                      placeholderTextColor="#7C8A80"
-                      style={[
-                        styles.input,
-                        isRequiredFieldMissing('quantity') && styles.inputInvalid,
-                      ]}
-                      value={cultureForm.quantity}
-                    />
-                  )}
-                </View>
-
-                {isCultureIntroStage && (
-                  <>
-                    <View style={styles.field}>
-                      <Text style={styles.label}>Гормон *</Text>
-                      {showIdentityAsText ? (
-                        <Text style={styles.readonlyValue}>{cultureForm.hasHormone ? 'Есть' : 'Нет'}</Text>
-                      ) : (
-                        <View style={styles.toggleRow}>
-                          <Pressable
-                            accessibilityRole="button"
-                            onPress={() => updateCultureForm('hasHormone', true)}
-                            style={[
-                              styles.toggleButton,
-                              cultureForm.hasHormone && styles.toggleButtonActive,
-                            ]}
-                          >
-                            <Text
-                              style={[
-                                styles.toggleButtonText,
-                                cultureForm.hasHormone && styles.toggleButtonTextActive,
-                              ]}
-                            >
-                              Есть
-                            </Text>
-                          </Pressable>
-
-                          <Pressable
-                            accessibilityRole="button"
-                            onPress={() => updateCultureForm('hasHormone', false)}
-                            style={[
-                              styles.toggleButton,
-                              !cultureForm.hasHormone && styles.toggleButtonActive,
-                            ]}
-                          >
-                            <Text
-                              style={[
-                                styles.toggleButtonText,
-                                !cultureForm.hasHormone && styles.toggleButtonTextActive,
-                              ]}
-                            >
-                              Нет
-                            </Text>
-                          </Pressable>
-                        </View>
-                      )}
-                    </View>
-
-                    <View style={styles.field}>
-                      {showIdentityAsText ? (
-                        <Text style={styles.readonlyValue}>{cultureForm.sourceMaterial}</Text>
-                      ) : (
-                        <>
-                          <Pressable
-                            accessibilityRole="button"
-                            onPress={() => setOpenDropdown(
-                              openDropdown === 'sourceMaterial' ? '' : 'sourceMaterial',
-                            )}
-                            style={[
-                              styles.selectButton,
-                              isRequiredFieldMissing('sourceMaterial') && styles.inputInvalid,
-                            ]}
-                          >
-                            <Text
-                              style={[
-                                styles.selectButtonText,
-                                !cultureForm.sourceMaterial && styles.selectPlaceholder,
-                              ]}
-                              >
-                                {cultureForm.sourceMaterial || 'Выберите источник материала'}
-                              </Text>
-                              <View style={styles.selectButtonArrow}>
-                                <ChevronDownIcon />
-                              </View>
-                            </Pressable>
-
-                          <SelectBottomSheet
-                            customInputLabel="Указать свое"
-                            customInputPlaceholder="Введите источник материала"
-                            customInputValue={
-                              SOURCE_MATERIAL_OPTIONS.includes(cultureForm.sourceMaterial)
-                                ? ''
-                                : cultureForm.sourceMaterial
-                            }
-                            onChangeCustomInput={(value) => updateCultureForm('sourceMaterial', value)}
-                            onClose={() => setOpenDropdown('')}
-                            onSelect={(option) => {
-                              updateCultureForm('sourceMaterial', option);
-                              setOpenDropdown('');
-                            }}
-                            options={SOURCE_MATERIAL_OPTIONS.filter((option) => option !== 'Другое')}
-                            title="Выберите источник материала"
-                            visible={openDropdown === 'sourceMaterial'}
-                          />
-                        </>
-                      )}
-                    </View>
-
-                    <View style={styles.field}>
-                      <Text style={styles.label}>Стартовое фото</Text>
-                      {showIdentityAsText ? (
-                        <Text style={styles.readonlyValue}>{cultureForm.startPhotoNote || 'Не добавлено'}</Text>
-                      ) : (
-                        <TextInput
-                          onChangeText={(value) => updateCultureForm('startPhotoNote', value)}
-                          placeholder="Описание фото или ссылка"
-                          placeholderTextColor="#7C8A80"
-                          style={styles.input}
-                          value={cultureForm.startPhotoNote}
-                        />
-                      )}
-                    </View>
-
-                    {!isEditingCard && (
-                      <View style={styles.field}>
-                        <Pressable
-                          accessibilityRole="button"
-                          onPress={() => setOpenDropdown(
-                            openDropdown === 'batchStatus' ? '' : 'batchStatus',
-                          )}
-                          style={styles.selectButton}
-                        >
-                          <Text style={styles.selectButtonText}>
-                            {BATCH_STATUS_LABELS[cultureForm.batchStatus] || 'Выберите статус партии'}
-                          </Text>
-                          <View style={styles.selectButtonArrow}>
-                            <ChevronDownIcon />
-                          </View>
-                        </Pressable>
-
-                        <SelectBottomSheet
-                          getKey={([value]) => value}
-                          getLabel={([, label]) => label}
-                          onClose={() => setOpenDropdown('')}
-                          onSelect={([value]) => {
-                            updateCultureForm('batchStatus', value);
-                            setOpenDropdown('');
-                          }}
-                          options={cultureCreateBatchStatuses}
-                          title="Выберите статус партии"
-                          visible={openDropdown === 'batchStatus'}
-                        />
-                      </View>
-                    )}
-                  </>
-                )}
-
-              </View>
-
-              <View style={styles.cultureFormFooter}>
-                {!!formError && <Text style={styles.errorText}>{formError}</Text>}
-
-                {canSaveCultureForm && (
-                  <Pressable
-                    accessibilityRole="button"
-                    onPress={handleSaveCultureCard}
-                    style={({ pressed }) => [
-                      styles.primaryButton,
-                      pressed && styles.pressedButton,
-                    ]}
-                  >
-                    <Text style={styles.primaryButtonText}>
-                      {isEditingCard ? 'Сохранить настройки' : isCultureIntroStage ? 'Создать партию' : 'Сохранить'}
-                    </Text>
-                  </Pressable>
-                )}
-              </View>
-            </View>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </SafeAreaView>
-    );
-  }
-
-  if (
-    isAuthenticated &&
-    isSupportedPlantingStage &&
-    currentScreen === 'cultureCalendar' &&
-    selectedCard
-  ) {
-    const selectedDate = selectedCalendarDate || selectedCard.createdAt || getTodayIsoDate();
-    return (
-      <CultureCalendarScreen
-        activeTab={cultureCalendarTab}
-        bottomInset={bottomInset}
-        isStageMoveConfirmVisible={isStageMoveConfirmVisible}
-        isOperationDeleteConfirmVisible={Boolean(operationDeleteCandidateId)}
-        onAddEvent={() => {
-          setSelectedCalendarDate(selectedDate);
-          setStageActionError('');
-          setEditingOperationId(null);
-
-          if (selectedCard.stage === INTRO_STAGE) {
-            setIsDateEntryExpanded(false);
-            setIntroActionType('comment');
-            setIntroActionForm(createEmptyIntroActionForm());
-            setCurrentScreen('introActionForm');
-            return;
-          }
-
-          openStatusChangeForm();
-        }}
-        onBack={closeCultureCalendar}
-        onCancelStageMove={() => setIsStageMoveConfirmVisible(false)}
-        onCancelOperationDelete={cancelDeleteOperation}
-        onChangeTab={(tab) => {
-          setCultureCalendarTab(tab);
-          setIsDateEntryExpanded(false);
-          setIntroActionType('');
-          setEditingOperationId(null);
-          setStageActionError('');
-        }}
-        onConfirmStageMove={handleAddStageChange}
-        onConfirmOperationDelete={confirmDeleteOperation}
-        onOpenRecommendations={() => openSelectedCardRecommendations('cultureCalendar')}
-        onRequestStageMove={() => {
-          setStageActionError('');
-          setIsStageMoveConfirmVisible(true);
-        }}
-        showBottomActions={cultureCalendarTab === 'calendar' && !selectedCardActionLocked}
-        stageActionError={stageActionError}
-        stageMoveBlockedMessage={stageMoveBlockedMessage}
-        stageMoveButtonLabel={stageMoveButtonLabel}
-        stageMoveTarget={selectedCardNextStage}
-        subtitle={<Text style={styles.stageHeaderSubtitle}>{selectedCard.stage || selectedStage}</Text>}
-        title={getCardDisplayName(selectedCard)}
-      >
-            {cultureCalendarTab === 'calendar' && (
-              <CultureCalendarTab
-                calendarDays={calendarDays}
-                calendarMonth={calendarMonth}
-                canDeleteOperation={(operation) => (
-                  (
-                    (selectedCard.stage === INTRO_STAGE && introOperationFields[operation.type]) ||
-                    editableStatusOperationTypes.includes(operation.type)
-                  ) && !protectedOperationTypes.includes(operation.type)
-                )}
-                canEditOperation={(operation) => (
-                  (selectedCard.stage === INTRO_STAGE && introOperationFields[operation.type]) ||
-                  editableStatusOperationTypes.includes(operation.type)
-                )}
-                card={selectedCard}
-                onChangeMonth={changeCalendarMonth}
-                onDeleteOperation={requestDeleteOperation}
-                onEditOperation={openEditOperation}
-                onSelectDate={(isoDate) => {
-                  setSelectedCalendarDate(isoDate);
-                  setIsDateEntryExpanded(false);
-                  setIntroActionType('');
-                  setIntroActionForm(createEmptyIntroActionForm());
-                  setEditingOperationId(null);
-                  setStageActionError('');
-                }}
-                operationDates={operationDates}
-                selectedDate={selectedDate}
-                selectedDateOperations={selectedDateOperations}
-                stageActionError=""
-                stageMoveBlockedMessage={stageMoveBlockedMessage}
-                stageMoveTarget={selectedCardNextStage}
-              />
-            )}
-
-            {cultureCalendarTab === 'passport' && (
-              <CulturePassportTab
-                adaptationStats={selectedCardAdaptationStats}
-                card={selectedCard}
-                cloneStats={selectedCardCloneStats}
-                currentQuantity={selectedCardCurrentQuantity}
-                daysInStage={selectedCardDaysInStage}
-                getResolvedBatchStatus={getResolvedBatchStatus}
-                onShareQrPress={() => handleShareQrPress(selectedCard)}
-              />
-            )}
-
-            {cultureCalendarTab === 'journal' && (
-              <CultureJournalTab
-                canDeleteOperation={(operation) => (
-                  (
-                    (selectedCard.stage === INTRO_STAGE && introOperationFields[operation.type]) ||
-                    editableStatusOperationTypes.includes(operation.type)
-                  ) && !protectedOperationTypes.includes(operation.type)
-                )}
-                canEditOperation={(operation) => (
-                  (selectedCard.stage === INTRO_STAGE && introOperationFields[operation.type]) ||
-                  editableStatusOperationTypes.includes(operation.type)
-                )}
-                card={selectedCard}
-                operations={selectedCardOperations}
-                onDeleteOperation={requestDeleteOperation}
-                onEditOperation={openEditOperation}
-              />
-            )}
-      </CultureCalendarScreen>
-    );
-  }
-
-  if (
-    isAuthenticated &&
-    currentScreen === 'introActionForm' &&
-    selectedCard
-  ) {
-    return (
-      <IntroActionFormScreen
-        actionForm={introActionForm}
-        actionType={introActionType}
-        error={stageActionError}
-        isEditing={Boolean(editingOperationId)}
-        onBack={() => {
-          setIntroActionType('');
-          setIntroActionForm(createEmptyIntroActionForm());
-          setEditingOperationId(null);
-          setStageActionError('');
-          setCurrentScreen('cultureCalendar');
-        }}
-        onChangeActionForm={updateIntroActionForm}
-        onSave={async () => {
-          const isSaved = await handleSaveIntroAction();
-          if (isSaved) {
-            setCurrentScreen('cultureCalendar');
-          }
-        }}
-        onSelectActionType={(value) => {
-          setIntroActionType(value);
-          setEditingOperationId(null);
-          setStageActionError('');
-        }}
-        selectedCard={selectedCard}
-      />
-    );
-  }
-
-  if (
-    isAuthenticated &&
-    (isCloneStage || isAdaptationStage || isGreenhouseStage) &&
-    currentScreen === 'statusChangeForm' &&
-    selectedCard
-  ) {
-    return (
-      <StatusChangeFormScreen
-        eventType={introActionType}
-        form={statusForm}
-        formError={statusFormError}
-        formNotice={statusFormNotice}
-        isEditing={Boolean(editingOperationId)}
-        onBack={closeStatusChangeForm}
-        onChangeField={updateStatusForm}
-        onSave={handleSaveStatusChange}
-        onSelectEventType={(value) => {
-          setIntroActionType(value);
-          setStatusForm(createEmptyStatusForm());
-          setStatusFormError('');
-          setStatusFormNotice('');
-        }}
-        selectedCard={selectedCard}
-        selectedDate={selectedCalendarDate}
-      />
-    );
-
-  }
-
-  if (
-    isAuthenticated &&
-    currentScreen === 'recommendations'
-  ) {
-    return (
-      <RecommendationsScreen
-        entries={recommendationEntries}
-        mode={recommendationsMode}
-        onBack={closeRecommendations}
-        onChangeMode={setRecommendationsMode}
-        showModeSwitch={Boolean(recommendationCard)}
-        stage={recommendationStage}
-        title={recommendationCard ? getCardDisplayName(recommendationCard) : 'Рекомендации'}
-      />
-    );
-  }
-
-  if (
-    isAuthenticated &&
-    isSupportedPlantingStage &&
-    currentScreen === 'cultureList'
-  ) {
-    return (
-      <CultureListScreen
-        allVisibleStageCardsCount={allVisibleStageCardsCount}
-        batchStatusFilter={batchStatusFilter}
-        bottomInset={bottomInset}
-        cardSearch={cardSearch}
-        cards={filteredCultureCards}
-        getPlantCardStatusDotStyle={getPlantCardStatusDotStyle}
-        getResolvedBatchStatus={getResolvedBatchStatus}
-        isAdaptationStage={isAdaptationStage}
-        isCardsLoading={isCardsLoading}
-        isCloneStage={isCloneStage}
-        isCultureIntroStage={isCultureIntroStage}
-        isGreenhouseStage={isGreenhouseStage}
-        selectedStageCardsCount={selectedStageCardsCount}
-        onBack={() => setSelectedStage('')}
-        onChangeBatchStatusFilter={setBatchStatusFilter}
-        onChangeSearch={setCardSearch}
-        onCreateCulture={openCultureForm}
-        onEditCulture={openEditCultureForm}
-        onOpenCultureCalendar={openCultureCalendar}
-        selectedStage={selectedStage}
-        storageError={storageError}
-      />
-    );
-  }
-
-  if (isAuthenticated && currentScreen === 'globalJournal') {
-    return (
-      <GlobalJournalScreen
-        bottomInset={bottomInset}
-        expandedCardIds={expandedJournalCardIds}
-        getJournalFilterLabel={getJournalFilterLabel}
-        getResolvedBatchStatus={getResolvedBatchStatus}
-        groupedCards={groupedGlobalJournalCards}
-        journalFilter={journalFilter}
-        onChangeJournalFilter={setJournalFilter}
-        onHomePress={() => setCurrentScreen('stages')}
-        onJournalPress={openGlobalJournal}
-        onMenuPress={openMenu}
-        onOpenCard={(card) => {
-          setSelectedStage(card.stage || INTRO_STAGE);
-          openCultureCalendar(card);
-        }}
-        onScanPress={handleScanPress}
-        onTasksPress={openTasks}
-        onToggleCard={toggleJournalCard}
-        taskCount={taskCount}
-      />
-    );
-  }
-
-  if (isAuthenticated && currentScreen === 'menu') {
-    return (
-      <MenuScreen
-        activeCardsCount={activeCardsCount}
-        bottomInset={bottomInset}
-        firstName={login}
-        lastName=""
-        notice={notice}
-        onHomePress={() => setCurrentScreen('stages')}
-        onJournalPress={() => {
-          setJournalFilter('important');
-          setCurrentScreen('globalJournal');
-        }}
-        onLogout={handleLogout}
-        onMenuAction={(title) => setNotice(`${title}: раздел будет добавлен позже.`)}
-        onClearCards={handleClearTestData}
-        onScheduleWateringReminder={handleScheduleTestWateringReminder}
-        onShareData={handleShareData}
-        onScanPress={handleScanPress}
-        onTasksPress={openTasks}
-        role={currentUser.role}
-        taskCount={taskCount}
-      />
-    );
-  }
-
-  if (isAuthenticated && currentScreen === 'tasks') {
-    return (
-      <TasksScreen
-        bottomInset={bottomInset}
-        onHomePress={() => setCurrentScreen('stages')}
-        onJournalPress={openGlobalJournal}
-        onMenuPress={openMenu}
-        onScanPress={handleScanPress}
-        onTaskPress={openTaskCard}
-        tasks={careTasks}
-      />
-    );
-  }
+  const routerActions = {
+    cancelDeleteOperation,
+    changeCalendarMonth,
+    closeCultureCalendar,
+    closeCultureForm,
+    closeRecommendations,
+    closeStatusChangeForm,
+    confirmDeleteOperation,
+    handleAddStageChange,
+    handleClearTestData,
+    handleDateChange,
+    handleGenerateCode,
+    handleLogout,
+    handleMenuAction,
+    handleSaveCultureCard,
+    handleSaveIntroAction,
+    handleSaveStatusChange,
+    handleScanPress,
+    handleScheduleWateringReminder,
+    handleShareData,
+    handleShareQrPress,
+    handleStagePress,
+    openCultureCalendar,
+    openCultureForm,
+    openEditCultureForm,
+    openEditOperation,
+    openGlobalJournal,
+    openMenu,
+    openSelectedCardRecommendations,
+    openStatusChangeForm,
+    openTaskCard,
+    openTasks,
+    requestDeleteOperation,
+    setBatchStatusFilter,
+    setCardSearch,
+    setCurrentScreen,
+    setCultureCalendarTab,
+    setEditingOperationId,
+    setExpandedJournalCardIds,
+    setFormError,
+    setIntroActionForm,
+    setIntroActionType,
+    setIsDateEntryExpanded,
+    setIsStageMoveConfirmVisible,
+    setJournalFilter,
+    setOpenDropdown,
+    setOperationDeleteCandidateId,
+    setRecommendationsContext,
+    setRecommendationsMode,
+    setSelectedCalendarDate,
+    setSelectedStage,
+    setShowDatePicker,
+    setStageActionError,
+    setStatusForm,
+    setStatusFormError,
+    setStatusFormNotice,
+    setTouchedSubmit,
+    toggleJournalCard,
+    updateCultureForm,
+    updateIntroActionForm,
+    updateStatusForm,
+    handleSelectCulture,
+    handleSelectSpecies,
+    handleSelectVariety,
+    isRequiredFieldMissing,
+  };
 
   if (isAuthenticated) {
-    return (
-      <SafeAreaView style={styles.safeArea}>
-        <StatusBar style="dark" />
-        <ScrollView
-          contentContainerStyle={styles.stagesScrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.stagesScreen}>
-            <View style={styles.stageGrid}>
-              {stageHomeItemsConfig.map((stage) => (
-                <Pressable
-                  accessibilityRole="button"
-                  key={stage.title}
-                  onPress={() => handleStagePress(stage.title)}
-                  style={({ pressed }) => [
-                    styles.stageCard,
-                    pressed && styles.stageCardPressed,
-                  ]}
-                  >
-                  <View style={[styles.stageIconBox, styles[stage.iconBoxStyle]]}>
-                    <StageItemIcon name={stage.iconName} size={24} />
-                  </View>
-                  <Text style={styles.stageName}>{stage.label}</Text>
-                </Pressable>
-              ))}
-            </View>
-
-            {!!notice && <Text style={styles.homeNoticeText}>{notice}</Text>}
-            {!!storageError && <Text style={styles.homeErrorText}>{storageError}</Text>}
-          </View>
-        </ScrollView>
-
-        <BottomTabBar
-          activeTab="home"
-          bottomInset={bottomInset}
-          onHomePress={() => setCurrentScreen('stages')}
-          onJournalPress={() => {
-            setJournalFilter('important');
-            setCurrentScreen('globalJournal');
-          }}
-          onMenuPress={openMenu}
-          onScanPress={handleScanPress}
-          onTasksPress={openTasks}
-          taskCount={taskCount}
-        />
-      </SafeAreaView>
-    );
+    return <AppRouter actions={routerActions} state={routerState} />;
   }
 
   return (
@@ -2199,11 +1339,20 @@ function AppContent() {
 
 export default function App() {
   return (
-    <SafeAreaProvider initialMetrics={initialWindowMetrics}>
-      <AppContent />
-    </SafeAreaProvider>
+    <AppErrorBoundary>
+      <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+        <AppContent />
+      </SafeAreaProvider>
+    </AppErrorBoundary>
   );
 }
+
+
+
+
+
+
+
 
 
 

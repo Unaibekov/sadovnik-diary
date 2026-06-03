@@ -7,6 +7,29 @@ export function getUniqueOptions(items, field) {
     .sort((first, second) => first.localeCompare(second, 'ru'));
 }
 
+export function buildCultureFormOptions(plantsCatalog, cultureForm) {
+  const cultureOptions = getUniqueOptions(plantsCatalog, 'cultureName');
+  const speciesOptions = getUniqueOptions(
+    plantsCatalog.filter((plant) => (
+      (plant.cultureName || EMPTY_CATALOG_VALUE) === cultureForm.cultureName
+    )),
+    'speciesName',
+  );
+  const varietyOptions = getUniqueOptions(
+    plantsCatalog.filter((plant) => (
+      (plant.cultureName || EMPTY_CATALOG_VALUE) === cultureForm.cultureName &&
+      (plant.speciesName || EMPTY_CATALOG_VALUE) === cultureForm.speciesName
+    )),
+    'varietyName',
+  );
+
+  return {
+    cultureOptions,
+    speciesOptions,
+    varietyOptions,
+  };
+}
+
 export function getPlantCardStatusDotStyle(batchStatus, sterilityStatus) {
   if (batchStatus === 'draft') {
     return styles.plantCardStatusDotDraft;

@@ -1,4 +1,5 @@
 import { EMPTY_CATALOG_VALUE, stages } from './constants';
+import { getCardDisplayName } from './batch';
 
 export function removeRecommendationFields(card) {
   const {
@@ -99,4 +100,54 @@ export function getStagePlantRecommendationItems(plant, stage) {
     { label: 'Схема', value: plant.preventionApplicationRate },
     { label: 'Период', value: plant.preventionFrequency },
   ].filter((item) => Boolean(item.value));
+}
+
+export function buildRecommendationEntries({
+  plantsCatalog,
+  recommendationCard,
+  recommendationMode,
+  recommendationSourceCards,
+  recommendationStage,
+}) {
+  if (recommendationCard && recommendationMode === 'all') {
+    return stages.map((stage) => {
+      const plant = findCatalogPlant(recommendationCard, plantsCatalog);
+
+      return {
+        key: `${recommendationCard.id}-${stage}`,
+        plantKey: recommendationCard.id,
+        subtitle: getCardDisplayName(recommendationCard),
+        title: stage,
+        items: getStagePlantRecommendationItems(plant, stage),
+      };
+    });
+  }
+
+  return recommendationSourceCards.reduce((entries, card) => {
+    const plantKey = [
+      card.cultureName,
+      card.speciesName,
+      card.varietyName,
+    ].join('|');
+
+    if (!recommendationCard && entries.some((entry) => entry.plantKey === plantKey)) {
+      return entries;
+    }
+
+    const plant = findCatalogPlant(card, plantsCatalog);
+
+    return [
+      ...entries,
+      {
+        key: recommendationCard ? `${card.id}-${recommendationStage}` : plantKey,
+        plantKey,
+        subtitle: [
+          plant?.originalName,
+          recommendationCard ? recommendationStage : '',
+        ].filter(Boolean).join(' В· '),
+        title: getCardDisplayName(card),
+        items: getStagePlantRecommendationItems(plant, recommendationStage),
+      },
+    ];
+  }, []);
 }

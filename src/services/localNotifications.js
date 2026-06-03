@@ -1,3 +1,5 @@
+import { getCardDisplayName } from '../domain/batch';
+import { formatDisplayDate } from '../domain/dates';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
@@ -84,4 +86,17 @@ export function getReminderDateFromIsoDate(isoDate, hour = 9, minute = 0) {
   }
 
   return reminderDate;
+}
+
+export function buildWateringReminderPayload(card, wateringStats) {
+  const reminderDate = getReminderDateFromIsoDate(wateringStats?.nextWateringDate);
+
+  if (!reminderDate) {
+    return null;
+  }
+
+  return {
+    body: `${getCardDisplayName(card)}: следующий полив ${formatDisplayDate(wateringStats.nextWateringDate)}.`,
+    date: reminderDate,
+  };
 }

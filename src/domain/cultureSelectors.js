@@ -90,3 +90,24 @@ export function getAllVisibleStageCardsCount(cultureCards, options) {
     return !query || getCardDisplayName(card).toLowerCase().includes(query);
   }).length;
 }
+
+export function getActiveCardsCount(cultureCards, getResolvedBatchStatus) {
+  return cultureCards.filter((card) => (
+    card.status !== 'cancelled' &&
+    card.status !== 'archived' &&
+    getResolvedBatchStatus(card) !== 'sold'
+  )).length;
+}
+
+export function getSelectedStageCardsCount(cultureCards, selectedStage, getResolvedBatchStatus) {
+  return cultureCards.filter((card) => {
+    const cardStage = card.stage || INTRO_STAGE;
+    const batchStatus = getResolvedBatchStatus(card);
+
+    if (card.status === 'cancelled' || (card.status === 'archived' && batchStatus === 'sold')) {
+      return false;
+    }
+
+    return cardStage === selectedStage;
+  }).length;
+}
