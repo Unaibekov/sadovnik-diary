@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
+  KeyboardAvoidingView,
   Modal,
   PanResponder,
   Pressable,
   ScrollView,
   Text,
   TextInput,
+  Platform,
   useWindowDimensions,
   View,
 } from 'react-native';
@@ -150,73 +152,79 @@ export default function SelectBottomSheet({
           />
         </Animated.View>
 
-        <Animated.View
-          style={[
-            styles.bottomSheetPanel,
-            {
-              paddingBottom: insets.bottom + 16,
-              transform: [{ translateY }],
-            },
-          ]}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1, justifyContent: 'flex-end' }}
         >
-          <View {...panResponder.panHandlers}>
-            <View style={styles.bottomSheetHandle} />
-
-            {title ? (
-              <Text style={styles.bottomSheetTitle}>{title}</Text>
-            ) : null}
-          </View>
-
-          <ScrollView
-            contentContainerStyle={[
-              styles.bottomSheetOptions,
-              { paddingBottom: insets.bottom + 24 },
+          <Animated.View
+            style={[
+              styles.bottomSheetPanel,
+              {
+                paddingBottom: insets.bottom + 16,
+                transform: [{ translateY }],
+              },
             ]}
-            keyboardShouldPersistTaps="handled"
-            nestedScrollEnabled
           >
-            {options.map((option) => {
-              const key = getKey(option);
+            <View {...panResponder.panHandlers}>
+              <View style={styles.bottomSheetHandle} />
 
-              return (
-                <Pressable
-                  accessibilityRole="button"
-                  key={key}
-                  onPress={() => {
-                    onSelect(option);
-                    closeSheet();
-                  }}
-                  style={({ pressed }) => [
-                    styles.bottomSheetOption,
-                    pressed && styles.linkButtonPressed,
-                  ]}
-                >
-                  <Text style={styles.bottomSheetOptionText}>
-                    {getLabel(option)}
-                  </Text>
-                </Pressable>
-              );
-            })}
+              {title ? (
+                <Text style={styles.bottomSheetTitle}>{title}</Text>
+              ) : null}
+            </View>
 
-            {onChangeCustomInput ? (
-              <View style={styles.bottomSheetCustomField}>
-                {customInputLabel ? (
-                  <Text style={styles.bottomSheetCustomLabel}>
-                    {customInputLabel}
-                  </Text>
-                ) : null}
+            <ScrollView
+              contentContainerStyle={[
+                styles.bottomSheetOptions,
+                { paddingBottom: insets.bottom + 24 },
+              ]}
+              keyboardDismissMode="on-drag"
+              keyboardShouldPersistTaps="handled"
+              nestedScrollEnabled
+            >
+              {options.map((option) => {
+                const key = getKey(option);
 
-                <TextInput
-                  onChangeText={onChangeCustomInput}
-                  placeholder={customInputPlaceholder}
-                  placeholderTextColor="#7C8A80"
-                  style={styles.bottomSheetInput}
-                  value={customInputValue}
-                />
-              </View>
-            ) : null}
-          </ScrollView>
-        </Animated.View>
+                return (
+                  <Pressable
+                    accessibilityRole="button"
+                    key={key}
+                    onPress={() => {
+                      onSelect(option);
+                      closeSheet();
+                    }}
+                    style={({ pressed }) => [
+                      styles.bottomSheetOption,
+                      pressed && styles.linkButtonPressed,
+                    ]}
+                  >
+                    <Text style={styles.bottomSheetOptionText}>
+                      {getLabel(option)}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+
+              {onChangeCustomInput ? (
+                <View style={styles.bottomSheetCustomField}>
+                  {customInputLabel ? (
+                    <Text style={styles.bottomSheetCustomLabel}>
+                      {customInputLabel}
+                    </Text>
+                  ) : null}
+
+                  <TextInput
+                    onChangeText={onChangeCustomInput}
+                    placeholder={customInputPlaceholder}
+                    placeholderTextColor="#7C8A80"
+                    style={styles.bottomSheetInput}
+                    value={customInputValue}
+                  />
+                </View>
+              ) : null}
+            </ScrollView>
+          </Animated.View>
+        </KeyboardAvoidingView>
       </View>
     </Modal>
   );

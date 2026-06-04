@@ -1,13 +1,13 @@
-﻿import { useEffect, useState } from 'react';
-import { Platform } from 'react-native';
+﻿import { useEffect, useState } from "react";
+import { Platform } from "react-native";
 import {
   SafeAreaProvider,
   initialWindowMetrics,
   useSafeAreaInsets,
-} from 'react-native-safe-area-context';
-import { CameraView } from 'expo-camera';
-import plantsCatalog from './data/plantsCatalog';
-import styles from './styles';
+} from "react-native-safe-area-context";
+import { CameraView } from "expo-camera";
+import plantsCatalog from "./data/plantsCatalog";
+import styles from "./styles";
 import {
   BATCH_STATUS_LABELS,
   EMPTY_CATALOG_VALUE,
@@ -16,18 +16,18 @@ import {
   currentUser,
   stageMoveTargetLabels,
   stages,
-} from './src/domain/constants';
+} from "./src/domain/constants";
 import {
   dateFromIso,
   formatDisplayDate,
   getMonthDays,
   getTodayIsoDate,
-} from './src/domain/dates';
+} from "./src/domain/dates";
 import {
   createEmptyCultureForm,
   createEmptyIntroActionForm,
   createEmptyStatusForm,
-} from './src/domain/forms';
+} from "./src/domain/forms";
 import {
   canEditIdentityFields,
   generatePlantingCode,
@@ -42,13 +42,13 @@ import {
   getQrStatus,
   getStageMoveButtonLabel,
   isPositiveInteger,
-} from './src/domain/batch';
+} from "./src/domain/batch";
 import {
   buildCultureFormOptions,
   getPlantCardStatusDotStyle,
   getResolvedBatchStatus,
   getUniqueOptions,
-} from './src/domain/cardSelectors';
+} from "./src/domain/cardSelectors";
 import {
   cultureCreateBatchStatuses,
   editableStatusOperationTypes,
@@ -56,51 +56,51 @@ import {
   protectedOperationTypes,
   stageHomeItems as stageHomeItemsConfig,
   statusEventCountFields,
-} from './src/domain/operationConfig';
+} from "./src/domain/operationConfig";
 import {
   buildGroupedGlobalJournalCards,
   getActiveCardsCount,
   filterCultureCards,
   getAllVisibleStageCardsCount,
   getSelectedStageCardsCount,
-} from './src/domain/cultureSelectors';
+} from "./src/domain/cultureSelectors";
 import {
   buildRecommendationEntries,
   removeRecommendationFields,
-} from './src/domain/recommendations';
+} from "./src/domain/recommendations";
 import {
   buildCloseRecommendationsState,
   buildGlobalJournalNavigationState,
   buildMenuNavigationState,
   buildStageRecommendationsNavigationState,
   buildTasksNavigationState,
-} from './src/domain/navigation';
+} from "./src/domain/navigation";
 import {
   applyCultureSelection,
   applySpeciesSelection,
   applyVarietySelection,
   isDuplicateCardCode,
   isRequiredFieldMissingInForm,
-} from './src/domain/cultureForm';
+} from "./src/domain/cultureForm";
 import {
   buildCancelledCultureCards,
   buildCultureCardPayload,
   buildSavedCultureCards,
-} from './src/domain/cultureCardBuilder';
-import { validateCultureCardInput } from './src/domain/cultureFormValidation';
-import { updateFormField } from './src/domain/formState';
+} from "./src/domain/cultureCardBuilder";
+import { validateCultureCardInput } from "./src/domain/cultureFormValidation";
+import { updateFormField } from "./src/domain/formState";
 import {
   clearCultureCardsForTests,
   loadCultureCardsFromStorage,
   saveCultureCardsToStorage,
-} from './src/services/cultureCardsStorage';
+} from "./src/services/cultureCardsStorage";
 import {
   buildWateringReminderPayload,
   initializeLocalNotifications,
   scheduleWateringReminder,
-} from './src/services/localNotifications';
-import { shareQrCode } from './src/services/shareQrCodeService';
-import { shareCultureCardsReport } from './src/services/shareReportService';
+} from "./src/services/localNotifications";
+import { shareQrCode } from "./src/services/shareQrCodeService";
+import { shareCultureCardsReport } from "./src/services/shareReportService";
 import {
   doesJournalEventMatchFilter,
   getGlobalJournalEvents,
@@ -108,69 +108,82 @@ import {
   getLatestFilledCalendarDate,
   isOperationVisibleInCurrentStage,
   buildSelectedCardJournalData,
-} from './src/domain/journal';
-import { buildCareTasks } from './src/domain/tasks';
-import { getIntroActionConfig, getStatusEventConfig } from './src/domain/statusOperations';
-import { getStatusBaseValidationError } from './src/domain/statusValidation';
-import { getAdaptationValidationError } from './src/domain/statusStageValidation';
-import { getGreenhouseValidationError } from './src/domain/statusGreenhouseValidation';
-import { buildStatusOperation } from './src/domain/statusOperationBuilder';
-import { buildStatusFormFromOperation } from './src/domain/statusOperationForm';
-import { buildStageChangeOperation, buildStageTransitionCard } from './src/domain/stageTransition';
-import { buildIntroActionUpdatedCard } from './src/domain/introActionCardBuilder';
-import { buildUpdatedStatusCard } from './src/domain/statusCardBuilder';
-import { buildIntroActionOperation } from './src/domain/introActionOperationBuilder';
-import { buildStatusOperationContext } from './src/domain/statusOperationContext';
-import { buildDeletedOperationCard } from './src/domain/operationDeletion';
-import AuthScreen from './src/screens/AuthScreen';
-import AppRouter from './AppRouter';
-import AppErrorBoundary from './AppErrorBoundary';
+} from "./src/domain/journal";
+import { buildCareTasks } from "./src/domain/tasks";
+import {
+  getIntroActionConfig,
+  getStatusEventConfig,
+} from "./src/domain/statusOperations";
+import { getStatusBaseValidationError } from "./src/domain/statusValidation";
+import { getAdaptationValidationError } from "./src/domain/statusStageValidation";
+import { getGreenhouseValidationError } from "./src/domain/statusGreenhouseValidation";
+import { buildStatusOperation } from "./src/domain/statusOperationBuilder";
+import { buildStatusFormFromOperation } from "./src/domain/statusOperationForm";
+import {
+  buildStageChangeOperation,
+  buildStageTransitionCard,
+} from "./src/domain/stageTransition";
+import { buildIntroActionUpdatedCard } from "./src/domain/introActionCardBuilder";
+import { buildUpdatedStatusCard } from "./src/domain/statusCardBuilder";
+import { buildIntroActionOperation } from "./src/domain/introActionOperationBuilder";
+import { buildStatusOperationContext } from "./src/domain/statusOperationContext";
+import { buildDeletedOperationCard } from "./src/domain/operationDeletion";
+import AuthScreen from "./src/screens/AuthScreen";
+import AppRouter from "./AppRouter";
+import AppErrorBoundary from "./AppErrorBoundary";
 
 function AppContent() {
   const safeAreaInsets = useSafeAreaInsets();
   const bottomInset = Math.max(safeAreaInsets.bottom || 0, 0);
-  const [login, setLogin] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
-  const [focusedField, setFocusedField] = useState('');
+  const [login, setLogin] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [focusedField, setFocusedField] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [selectedStage, setSelectedStage] = useState('');
-  const [cardSearch, setCardSearch] = useState('');
+  const [selectedStage, setSelectedStage] = useState("");
+  const [cardSearch, setCardSearch] = useState("");
   const [cultureCards, setCultureCards] = useState([]);
   const [isCardsLoading, setIsCardsLoading] = useState(true);
-  const [storageError, setStorageError] = useState('');
-  const [currentScreen, setCurrentScreen] = useState('stages');
+  const [storageError, setStorageError] = useState("");
+  const [currentScreen, setCurrentScreen] = useState("stages");
   const [cultureForm, setCultureForm] = useState(createEmptyCultureForm);
   const [statusForm, setStatusForm] = useState(createEmptyStatusForm);
-  const [introActionForm, setIntroActionForm] = useState(createEmptyIntroActionForm);
-  const [introActionType, setIntroActionType] = useState('');
-  const [stageActionError, setStageActionError] = useState('');
-  const [batchStatusFilter, setBatchStatusFilter] = useState('all');
-  const [journalFilter, setJournalFilter] = useState('important');
+  const [introActionForm, setIntroActionForm] = useState(
+    createEmptyIntroActionForm,
+  );
+  const [introActionType, setIntroActionType] = useState("");
+  const [stageActionError, setStageActionError] = useState("");
+  const [batchStatusFilter, setBatchStatusFilter] = useState("all");
+  const [journalFilter, setJournalFilter] = useState("important");
   const [expandedJournalCardIds, setExpandedJournalCardIds] = useState([]);
-  const [formError, setFormError] = useState('');
-  const [statusFormError, setStatusFormError] = useState('');
-  const [statusFormNotice, setStatusFormNotice] = useState('');
+  const [formError, setFormError] = useState("");
+  const [statusFormError, setStatusFormError] = useState("");
+  const [statusFormNotice, setStatusFormNotice] = useState("");
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [openDropdown, setOpenDropdown] = useState('');
+  const [openDropdown, setOpenDropdown] = useState("");
   const [touchedSubmit, setTouchedSubmit] = useState(false);
   const [editingCardId, setEditingCardId] = useState(null);
   const [editingOperationId, setEditingOperationId] = useState(null);
   const [selectedCardId, setSelectedCardId] = useState(null);
   const [calendarMonth, setCalendarMonth] = useState(new Date());
-  const [selectedCalendarDate, setSelectedCalendarDate] = useState('');
-  const [cultureCalendarTab, setCultureCalendarTab] = useState('calendar');
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState("");
+  const [cultureCalendarTab, setCultureCalendarTab] = useState("calendar");
   const [isDateEntryExpanded, setIsDateEntryExpanded] = useState(false);
-  const [isStageMoveConfirmVisible, setIsStageMoveConfirmVisible] = useState(false);
-  const [operationDeleteCandidateId, setOperationDeleteCandidateId] = useState(null);
+  const [isStageMoveConfirmVisible, setIsStageMoveConfirmVisible] =
+    useState(false);
+  const [operationDeleteCandidateId, setOperationDeleteCandidateId] =
+    useState(null);
   const [recommendationsContext, setRecommendationsContext] = useState(null);
-  const [recommendationsMode, setRecommendationsMode] = useState('current');
+  const [recommendationsMode, setRecommendationsMode] = useState("current");
 
   const editingCard = cultureCards.find((card) => card.id === editingCardId);
   const selectedCard = cultureCards.find((card) => card.id === selectedCardId);
   const isEditingCard = Boolean(editingCardId);
-  const canEditCurrentIdentity = canEditIdentityFields(currentUser, editingCard);
+  const canEditCurrentIdentity = canEditIdentityFields(
+    currentUser,
+    editingCard,
+  );
   const calendarDays = getMonthDays(calendarMonth);
   const {
     operationDates,
@@ -186,28 +199,38 @@ function AppContent() {
   const isCloneStage = selectedStage === stages[1];
   const isAdaptationStage = selectedStage === stages[2];
   const isGreenhouseStage = selectedStage === stages[3];
-  const selectedCardNextStage = getNextStage(selectedCard?.stage || selectedStage);
+  const selectedCardNextStage = getNextStage(
+    selectedCard?.stage || selectedStage,
+  );
   const selectedCardActionLocked =
-    selectedCard?.batchStatus === 'quarantine' ||
-    selectedCard?.sterilityStatus === 'contaminated';
+    selectedCard?.batchStatus === "quarantine" ||
+    selectedCard?.sterilityStatus === "contaminated";
   const userRole = currentUser.role;
   const stageMoveButtonLabel = selectedCardNextStage
-    ? `В ${stageMoveTargetLabels[selectedCardNextStage] || selectedCardNextStage.toLocaleLowerCase('ru-RU')}`
+    ? `В ${stageMoveTargetLabels[selectedCardNextStage] || selectedCardNextStage.toLocaleLowerCase("ru-RU")}`
     : getStageMoveButtonLabel(selectedCardNextStage);
-  const stageMoveBlockedMessage = selectedCard?.stage === INTRO_STAGE && selectedCard.sterilityStatus === 'contaminated'
-    ? 'РџР°СЂС‚РёСЏ СЃ РєРѕРЅС‚Р°РјРёРЅР°С†РёРµР№. РџРµСЂРµРІРѕРґ РІ РєР»РѕРЅРёСЂРѕРІР°РЅРёРµ Р·Р°Р±Р»РѕРєРёСЂРѕРІР°РЅ.'
-    : selectedCard?.stage === INTRO_STAGE && (selectedCard.batchStatus || 'active') === 'quarantine'
-      ? 'РџР°СЂС‚РёСЏ РЅР° РєР°СЂР°РЅС‚РёРЅРµ. РџРµСЂРµРІРѕРґ РІ РєР»РѕРЅРёСЂРѕРІР°РЅРёРµ Р·Р°Р±Р»РѕРєРёСЂРѕРІР°РЅ.'
-      : '';
+  const stageMoveBlockedMessage =
+    selectedCard?.stage === INTRO_STAGE &&
+    selectedCard.sterilityStatus === "contaminated"
+      ? "РџР°СЂС‚РёСЏ СЃ РєРѕРЅС‚Р°РјРёРЅР°С†РёРµР№. РџРµСЂРµРІРѕРґ РІ РєР»РѕРЅРёСЂРѕРІР°РЅРёРµ Р·Р°Р±Р»РѕРєРёСЂРѕРІР°РЅ."
+      : selectedCard?.stage === INTRO_STAGE &&
+          (selectedCard.batchStatus || "active") === "quarantine"
+        ? "РџР°СЂС‚РёСЏ РЅР° РєР°СЂР°РЅС‚РёРЅРµ. РџРµСЂРµРІРѕРґ РІ РєР»РѕРЅРёСЂРѕРІР°РЅРёРµ Р·Р°Р±Р»РѕРєРёСЂРѕРІР°РЅ."
+        : "";
   const showIdentityAsText = isEditingCard;
   const canSaveCultureForm = true;
   const isSupportedPlantingStage = stages.includes(selectedStage);
   const isSelectedCloneCard = selectedCard?.stage === stages[1];
-  const canReleaseQuarantine = ['agronomist', 'admin', 'superadmin'].includes(currentUser.role);
+  const canReleaseQuarantine = ["agronomist", "admin", "superadmin"].includes(
+    currentUser.role,
+  );
   const globalJournalEvents = getGlobalJournalEvents(cultureCards);
   const careTasks = buildCareTasks(cultureCards, getResolvedBatchStatus);
   const taskCount = careTasks.length;
-  const activeCardsCount = getActiveCardsCount(cultureCards, getResolvedBatchStatus);
+  const activeCardsCount = getActiveCardsCount(
+    cultureCards,
+    getResolvedBatchStatus,
+  );
   const groupedGlobalJournalCards = buildGroupedGlobalJournalCards(
     cultureCards,
     globalJournalEvents,
@@ -215,11 +238,8 @@ function AppContent() {
     doesJournalEventMatchFilter,
   );
 
-  const {
-    cultureOptions,
-    speciesOptions,
-    varietyOptions,
-  } = buildCultureFormOptions(plantsCatalog, cultureForm);
+  const { cultureOptions, speciesOptions, varietyOptions } =
+    buildCultureFormOptions(plantsCatalog, cultureForm);
 
   const filteredCultureCards = filterCultureCards(cultureCards, {
     batchStatusFilter,
@@ -244,17 +264,19 @@ function AppContent() {
     selectedStage,
     getResolvedBatchStatus,
   );
-  const recommendationStage = recommendationsContext?.stage || selectedCard?.stage || selectedStage;
+  const recommendationStage =
+    recommendationsContext?.stage || selectedCard?.stage || selectedStage;
   const recommendationCard = recommendationsContext?.cardId
     ? cultureCards.find((card) => card.id === recommendationsContext.cardId)
     : null;
   const recommendationSourceCards = recommendationCard
     ? [recommendationCard]
-    : cultureCards.filter((card) => (
-      (card.stage || INTRO_STAGE) === recommendationStage &&
-      card.status !== 'cancelled' &&
-      card.status !== 'archived'
-    ));
+    : cultureCards.filter(
+        (card) =>
+          (card.stage || INTRO_STAGE) === recommendationStage &&
+          card.status !== "cancelled" &&
+          card.status !== "archived",
+      );
   const recommendationEntries = buildRecommendationEntries({
     plantsCatalog,
     recommendationCard,
@@ -270,11 +292,15 @@ function AppContent() {
 
   async function loadCultureCards() {
     try {
-      const savedCards = (await loadCultureCardsFromStorage()).map(removeRecommendationFields);
+      const savedCards = (await loadCultureCardsFromStorage()).map(
+        removeRecommendationFields,
+      );
       setCultureCards(savedCards);
-      setStorageError('');
+      setStorageError("");
     } catch (loadError) {
-      setStorageError('РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РіСЂСѓР·РёС‚СЊ Р»РѕРєР°Р»СЊРЅС‹Рµ РґР°РЅРЅС‹Рµ');
+      setStorageError(
+        "РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РіСЂСѓР·РёС‚СЊ Р»РѕРєР°Р»СЊРЅС‹Рµ РґР°РЅРЅС‹Рµ",
+      );
     } finally {
       setIsCardsLoading(false);
     }
@@ -282,49 +308,57 @@ function AppContent() {
 
   async function saveCultureCards(nextCards) {
     try {
-      const cardsWithoutRecommendations = nextCards.map(removeRecommendationFields);
+      const cardsWithoutRecommendations = nextCards.map(
+        removeRecommendationFields,
+      );
       await saveCultureCardsToStorage(cardsWithoutRecommendations);
       setCultureCards(cardsWithoutRecommendations);
-      setStorageError('');
+      setStorageError("");
     } catch (saveError) {
-      setStorageError('РќРµ СѓРґР°Р»РѕСЃСЊ СЃРѕС…СЂР°РЅРёС‚СЊ Р»РѕРєР°Р»СЊРЅС‹Рµ РґР°РЅРЅС‹Рµ');
+      setStorageError(
+        "РќРµ СѓРґР°Р»РѕСЃСЊ СЃРѕС…СЂР°РЅРёС‚СЊ Р»РѕРєР°Р»СЊРЅС‹Рµ РґР°РЅРЅС‹Рµ",
+      );
     }
   }
 
   function handleLogin() {
-    setNotice('');
-    setError('');
+    setNotice("");
+    setError("");
     setIsAuthenticated(true);
   }
 
   function handleForgotPassword() {
-    setError('');
-    setNotice('Р’РѕСЃСЃС‚Р°РЅРѕРІР»РµРЅРёРµ РїР°СЂРѕР»СЏ Р±СѓРґРµС‚ РґРѕР±Р°РІР»РµРЅРѕ РЅР° СЃР»РµРґСѓСЋС‰РµРј С€Р°РіРµ.');
+    setError("");
+    setNotice(
+      "Р’РѕСЃСЃС‚Р°РЅРѕРІР»РµРЅРёРµ РїР°СЂРѕР»СЏ Р±СѓРґРµС‚ РґРѕР±Р°РІР»РµРЅРѕ РЅР° СЃР»РµРґСѓСЋС‰РµРј С€Р°РіРµ.",
+    );
   }
 
   function handleRegister() {
-    setError('');
-    setNotice('Р РµРіРёСЃС‚СЂР°С†РёСЏ Р±СѓРґРµС‚ РґРѕР±Р°РІР»РµРЅР° РѕС‚РґРµР»СЊРЅРѕ. Р РѕР»СЊ РЅР°Р·РЅР°С‡Р°РµС‚ СЃСѓРїРµСЂР°РґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂ.');
+    setError("");
+    setNotice(
+      "Р РµРіРёСЃС‚СЂР°С†РёСЏ Р±СѓРґРµС‚ РґРѕР±Р°РІР»РµРЅР° РѕС‚РґРµР»СЊРЅРѕ. Р РѕР»СЊ РЅР°Р·РЅР°С‡Р°РµС‚ СЃСѓРїРµСЂР°РґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂ.",
+    );
   }
 
   function toggleJournalCard(cardId) {
-    setExpandedJournalCardIds((currentIds) => (
+    setExpandedJournalCardIds((currentIds) =>
       currentIds.includes(cardId)
         ? currentIds.filter((currentId) => currentId !== cardId)
-        : [...currentIds, cardId]
-    ));
+        : [...currentIds, cardId],
+    );
   }
 
   function handleStagePress(stage) {
     setSelectedStage(stage);
-    setCurrentScreen('cultureList');
+    setCurrentScreen("cultureList");
   }
 
   function openGlobalJournal() {
     const nextState = buildGlobalJournalNavigationState();
-    setSelectedStage('');
+    setSelectedStage("");
     setSelectedCardId(null);
-    setSelectedCalendarDate('');
+    setSelectedCalendarDate("");
     setJournalFilter(nextState.journalFilter);
     setExpandedJournalCardIds(nextState.expandedJournalCardIds);
     setCurrentScreen(nextState.currentScreen);
@@ -332,25 +366,27 @@ function AppContent() {
 
   function openTasks() {
     const nextState = buildTasksNavigationState();
-    setSelectedStage('');
+    setSelectedStage("");
     setSelectedCardId(null);
-    setSelectedCalendarDate('');
+    setSelectedCalendarDate("");
     setCurrentScreen(nextState.currentScreen);
     setNotice(nextState.notice);
   }
 
   function openMenu() {
     const nextState = buildMenuNavigationState();
-    setSelectedStage('');
+    setSelectedStage("");
     setSelectedCardId(null);
-    setSelectedCalendarDate('');
+    setSelectedCalendarDate("");
     setCurrentScreen(nextState.currentScreen);
     setNotice(nextState.notice);
   }
 
   async function handleScanPress() {
-    if (Platform.OS === 'web') {
-      setNotice('QR-СЃРєР°РЅРµСЂ РґРѕСЃС‚СѓРїРµРЅ С‚РѕР»СЊРєРѕ РІ РјРѕР±РёР»СЊРЅРѕРј РїСЂРёР»РѕР¶РµРЅРёРё.');
+    if (Platform.OS === "web") {
+      setNotice(
+        "QR-СЃРєР°РЅРµСЂ РґРѕСЃС‚СѓРїРµРЅ С‚РѕР»СЊРєРѕ РІ РјРѕР±РёР»СЊРЅРѕРј РїСЂРёР»РѕР¶РµРЅРёРё.",
+      );
       return;
     }
 
@@ -366,32 +402,38 @@ function AppContent() {
         handled = true;
         subscription.remove();
 
-        if (Platform.OS === 'ios') {
+        if (Platform.OS === "ios") {
           await CameraView.dismissScanner();
         }
 
-        const scannedCode = `${event?.data || ''}`.trim();
-        const matchedCard = cultureCards.find((card) => (
-          `${card.code || ''}`.trim().toLowerCase() === scannedCode.toLowerCase()
-        ));
+        const scannedCode = `${event?.data || ""}`.trim();
+        const matchedCard = cultureCards.find(
+          (card) =>
+            `${card.code || ""}`.trim().toLowerCase() ===
+            scannedCode.toLowerCase(),
+        );
 
         if (!matchedCard) {
-          setNotice(scannedCode
-            ? `РљР°СЂС‚РѕС‡РєР° СЃ QR-РєРѕРґРѕРј ${scannedCode} РЅРµ РЅР°Р№РґРµРЅР°.`
-            : 'QR-РєРѕРґ РЅР°Р№РґРµРЅ, РЅРѕ РµРіРѕ Р·РЅР°С‡РµРЅРёРµ РїСѓСЃС‚РѕРµ.');
+          setNotice(
+            scannedCode
+              ? `РљР°СЂС‚РѕС‡РєР° СЃ QR-РєРѕРґРѕРј ${scannedCode} РЅРµ РЅР°Р№РґРµРЅР°.`
+              : "QR-РєРѕРґ РЅР°Р№РґРµРЅ, РЅРѕ РµРіРѕ Р·РЅР°С‡РµРЅРёРµ РїСѓСЃС‚РѕРµ.",
+          );
           return;
         }
 
         setSelectedStage(matchedCard.stage || INTRO_STAGE);
         openCultureCalendar(matchedCard);
-        setNotice(`РћС‚РєСЂС‹С‚Р° РєР°СЂС‚РѕС‡РєР°: ${getCardDisplayName(matchedCard)}.`);
+        setNotice(
+          `РћС‚РєСЂС‹С‚Р° РєР°СЂС‚РѕС‡РєР°: ${getCardDisplayName(matchedCard)}.`,
+        );
       });
 
       await CameraView.launchScanner({
-        barcodeTypes: ['qr'],
+        barcodeTypes: ["qr"],
       });
     } catch (scanError) {
-      setNotice('РќРµ СѓРґР°Р»РѕСЃСЊ РѕС‚РєСЂС‹С‚СЊ СЃРєР°РЅРµСЂ QR-РєРѕРґР°.');
+      setNotice("РќРµ СѓРґР°Р»РѕСЃСЊ РѕС‚РєСЂС‹С‚СЊ СЃРєР°РЅРµСЂ QR-РєРѕРґР°.");
     } finally {
       subscription?.remove();
     }
@@ -401,19 +443,23 @@ function AppContent() {
     try {
       const shareResult = await shareQrCode(card?.code);
 
-      if (shareResult === 'web_ready') {
-        setNotice('QR-РєРѕРґ РїРѕРґРіРѕС‚РѕРІР»РµРЅ РґР»СЏ РѕС‚РїСЂР°РІРєРё.');
+      if (shareResult === "web_ready") {
+        setNotice("QR-РєРѕРґ РїРѕРґРіРѕС‚РѕРІР»РµРЅ РґР»СЏ РѕС‚РїСЂР°РІРєРё.");
         return;
       }
 
-      if (shareResult === 'native_unavailable') {
-        setNotice('РЎРёСЃС‚РµРјРЅРѕРµ РѕС‚РїСЂР°РІР»РµРЅРёРµ РЅРµРґРѕСЃС‚СѓРїРЅРѕ, QR-РєРѕРґ РїРѕРґРіРѕС‚РѕРІР»РµРЅ С‚РµРєСЃС‚РѕРј.');
+      if (shareResult === "native_unavailable") {
+        setNotice(
+          "РЎРёСЃС‚РµРјРЅРѕРµ РѕС‚РїСЂР°РІР»РµРЅРёРµ РЅРµРґРѕСЃС‚СѓРїРЅРѕ, QR-РєРѕРґ РїРѕРґРіРѕС‚РѕРІР»РµРЅ С‚РµРєСЃС‚РѕРј.",
+        );
         return;
       }
 
-      setNotice('QR-РєРѕРґ РѕС‚РїСЂР°РІР»РµРЅ С‡РµСЂРµР· СЃРёСЃС‚РµРјРЅРѕРµ РјРµРЅСЋ.');
+      setNotice(
+        "QR-РєРѕРґ РѕС‚РїСЂР°РІР»РµРЅ С‡РµСЂРµР· СЃРёСЃС‚РµРјРЅРѕРµ РјРµРЅСЋ.",
+      );
     } catch (shareError) {
-      setNotice('РќРµ СѓРґР°Р»РѕСЃСЊ РѕС‚РїСЂР°РІРёС‚СЊ QR-РєРѕРґ.');
+      setNotice("РќРµ СѓРґР°Р»РѕСЃСЊ РѕС‚РїСЂР°РІРёС‚СЊ QR-РєРѕРґ.");
     }
   }
 
@@ -421,7 +467,7 @@ function AppContent() {
     const taskCard = cultureCards.find((card) => card.id === task.cardId);
 
     if (!taskCard) {
-      setNotice('РџР°СЂС‚РёСЏ РґР»СЏ Р·Р°РґР°С‡Рё РЅРµ РЅР°Р№РґРµРЅР°.');
+      setNotice("РџР°СЂС‚РёСЏ РґР»СЏ Р·Р°РґР°С‡Рё РЅРµ РЅР°Р№РґРµРЅР°.");
       return;
     }
 
@@ -437,30 +483,36 @@ function AppContent() {
         getResolvedBatchStatus,
       });
 
-      if (shareResult === 'web_ready') {
-        setNotice('Excel-РѕС‚С‡РµС‚ РїРѕРґРіРѕС‚РѕРІР»РµРЅ.');
+      if (shareResult === "web_ready") {
+        setNotice("Excel-РѕС‚С‡РµС‚ РїРѕРґРіРѕС‚РѕРІР»РµРЅ.");
         return;
       }
 
-      if (shareResult === 'native_unavailable') {
-        setNotice('РћС‚РїСЂР°РІРєР° Excel-С„Р°Р№Р»Р° РЅРµРґРѕСЃС‚СѓРїРЅР° РЅР° СѓСЃС‚СЂРѕР№СЃС‚РІРµ.');
+      if (shareResult === "native_unavailable") {
+        setNotice(
+          "РћС‚РїСЂР°РІРєР° Excel-С„Р°Р№Р»Р° РЅРµРґРѕСЃС‚СѓРїРЅР° РЅР° СѓСЃС‚СЂРѕР№СЃС‚РІРµ.",
+        );
         return;
       }
 
-      setNotice('Excel-С„Р°Р№Р» РѕС‚С‡РµС‚Р° РіРѕС‚РѕРІ Рє РѕС‚РїСЂР°РІРєРµ.');
+      setNotice("Excel-С„Р°Р№Р» РѕС‚С‡РµС‚Р° РіРѕС‚РѕРІ Рє РѕС‚РїСЂР°РІРєРµ.");
     } catch (shareError) {
-      setNotice('РќРµ СѓРґР°Р»РѕСЃСЊ РїРѕРґРіРѕС‚РѕРІРёС‚СЊ Excel-РѕС‚С‡РµС‚.');
+      setNotice("РќРµ СѓРґР°Р»РѕСЃСЊ РїРѕРґРіРѕС‚РѕРІРёС‚СЊ Excel-РѕС‚С‡РµС‚.");
     }
   }
   async function handleScheduleWateringReminder() {
     try {
       await scheduleWateringReminder({
-        body: 'РўРµСЃС‚РѕРІРѕРµ РЅР°РїРѕРјРёРЅР°РЅРёРµ: РїРѕСЂР° РїСЂРѕРІРµСЂРёС‚СЊ РїРѕР»РёРІ.',
+        body: "РўРµСЃС‚РѕРІРѕРµ РЅР°РїРѕРјРёРЅР°РЅРёРµ: РїРѕСЂР° РїСЂРѕРІРµСЂРёС‚СЊ РїРѕР»РёРІ.",
         date: new Date(Date.now() + 60 * 1000),
       });
-      setNotice('РќР°РїРѕРјРёРЅР°РЅРёРµ Рѕ РїРѕР»РёРІРµ Р·Р°РїР»Р°РЅРёСЂРѕРІР°РЅРѕ С‡РµСЂРµР· 1 РјРёРЅСѓС‚Сѓ.');
+      setNotice(
+        "РќР°РїРѕРјРёРЅР°РЅРёРµ Рѕ РїРѕР»РёРІРµ Р·Р°РїР»Р°РЅРёСЂРѕРІР°РЅРѕ С‡РµСЂРµР· 1 РјРёРЅСѓС‚Сѓ.",
+      );
     } catch (notificationError) {
-      setNotice('РќРµ СѓРґР°Р»РѕСЃСЊ РІРєР»СЋС‡РёС‚СЊ СѓРІРµРґРѕРјР»РµРЅРёСЏ. РџСЂРѕРІРµСЂСЊС‚Рµ СЂР°Р·СЂРµС€РµРЅРёСЏ С‚РµР»РµС„РѕРЅР°.');
+      setNotice(
+        "РќРµ СѓРґР°Р»РѕСЃСЊ РІРєР»СЋС‡РёС‚СЊ СѓРІРµРґРѕРјР»РµРЅРёСЏ. РџСЂРѕРІРµСЂСЊС‚Рµ СЂР°Р·СЂРµС€РµРЅРёСЏ С‚РµР»РµС„РѕРЅР°.",
+      );
     }
   }
 
@@ -468,7 +520,7 @@ function AppContent() {
     const nextState = buildStageRecommendationsNavigationState(selectedStage);
     setRecommendationsContext({
       ...nextState.recommendationsContext,
-      backScreen: 'cultureList',
+      backScreen: "cultureList",
     });
     setRecommendationsMode(nextState.recommendationsMode);
     setCurrentScreen(nextState.currentScreen);
@@ -484,13 +536,13 @@ function AppContent() {
       cardId: selectedCard.id,
       stage: selectedCard.stage || selectedStage,
     });
-    setRecommendationsMode('current');
-    setCurrentScreen('recommendations');
+    setRecommendationsMode("current");
+    setCurrentScreen("recommendations");
   }
 
   function closeRecommendations() {
     const nextState = buildCloseRecommendationsState(
-      recommendationsContext?.backScreen || 'cultureList',
+      recommendationsContext?.backScreen || "cultureList",
     );
     setRecommendationsContext(nextState.recommendationsContext);
     setRecommendationsMode(nextState.recommendationsMode);
@@ -498,10 +550,10 @@ function AppContent() {
   }
 
   function handleLogout() {
-    setSelectedStage('');
-    setCurrentScreen('stages');
+    setSelectedStage("");
+    setCurrentScreen("stages");
     setSelectedCardId(null);
-    setSelectedCalendarDate('');
+    setSelectedCalendarDate("");
     setIsAuthenticated(false);
   }
 
@@ -513,22 +565,26 @@ function AppContent() {
     try {
       await clearCultureCardsForTests();
       setCultureCards([]);
-      setSelectedStage('');
+      setSelectedStage("");
       setSelectedCardId(null);
-      setSelectedCalendarDate('');
+      setSelectedCalendarDate("");
       setEditingCardId(null);
       setEditingOperationId(null);
       setCultureForm(createEmptyCultureForm());
       setStatusForm(createEmptyStatusForm());
       setIntroActionForm(createEmptyIntroActionForm());
-      setIntroActionType('');
-      setCultureCalendarTab('calendar');
+      setIntroActionType("");
+      setCultureCalendarTab("calendar");
       setIsDateEntryExpanded(false);
-      setCurrentScreen('stages');
-      setStorageError('');
-      setNotice('РљР°СЂС‚РѕС‡РєРё СЃС‚Р°РґРёР№ Рё Р¶СѓСЂРЅР°Р» РѕС‡РёС‰РµРЅС‹.');
+      setCurrentScreen("stages");
+      setStorageError("");
+      setNotice(
+        "РљР°СЂС‚РѕС‡РєРё СЃС‚Р°РґРёР№ Рё Р¶СѓСЂРЅР°Р» РѕС‡РёС‰РµРЅС‹.",
+      );
     } catch (clearError) {
-      setStorageError('РќРµ СѓРґР°Р»РѕСЃСЊ РѕС‡РёСЃС‚РёС‚СЊ РєР°СЂС‚РѕС‡РєРё СЃС‚Р°РґРёР№');
+      setStorageError(
+        "РќРµ СѓРґР°Р»РѕСЃСЊ РѕС‡РёСЃС‚РёС‚СЊ РєР°СЂС‚РѕС‡РєРё СЃС‚Р°РґРёР№",
+      );
     }
   }
 
@@ -541,17 +597,19 @@ function AppContent() {
   }
 
   function updateIntroActionForm(field, value) {
-    setIntroActionForm((currentForm) => updateFormField(currentForm, field, value));
+    setIntroActionForm((currentForm) =>
+      updateFormField(currentForm, field, value),
+    );
   }
 
   function openCultureForm() {
     setCultureForm(createEmptyCultureForm());
-    setFormError('');
+    setFormError("");
     setShowDatePicker(false);
-    setOpenDropdown('');
+    setOpenDropdown("");
     setTouchedSubmit(false);
     setEditingCardId(null);
-    setCurrentScreen('cultureForm');
+    setCurrentScreen("cultureForm");
   }
 
   function openEditCultureForm(card) {
@@ -562,12 +620,12 @@ function AppContent() {
       qrPrintedAt: card.qrPrintedAt || null,
       qrPrintedBy: card.qrPrintedBy || null,
     });
-    setFormError('');
+    setFormError("");
     setShowDatePicker(false);
-    setOpenDropdown('');
+    setOpenDropdown("");
     setTouchedSubmit(false);
     setEditingCardId(card.id);
-    setCurrentScreen('cultureForm');
+    setCurrentScreen("cultureForm");
   }
 
   function openCultureCalendar(card) {
@@ -575,36 +633,36 @@ function AppContent() {
 
     setSelectedCardId(card.id);
     setSelectedCalendarDate(initialDate);
-    setCultureCalendarTab('calendar');
+    setCultureCalendarTab("calendar");
     setIsDateEntryExpanded(false);
-    setIntroActionType('');
+    setIntroActionType("");
     setIntroActionForm(createEmptyIntroActionForm());
-    setStageActionError('');
+    setStageActionError("");
     setCalendarMonth(dateFromIso(initialDate));
-    setCurrentScreen('cultureCalendar');
+    setCurrentScreen("cultureCalendar");
   }
 
   function closeCultureForm() {
     setCultureForm(createEmptyCultureForm());
-    setFormError('');
+    setFormError("");
     setShowDatePicker(false);
-    setOpenDropdown('');
+    setOpenDropdown("");
     setTouchedSubmit(false);
     setEditingCardId(null);
-    setCurrentScreen('cultureList');
+    setCurrentScreen("cultureList");
   }
 
   function closeCultureCalendar() {
     setSelectedCardId(null);
-    setSelectedCalendarDate('');
-    setCultureCalendarTab('calendar');
+    setSelectedCalendarDate("");
+    setCultureCalendarTab("calendar");
     setIsDateEntryExpanded(false);
-    setIntroActionType('');
+    setIntroActionType("");
     setIntroActionForm(createEmptyIntroActionForm());
     setEditingOperationId(null);
     setIsStageMoveConfirmVisible(false);
-    setStageActionError('');
-    setCurrentScreen('cultureList');
+    setStageActionError("");
+    setCurrentScreen("cultureList");
   }
 
   function openStatusChangeForm() {
@@ -616,23 +674,23 @@ function AppContent() {
     setEditingOperationId(null);
     setIntroActionType(
       selectedCard.stage === stages[2]
-        ? 'adaptationStress'
+        ? "adaptationStress"
         : selectedCard.stage === stages[3]
-          ? 'greenhouseObservation'
-          : 'rooting',
+          ? "greenhouseObservation"
+          : "rooting",
     );
-    setStatusFormError('');
-    setStatusFormNotice('');
-    setCurrentScreen('statusChangeForm');
+    setStatusFormError("");
+    setStatusFormNotice("");
+    setCurrentScreen("statusChangeForm");
   }
 
   function closeStatusChangeForm() {
     setStatusForm(createEmptyStatusForm());
     setEditingOperationId(null);
-    setStatusFormError('');
-    setStatusFormNotice('');
-    setIntroActionType('');
-    setCurrentScreen('cultureCalendar');
+    setStatusFormError("");
+    setStatusFormNotice("");
+    setIntroActionType("");
+    setCurrentScreen("cultureCalendar");
   }
 
   function openEditOperation(operation) {
@@ -640,24 +698,29 @@ function AppContent() {
       return;
     }
 
-    const operationDate = operation.date || selectedCalendarDate || getTodayIsoDate();
+    const operationDate =
+      operation.date || selectedCalendarDate || getTodayIsoDate();
 
     setSelectedCalendarDate(operationDate);
     setCalendarMonth(dateFromIso(operationDate));
     setEditingOperationId(operation.id);
-    setStatusFormError('');
-    setStatusFormNotice('');
-    setStageActionError('');
+    setStatusFormError("");
+    setStatusFormNotice("");
+    setStageActionError("");
 
-    if (selectedCard.stage === INTRO_STAGE && introOperationFields[operation.type]) {
+    if (
+      selectedCard.stage === INTRO_STAGE &&
+      introOperationFields[operation.type]
+    ) {
       setIntroActionType(operation.type);
       setIntroActionForm({
         ...createEmptyIntroActionForm(),
-        [introOperationFields[operation.type]]: operation[introOperationFields[operation.type]] || '',
+        [introOperationFields[operation.type]]:
+          operation[introOperationFields[operation.type]] || "",
       });
       setIsDateEntryExpanded(true);
-      setCultureCalendarTab('calendar');
-      setCurrentScreen('introActionForm');
+      setCultureCalendarTab("calendar");
+      setCurrentScreen("introActionForm");
       return;
     }
 
@@ -669,7 +732,7 @@ function AppContent() {
         ...createEmptyStatusForm(),
         ...buildStatusFormFromOperation(operation, countField),
       });
-      setCurrentScreen('statusChangeForm');
+      setCurrentScreen("statusChangeForm");
     }
   }
 
@@ -678,17 +741,17 @@ function AppContent() {
       return;
     }
 
-    const nextCards = cultureCards.map((card) => (
+    const nextCards = cultureCards.map((card) =>
       card.id === selectedCard.id
         ? buildDeletedOperationCard(card, operationId)
-        : card
-    ));
+        : card,
+    );
 
     await saveCultureCards(nextCards);
 
     if (editingOperationId === operationId) {
       setEditingOperationId(null);
-      setIntroActionType('');
+      setIntroActionType("");
       setIntroActionForm(createEmptyIntroActionForm());
       setStatusForm(createEmptyStatusForm());
     }
@@ -713,8 +776,10 @@ function AppContent() {
       return;
     }
 
-    setCultureForm((currentForm) => applyCultureSelection(currentForm, cultureName));
-    setOpenDropdown('');
+    setCultureForm((currentForm) =>
+      applyCultureSelection(currentForm, cultureName),
+    );
+    setOpenDropdown("");
   }
 
   function handleSelectSpecies(speciesName) {
@@ -722,8 +787,10 @@ function AppContent() {
       return;
     }
 
-    setCultureForm((currentForm) => applySpeciesSelection(currentForm, speciesName));
-    setOpenDropdown('');
+    setCultureForm((currentForm) =>
+      applySpeciesSelection(currentForm, speciesName),
+    );
+    setOpenDropdown("");
   }
 
   function handleSelectVariety(varietyName) {
@@ -731,8 +798,10 @@ function AppContent() {
       return;
     }
 
-    setCultureForm((currentForm) => applyVarietySelection(currentForm, varietyName, plantsCatalog));
-    setOpenDropdown('');
+    setCultureForm((currentForm) =>
+      applyVarietySelection(currentForm, varietyName, plantsCatalog),
+    );
+    setOpenDropdown("");
   }
 
   function handleDateChange(event, selectedDate) {
@@ -740,7 +809,7 @@ function AppContent() {
       return;
     }
 
-    if (Platform.OS === 'android') {
+    if (Platform.OS === "android") {
       setShowDatePicker(false);
     }
 
@@ -748,7 +817,7 @@ function AppContent() {
       return;
     }
 
-    updateCultureForm('createdAt', isoFromDate(selectedDate));
+    updateCultureForm("createdAt", isoFromDate(selectedDate));
   }
 
   function handleGenerateCode() {
@@ -757,25 +826,36 @@ function AppContent() {
     }
 
     const code = generatePlantingCode(cultureForm.createdAt, selectedStage);
-    const isDuplicateCode = isDuplicateCardCode(cultureCards, code, editingCardId);
+    const isDuplicateCode = isDuplicateCardCode(
+      cultureCards,
+      code,
+      editingCardId,
+    );
     if (isDuplicateCode) {
-      setFormError('РљРѕРґ СѓР¶Рµ СЃСѓС‰РµСЃС‚РІСѓРµС‚. РЎРіРµРЅРµСЂРёСЂСѓР№С‚Рµ РєРѕРґ РµС‰С‘ СЂР°Р·.');
+      setFormError(
+        "РљРѕРґ СѓР¶Рµ СЃСѓС‰РµСЃС‚РІСѓРµС‚. РЎРіРµРЅРµСЂРёСЂСѓР№С‚Рµ РєРѕРґ РµС‰С‘ СЂР°Р·.",
+      );
       return;
     }
 
     setCultureForm((currentForm) => ({
       ...currentForm,
       code,
-      qrStatus: 'pending_print',
+      qrStatus: "pending_print",
     }));
-    setFormError('');
+    setFormError("");
   }
 
   function changeCalendarMonth(monthOffset) {
-    setCalendarMonth((currentDate) => (
-      new Date(currentDate.getFullYear(), currentDate.getMonth() + monthOffset, 1)
-    ));
-    setSelectedCalendarDate('');
+    setCalendarMonth(
+      (currentDate) =>
+        new Date(
+          currentDate.getFullYear(),
+          currentDate.getMonth() + monthOffset,
+          1,
+        ),
+    );
+    setSelectedCalendarDate("");
   }
 
   async function handleAddStageChange() {
@@ -789,19 +869,23 @@ function AppContent() {
       return;
     }
 
-    if (selectedCard.sterilityStatus === 'contaminated') {
-      setStageActionError('РњР°С‚РµСЂРёР°Р» Р·Р°СЂР°Р¶С‘РЅ: РїРµСЂРµС…РѕРґ СЃС‚Р°РґРёРё Р·Р°Р±Р»РѕРєРёСЂРѕРІР°РЅ РґРѕ СЂРµС€РµРЅРёСЏ Р°РґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂР° РёР»Рё Р°РіСЂРѕРЅРѕРјР°');
+    if (selectedCard.sterilityStatus === "contaminated") {
+      setStageActionError(
+        "РњР°С‚РµСЂРёР°Р» Р·Р°СЂР°Р¶С‘РЅ: РїРµСЂРµС…РѕРґ СЃС‚Р°РґРёРё Р·Р°Р±Р»РѕРєРёСЂРѕРІР°РЅ РґРѕ СЂРµС€РµРЅРёСЏ Р°РґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂР° РёР»Рё Р°РіСЂРѕРЅРѕРјР°",
+      );
       return;
     }
 
     if (selectedCard.stage === INTRO_STAGE) {
-      if ((selectedCard.batchStatus || 'active') !== 'active') {
-        setStageActionError('РџРµСЂРµРІРµСЃС‚Рё РјРѕР¶РЅРѕ С‚РѕР»СЊРєРѕ Р°РєС‚РёРІРЅСѓСЋ РїР°СЂС‚РёСЋ');
+      if ((selectedCard.batchStatus || "active") !== "active") {
+        setStageActionError(
+          "РџРµСЂРµРІРµСЃС‚Рё РјРѕР¶РЅРѕ С‚РѕР»СЊРєРѕ Р°РєС‚РёРІРЅСѓСЋ РїР°СЂС‚РёСЋ",
+        );
         return;
       }
 
-      if (getQrStatus(selectedCard) === 'none') {
-        setStageActionError('QR-РєРѕРґ РµС‰С‘ РЅРµ СЃРѕР·РґР°РЅ');
+      if (getQrStatus(selectedCard) === "none") {
+        setStageActionError("QR-РєРѕРґ РµС‰С‘ РЅРµ СЃРѕР·РґР°РЅ");
         return;
       }
     }
@@ -809,23 +893,34 @@ function AppContent() {
     if (selectedCard.stage === stages[1]) {
       const cloneStats = getCloneStats(selectedCard);
 
-      if ((selectedCard.batchStatus || 'active') === 'quarantine') {
-        setStageActionError('РџР°СЂС‚РёСЏ РІ РєР°СЂР°РЅС‚РёРЅРµ Рё РЅРµ РјРѕР¶РµС‚ Р±С‹С‚СЊ РїРµСЂРµРІРµРґРµРЅР° РґР°Р»СЊС€Рµ');
+      if ((selectedCard.batchStatus || "active") === "quarantine") {
+        setStageActionError(
+          "РџР°СЂС‚РёСЏ РІ РєР°СЂР°РЅС‚РёРЅРµ Рё РЅРµ РјРѕР¶РµС‚ Р±С‹С‚СЊ РїРµСЂРµРІРµРґРµРЅР° РґР°Р»СЊС€Рµ",
+        );
         return;
       }
 
-      if ((selectedCard.batchStatus || 'active') === 'problem' || cloneStats.riskStatus === 'РљСЂРёС‚РёС‡РµСЃРєРёР№') {
-        setStageActionError('РќРµР»СЊР·СЏ РїРµСЂРµРІРµСЃС‚Рё РїР°СЂС‚РёСЋ СЃ РєСЂРёС‚РёС‡РµСЃРєРёРј СЃС‚Р°С‚СѓСЃРѕРј');
+      if (
+        (selectedCard.batchStatus || "active") === "problem" ||
+        cloneStats.riskStatus === "РљСЂРёС‚РёС‡РµСЃРєРёР№"
+      ) {
+        setStageActionError(
+          "РќРµР»СЊР·СЏ РїРµСЂРµРІРµСЃС‚Рё РїР°СЂС‚РёСЋ СЃ РєСЂРёС‚РёС‡РµСЃРєРёРј СЃС‚Р°С‚СѓСЃРѕРј",
+        );
         return;
       }
 
       if (cloneStats.rootedCount <= 0) {
-        setStageActionError('РЎРЅР°С‡Р°Р»Р° Р·Р°С„РёРєСЃРёСЂСѓР№С‚Рµ СѓРєРѕСЂРµРЅРёРІС€РёРµСЃСЏ СЂР°СЃС‚РµРЅРёСЏ');
+        setStageActionError(
+          "РЎРЅР°С‡Р°Р»Р° Р·Р°С„РёРєСЃРёСЂСѓР№С‚Рµ СѓРєРѕСЂРµРЅРёРІС€РёРµСЃСЏ СЂР°СЃС‚РµРЅРёСЏ",
+        );
         return;
       }
 
       if (cloneStats.currentQuantity <= 0) {
-        setStageActionError('РћСЃС‚Р°С‚РѕРє РїР°СЂС‚РёРё РґРѕР»Р¶РµРЅ Р±С‹С‚СЊ Р±РѕР»СЊС€Рµ 0');
+        setStageActionError(
+          "РћСЃС‚Р°С‚РѕРє РїР°СЂС‚РёРё РґРѕР»Р¶РµРЅ Р±С‹С‚СЊ Р±РѕР»СЊС€Рµ 0",
+        );
         return;
       }
     }
@@ -833,35 +928,44 @@ function AppContent() {
     if (selectedCard.stage === stages[2]) {
       const adaptationStats = getAdaptationStats(selectedCard);
 
-      if ((selectedCard.batchStatus || 'active') === 'quarantine') {
-        setStageActionError('РџР°СЂС‚РёСЏ РІ РєР°СЂР°РЅС‚РёРЅРµ Рё РЅРµ РјРѕР¶РµС‚ Р±С‹С‚СЊ РїРµСЂРµРІРµРґРµРЅР° РґР°Р»СЊС€Рµ');
+      if ((selectedCard.batchStatus || "active") === "quarantine") {
+        setStageActionError(
+          "РџР°СЂС‚РёСЏ РІ РєР°СЂР°РЅС‚РёРЅРµ Рё РЅРµ РјРѕР¶РµС‚ Р±С‹С‚СЊ РїРµСЂРµРІРµРґРµРЅР° РґР°Р»СЊС€Рµ",
+        );
         return;
       }
 
-      if (selectedCard.sterilityStatus === 'contaminated') {
-        setStageActionError('Р•СЃС‚СЊ Р°РєС‚РёРІРЅР°СЏ РєРѕРЅС‚Р°РјРёРЅР°С†РёСЏ');
+      if (selectedCard.sterilityStatus === "contaminated") {
+        setStageActionError(
+          "Р•СЃС‚СЊ Р°РєС‚РёРІРЅР°СЏ РєРѕРЅС‚Р°РјРёРЅР°С†РёСЏ",
+        );
         return;
       }
 
-      if (adaptationStats.riskStatus === 'РљСЂРёС‚РёС‡РµСЃРєРёР№') {
-        setStageActionError('РќРµР»СЊР·СЏ РїРµСЂРµРІРµСЃС‚Рё РїР°СЂС‚РёСЋ СЃ РєСЂРёС‚РёС‡РµСЃРєРёРј СЃС‚СЂРµСЃСЃРѕРј');
+      if (adaptationStats.riskStatus === "РљСЂРёС‚РёС‡РµСЃРєРёР№") {
+        setStageActionError(
+          "РќРµР»СЊР·СЏ РїРµСЂРµРІРµСЃС‚Рё РїР°СЂС‚РёСЋ СЃ РєСЂРёС‚РёС‡РµСЃРєРёРј СЃС‚СЂРµСЃСЃРѕРј",
+        );
         return;
       }
 
-      if (adaptationStats.stability !== 'РЎС‚Р°Р±РёР»СЊРЅР°') {
-        setStageActionError('РЎРЅР°С‡Р°Р»Р° Р·Р°С„РёРєСЃРёСЂСѓР№С‚Рµ СЃС‚Р°Р±РёР»СЊРЅРѕСЃС‚СЊ РїР°СЂС‚РёРё');
+      if (adaptationStats.stability !== "РЎС‚Р°Р±РёР»СЊРЅР°") {
+        setStageActionError(
+          "РЎРЅР°С‡Р°Р»Р° Р·Р°С„РёРєСЃРёСЂСѓР№С‚Рµ СЃС‚Р°Р±РёР»СЊРЅРѕСЃС‚СЊ РїР°СЂС‚РёРё",
+        );
         return;
       }
 
       if (adaptationStats.currentQuantity <= 0) {
-        setStageActionError('РћСЃС‚Р°С‚РѕРє РїР°СЂС‚РёРё РґРѕР»Р¶РµРЅ Р±С‹С‚СЊ Р±РѕР»СЊС€Рµ 0');
+        setStageActionError(
+          "РћСЃС‚Р°С‚РѕРє РїР°СЂС‚РёРё РґРѕР»Р¶РµРЅ Р±С‹С‚СЊ Р±РѕР»СЊС€Рµ 0",
+        );
         return;
       }
     }
 
-    const cloneTransitionStats = selectedCard.stage === stages[1]
-      ? getCloneStats(selectedCard)
-      : null;
+    const cloneTransitionStats =
+      selectedCard.stage === stages[1] ? getCloneStats(selectedCard) : null;
     const nextOperation = buildStageChangeOperation({
       cloneTransitionStats,
       currentQuantity: getCardCurrentQuantity(selectedCard),
@@ -888,11 +992,11 @@ function AppContent() {
 
     await saveCultureCards(nextCards);
     setIsStageMoveConfirmVisible(false);
-    setStageActionError('');
+    setStageActionError("");
     setSelectedStage(nextStage);
-    setCurrentScreen('cultureList');
+    setCurrentScreen("cultureList");
     setSelectedCardId(null);
-    setSelectedCalendarDate('');
+    setSelectedCalendarDate("");
   }
 
   async function handleSaveStatusChange() {
@@ -901,16 +1005,17 @@ function AppContent() {
     }
 
     if (selectedCalendarDate !== getTodayIsoDate()) {
-      setStatusFormError('РџСЂРѕРёР·РІРѕРґСЃС‚РІРµРЅРЅС‹Рµ СЃРѕР±С‹С‚РёСЏ РјРѕР¶РЅРѕ С„РёРєСЃРёСЂРѕРІР°С‚СЊ С‚РѕР»СЊРєРѕ РЅР° С‚РµРєСѓС‰СѓСЋ РґР°С‚Сѓ');
+      setStatusFormError(
+        "РџСЂРѕРёР·РІРѕРґСЃС‚РІРµРЅРЅС‹Рµ СЃРѕР±С‹С‚РёСЏ РјРѕР¶РЅРѕ С„РёРєСЃРёСЂРѕРІР°С‚СЊ С‚РѕР»СЊРєРѕ РЅР° С‚РµРєСѓС‰СѓСЋ РґР°С‚Сѓ",
+      );
       return;
     }
 
     const eventConfig = getStatusEventConfig(introActionType);
-    const count = eventConfig.countField ? statusForm[eventConfig.countField].trim() : '';
-    const {
-      editedOperation,
-      currentQuantity,
-    } = buildStatusOperationContext({
+    const count = eventConfig.countField
+      ? statusForm[eventConfig.countField].trim()
+      : "";
+    const { editedOperation, currentQuantity } = buildStatusOperationContext({
       editingOperationId,
       selectedCard,
       selectedCardOperations,
@@ -926,72 +1031,98 @@ function AppContent() {
       batchStatus: selectedCard.batchStatus,
     });
 
-    if (baseValidationError === 'invalid_count') {
-      setStatusFormError('РЈРєР°Р¶РёС‚Рµ РєРѕСЂСЂРµРєС‚РЅРѕРµ РєРѕР»РёС‡РµСЃС‚РІРѕ');
+    if (baseValidationError === "invalid_count") {
+      setStatusFormError(
+        "РЈРєР°Р¶РёС‚Рµ РєРѕСЂСЂРµРєС‚РЅРѕРµ РєРѕР»РёС‡РµСЃС‚РІРѕ",
+      );
       return;
     }
 
-    if (baseValidationError === 'count_gt_current') {
-      setStatusFormError('РљРѕР»РёС‡РµСЃС‚РІРѕ РЅРµ РјРѕР¶РµС‚ Р±С‹С‚СЊ Р±РѕР»СЊС€Рµ С‚РµРєСѓС‰РµРіРѕ РѕСЃС‚Р°С‚РєР°');
+    if (baseValidationError === "count_gt_current") {
+      setStatusFormError(
+        "РљРѕР»РёС‡РµСЃС‚РІРѕ РЅРµ РјРѕР¶РµС‚ Р±С‹С‚СЊ Р±РѕР»СЊС€Рµ С‚РµРєСѓС‰РµРіРѕ РѕСЃС‚Р°С‚РєР°",
+      );
       return;
     }
 
-    if (baseValidationError === 'missing_reason') {
-      setStatusFormError('РЈРєР°Р¶РёС‚Рµ РїСЂРёС‡РёРЅСѓ');
+    if (baseValidationError === "missing_reason") {
+      setStatusFormError("РЈРєР°Р¶РёС‚Рµ РїСЂРёС‡РёРЅСѓ");
       return;
     }
 
-    if (baseValidationError === 'release_forbidden') {
-      setStatusFormError('РЎРЅСЏС‚СЊ РєР°СЂР°РЅС‚РёРЅ РјРѕР¶РµС‚ С‚РѕР»СЊРєРѕ Р°РіСЂРѕРЅРѕРј РёР»Рё Р°РґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂ');
+    if (baseValidationError === "release_forbidden") {
+      setStatusFormError(
+        "РЎРЅСЏС‚СЊ РєР°СЂР°РЅС‚РёРЅ РјРѕР¶РµС‚ С‚РѕР»СЊРєРѕ Р°РіСЂРѕРЅРѕРј РёР»Рё Р°РґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂ",
+      );
       return;
     }
 
-    if (baseValidationError === 'not_in_quarantine') {
-      setStatusFormError('РџР°СЂС‚РёСЏ РЅРµ РЅР°С…РѕРґРёС‚СЃСЏ РІ РєР°СЂР°РЅС‚РёРЅРµ');
+    if (baseValidationError === "not_in_quarantine") {
+      setStatusFormError(
+        "РџР°СЂС‚РёСЏ РЅРµ РЅР°С…РѕРґРёС‚СЃСЏ РІ РєР°СЂР°РЅС‚РёРЅРµ",
+      );
       return;
     }
 
-    const adaptationValidationError = getAdaptationValidationError(introActionType, statusForm);
+    const adaptationValidationError = getAdaptationValidationError(
+      introActionType,
+      statusForm,
+    );
 
-    if (adaptationValidationError === 'adaptation_stress_missing') {
-      setStatusFormError('РЈРєР°Р¶РёС‚Рµ С…РѕС‚СЏ Р±С‹ РѕРґРёРЅ РїР°СЂР°РјРµС‚СЂ РЅР°Р±Р»СЋРґРµРЅРёСЏ');
+    if (adaptationValidationError === "adaptation_stress_missing") {
+      setStatusFormError(
+        "РЈРєР°Р¶РёС‚Рµ С…РѕС‚СЏ Р±С‹ РѕРґРёРЅ РїР°СЂР°РјРµС‚СЂ РЅР°Р±Р»СЋРґРµРЅРёСЏ",
+      );
       return;
     }
 
-    if (adaptationValidationError === 'adaptation_environment_missing') {
-      setStatusFormError('РЈРєР°Р¶РёС‚Рµ С…РѕС‚СЏ Р±С‹ РѕРґРёРЅ РїР°СЂР°РјРµС‚СЂ СЃСЂРµРґС‹');
+    if (adaptationValidationError === "adaptation_environment_missing") {
+      setStatusFormError(
+        "РЈРєР°Р¶РёС‚Рµ С…РѕС‚СЏ Р±С‹ РѕРґРёРЅ РїР°СЂР°РјРµС‚СЂ СЃСЂРµРґС‹",
+      );
       return;
     }
 
-    if (adaptationValidationError === 'adaptation_humidity_reduction_missing') {
-      setStatusFormError('РЈРєР°Р¶РёС‚Рµ СЃРЅРёР¶РµРЅРёРµ РІР»Р°Р¶РЅРѕСЃС‚Рё РёР»Рё СЃРѕСЃС‚РѕСЏРЅРёРµ РїР°СЂС‚РёРё');
+    if (adaptationValidationError === "adaptation_humidity_reduction_missing") {
+      setStatusFormError(
+        "РЈРєР°Р¶РёС‚Рµ СЃРЅРёР¶РµРЅРёРµ РІР»Р°Р¶РЅРѕСЃС‚Рё РёР»Рё СЃРѕСЃС‚РѕСЏРЅРёРµ РїР°СЂС‚РёРё",
+      );
       return;
     }
 
-    if (adaptationValidationError === 'adaptation_care_type_missing') {
-      setStatusFormError('РЈРєР°Р¶РёС‚Рµ С‚РёРї СѓС…РѕРґР°');
+    if (adaptationValidationError === "adaptation_care_type_missing") {
+      setStatusFormError("РЈРєР°Р¶РёС‚Рµ С‚РёРї СѓС…РѕРґР°");
       return;
     }
 
-    const greenhouseValidationError = getGreenhouseValidationError(introActionType, statusForm);
+    const greenhouseValidationError = getGreenhouseValidationError(
+      introActionType,
+      statusForm,
+    );
 
-    if (greenhouseValidationError === 'greenhouse_observation_missing') {
-      setStatusFormError('РЈРєР°Р¶РёС‚Рµ С…РѕС‚СЏ Р±С‹ РѕРґРёРЅ РїР°СЂР°РјРµС‚СЂ РЅР°Р±Р»СЋРґРµРЅРёСЏ');
+    if (greenhouseValidationError === "greenhouse_observation_missing") {
+      setStatusFormError(
+        "РЈРєР°Р¶РёС‚Рµ С…РѕС‚СЏ Р±С‹ РѕРґРёРЅ РїР°СЂР°РјРµС‚СЂ РЅР°Р±Р»СЋРґРµРЅРёСЏ",
+      );
       return;
     }
 
-    if (greenhouseValidationError === 'greenhouse_care_type_missing') {
-      setStatusFormError('РЈРєР°Р¶РёС‚Рµ С‚РёРї СѓС…РѕРґР°');
+    if (greenhouseValidationError === "greenhouse_care_type_missing") {
+      setStatusFormError("РЈРєР°Р¶РёС‚Рµ С‚РёРї СѓС…РѕРґР°");
       return;
     }
 
-    if (greenhouseValidationError === 'greenhouse_environment_missing') {
-      setStatusFormError('РЈРєР°Р¶РёС‚Рµ С…РѕС‚СЏ Р±С‹ РѕРґРёРЅ РїР°СЂР°РјРµС‚СЂ СЃСЂРµРґС‹');
+    if (greenhouseValidationError === "greenhouse_environment_missing") {
+      setStatusFormError(
+        "РЈРєР°Р¶РёС‚Рµ С…РѕС‚СЏ Р±С‹ РѕРґРёРЅ РїР°СЂР°РјРµС‚СЂ СЃСЂРµРґС‹",
+      );
       return;
     }
 
-    if (greenhouseValidationError === 'greenhouse_disease_missing') {
-      setStatusFormError('РЈРєР°Р¶РёС‚Рµ Р±РѕР»РµР·РЅСЊ, РІСЂРµРґРёС‚РµР»СЏ РёР»Рё СѓСЂРѕРІРµРЅСЊ СЂРёСЃРєР°');
+    if (greenhouseValidationError === "greenhouse_disease_missing") {
+      setStatusFormError(
+        "РЈРєР°Р¶РёС‚Рµ Р±РѕР»РµР·РЅСЊ, РІСЂРµРґРёС‚РµР»СЏ РёР»Рё СѓСЂРѕРІРµРЅСЊ СЂРёСЃРєР°",
+      );
       return;
     }
 
@@ -1025,10 +1156,16 @@ function AppContent() {
 
     await saveCultureCards(nextCards);
 
-    if (introActionType === 'greenhouseCare' && statusForm.careType.trim() === 'РџРѕР»РёРІ') {
+    if (
+      introActionType === "greenhouseCare" &&
+      statusForm.careType.trim() === "РџРѕР»РёРІ"
+    ) {
       const updatedCard = nextCards.find((card) => card.id === selectedCard.id);
       const wateringStats = getGreenhouseStats(updatedCard);
-      const reminderPayload = buildWateringReminderPayload(updatedCard, wateringStats);
+      const reminderPayload = buildWateringReminderPayload(
+        updatedCard,
+        wateringStats,
+      );
 
       if (reminderPayload) {
         scheduleWateringReminder(reminderPayload).catch(() => {});
@@ -1039,15 +1176,17 @@ function AppContent() {
 
     setStatusForm(createEmptyStatusForm());
     setEditingOperationId(null);
-    setStatusFormError('');
+    setStatusFormError("");
 
     if (wasEditingOperation) {
-      setStatusFormNotice('');
-      setCurrentScreen('cultureCalendar');
+      setStatusFormNotice("");
+      setCurrentScreen("cultureCalendar");
       return;
     }
 
-    setStatusFormNotice('РЎРѕР±С‹С‚РёРµ СЃРѕС…СЂР°РЅРµРЅРѕ. РњРѕР¶РЅРѕ РґРѕР±Р°РІРёС‚СЊ СЃР»РµРґСѓСЋС‰РµРµ.');
+    setStatusFormNotice(
+      "РЎРѕР±С‹С‚РёРµ СЃРѕС…СЂР°РЅРµРЅРѕ. РњРѕР¶РЅРѕ РґРѕР±Р°РІРёС‚СЊ СЃР»РµРґСѓСЋС‰РµРµ.",
+    );
   }
 
   async function handleSaveIntroAction() {
@@ -1098,8 +1237,8 @@ function AppContent() {
     await saveCultureCards(nextCards);
     setIntroActionForm(createEmptyIntroActionForm());
     setEditingOperationId(null);
-    setIntroActionType('');
-    setStageActionError('');
+    setIntroActionType("");
+    setStageActionError("");
     return true;
   }
 
@@ -1115,7 +1254,11 @@ function AppContent() {
     const sourceMaterial = cultureForm.sourceMaterial.trim();
     const parentBatch = cultureForm.parentBatch.trim();
     const startPhotoNote = cultureForm.startPhotoNote.trim();
-    const isDuplicateCode = isDuplicateCardCode(cultureCards, code, editingCardId);
+    const isDuplicateCode = isDuplicateCardCode(
+      cultureCards,
+      code,
+      editingCardId,
+    );
     const validationError = validateCultureCardInput({
       createdAt,
       cultureName,
@@ -1127,18 +1270,20 @@ function AppContent() {
       isCultureIntroStage,
       isDuplicateCode,
     });
-    if (validationError === 'missing_fields') {
-      setFormError('Р—Р°РїРѕР»РЅРёС‚Рµ РІСЃРµ РїРѕР»СЏ');
+    if (validationError === "missing_fields") {
+      setFormError("Р—Р°РїРѕР»РЅРёС‚Рµ РІСЃРµ РїРѕР»СЏ");
       return;
     }
 
-    if (validationError === 'invalid_quantity') {
-      setFormError('РљРѕР»РёС‡РµСЃС‚РІРѕ СѓРєР°Р·Р°РЅРѕ РЅРµРєРѕСЂСЂРµРєС‚РЅРѕ');
+    if (validationError === "invalid_quantity") {
+      setFormError(
+        "РљРѕР»РёС‡РµСЃС‚РІРѕ СѓРєР°Р·Р°РЅРѕ РЅРµРєРѕСЂСЂРµРєС‚РЅРѕ",
+      );
       return;
     }
 
-    if (validationError === 'duplicate_code') {
-      setFormError('РљРѕРґ СѓР¶Рµ СЃСѓС‰РµСЃС‚РІСѓРµС‚');
+    if (validationError === "duplicate_code") {
+      setFormError("РљРѕРґ СѓР¶Рµ СЃСѓС‰РµСЃС‚РІСѓРµС‚");
       return;
     }
 
@@ -1160,7 +1305,11 @@ function AppContent() {
       nowIso,
     });
 
-    const nextCards = buildSavedCultureCards(cultureCards, editingCardId, nextCard);
+    const nextCards = buildSavedCultureCards(
+      cultureCards,
+      editingCardId,
+      nextCard,
+    );
 
     await saveCultureCards(nextCards);
     closeCultureForm();
@@ -1172,7 +1321,12 @@ function AppContent() {
     }
 
     const nowIso = new Date().toISOString();
-    const nextCards = buildCancelledCultureCards(cultureCards, editingCardId, currentUser.id, nowIso);
+    const nextCards = buildCancelledCultureCards(
+      cultureCards,
+      editingCardId,
+      currentUser.id,
+      nowIso,
+    );
 
     await saveCultureCards(nextCards);
     closeCultureForm();
@@ -1346,17 +1500,3 @@ export default function App() {
     </AppErrorBoundary>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-

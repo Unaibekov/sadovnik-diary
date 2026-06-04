@@ -6,10 +6,12 @@ import {
   ImageBackground,
   KeyboardAvoidingView,
   Platform,
+  Keyboard,
   Pressable,
   StyleSheet,
   Text,
   TextInput,
+  ScrollView,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -34,10 +36,31 @@ export default function AuthScreen({
 }) {
   const [isLogoFinal, setIsLogoFinal] = useState(false);
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const isAndroid = Platform.OS === 'android';
+  const useNativeDriver = Platform.OS !== 'web';
   const brandProgress = useRef(new Animated.Value(0)).current;
   const titleOpacity = useRef(new Animated.Value(0)).current;
   const formOpacity = useRef(new Animated.Value(0)).current;
   const formShift = useRef(new Animated.Value(70)).current;
+  const submitLoginRef = useRef(onSubmitLogin);
+
+  useEffect(() => {
+    submitLoginRef.current = onSubmitLogin;
+  }, [onSubmitLogin]);
+
+  const handleSubmitPress = () => {
+    if (Platform.OS !== 'android') {
+      onSubmitLogin();
+      return;
+    }
+
+    const subscription = Keyboard.addListener('keyboardDidHide', () => {
+      subscription.remove();
+      submitLoginRef.current();
+    });
+
+    Keyboard.dismiss();
+  };
 
   useEffect(() => {
     const listenerId = brandProgress.addListener(({ value }) => {
@@ -57,7 +80,7 @@ export default function AuthScreen({
           duration: 700,
           easing: Easing.inOut(Easing.cubic),
           toValue: 1,
-          useNativeDriver: true,
+          useNativeDriver,
         }),
       ]),
       Animated.parallel([
@@ -65,13 +88,13 @@ export default function AuthScreen({
           duration: 700,
           easing: Easing.inOut(Easing.cubic),
           toValue: 1,
-          useNativeDriver: true,
+          useNativeDriver,
         }),
         Animated.timing(formShift, {
           duration: 860,
           easing: Easing.inOut(Easing.cubic),
           toValue: 0,
-          useNativeDriver: true,
+          useNativeDriver,
         }),
       ]),
     ]).start();
@@ -97,14 +120,18 @@ export default function AuthScreen({
     inputRange: [0, 1],
     outputRange: [24, 16],
   });
-  const topZoneFlex = brandProgress.interpolate({
-    inputRange: [0, 1],
-    outputRange: [1, 0.6],
-  });
-  const bottomZoneFlex = brandProgress.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, 0.4],
-  });
+  const topZoneFlex = isAndroid
+    ? 1
+    : brandProgress.interpolate({
+        inputRange: [0, 1],
+        outputRange: [1, 0.6],
+      });
+  const bottomZoneFlex = isAndroid
+    ? 0.42
+    : brandProgress.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0, 0.4],
+      });
 
   return (
     <SafeAreaView style={authStyles.authFullScreen}>
@@ -116,131 +143,140 @@ export default function AuthScreen({
       >
         <View style={authStyles.authOverlay} />
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : Platform.OS === 'android' ? 'height' : undefined}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? safeAreaInsets?.top || 0 : 0}
           style={authStyles.keyboardView}
         >
-          <View style={authStyles.authScene}>
-            <Animated.View style={[authStyles.authTopZone, { flex: topZoneFlex }]}>
-              <View style={authStyles.authBrandStart}>
+          <ScrollView
+            style={authStyles.authScroll}
+            contentContainerStyle={authStyles.authScrollContent}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+          >
+            <View style={authStyles.authScene}>
+              <Animated.View style={[authStyles.authTopZone, { flex: topZoneFlex }]}>
+                <View style={authStyles.authBrandStart}>
+                  <Animated.View
+                    style={[
+                      authStyles.authLogoOutline,
+                      {
+                        borderRadius: logoBoxRadius,
+                        backgroundColor: logoBackgroundColor,
+                        borderColor: logoBorderColor,
+                        height: logoBoxSize,
+                        width: logoBoxSize,
+                      },
+                    ]}
+                  >
+                    <LogoElementIcon color={isLogoFinal ? '#11863D' : '#FFFFFF'} size={72} />
+                  </Animated.View>
+                  <Animated.View style={[authStyles.authBrandFinal, { opacity: titleOpacity }]}>
+                    <Text style={authStyles.authBrandText}>SADOVNIK DIARY</Text>
+                  </Animated.View>
+                </View>
+              </Animated.View>
+
+              <Animated.View style={[authStyles.authBottomZone, { flex: bottomZoneFlex }]}>
                 <Animated.View
                   style={[
-                    authStyles.authLogoOutline,
+                    authStyles.authPanel,
+                    authStyles.authPanelFloating,
                     {
-                      borderRadius: logoBoxRadius,
-                      backgroundColor: logoBackgroundColor,
-                      borderColor: logoBorderColor,
-                      height: logoBoxSize,
-                      width: logoBoxSize,
+                      opacity: formOpacity,
+                      paddingBottom: Math.max((safeAreaInsets?.bottom || 0) + 18, 20),
+                      transform: [{ translateY: formShift }],
                     },
                   ]}
                 >
-                  <LogoElementIcon color={isLogoFinal ? '#11863D' : '#FFFFFF'} size={72} />
-                </Animated.View>
-                <Animated.View style={[authStyles.authBrandFinal, { opacity: titleOpacity }]}>
-                  <Text style={authStyles.authBrandText}>SADOVNIK DIARY</Text>
-                </Animated.View>
-              </View>
-            </Animated.View>
-
-            <Animated.View style={[authStyles.authBottomZone, { flex: bottomZoneFlex }]}>
-              <Animated.View
-                style={[
-                  authStyles.authPanel,
-                  authStyles.authPanelFloating,
-                  {
-                    opacity: formOpacity,
-                    paddingBottom: Math.max((safeAreaInsets?.bottom || 0) + 18, 20),
-                    transform: [{ translateY: formShift }],
-                  },
-                ]}
-              >
-                <View style={authStyles.form}>
-                  <View style={authStyles.authInputsGroup}>
-                    <View style={authStyles.field}>
-                      <View style={authStyles.authInputRow}>
-                        <View style={authStyles.authInputIcon}>
-                          <LoginInputIcon color="#9AA3AF" size={18} />
+                  <View style={authStyles.form}>
+                    <View style={authStyles.authInputsGroup}>
+                      <View style={authStyles.field}>
+                        <View style={authStyles.authInputRow}>
+                          <View style={authStyles.authInputIcon}>
+                            <LoginInputIcon color="#9AA3AF" size={18} />
+                          </View>
+                          <TextInput
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                            inputMode="text"
+                            onBlur={() => onFocusedFieldChange('')}
+                            onChangeText={onLoginChange}
+                            onFocus={() => onFocusedFieldChange('login')}
+                            placeholder="Логин"
+                            placeholderTextColor="#9AA3AF"
+                            returnKeyType="next"
+                            style={[
+                              authStyles.authInput,
+                              authStyles.authInputWithIcon,
+                              focusedField === 'login' && authStyles.authInputFocused,
+                            ]}
+                            value={login}
+                          />
                         </View>
-                        <TextInput
-                          autoCapitalize="none"
-                          autoCorrect={false}
-                          inputMode="text"
-                          onBlur={() => onFocusedFieldChange('')}
-                          onChangeText={onLoginChange}
-                          onFocus={() => onFocusedFieldChange('login')}
-                          placeholder="Логин"
-                          placeholderTextColor="#9AA3AF"
-                          returnKeyType="next"
-                          style={[
-                            authStyles.authInput,
-                            authStyles.authInputWithIcon,
-                            focusedField === 'login' && authStyles.authInputFocused,
-                          ]}
-                          value={login}
-                        />
+                      </View>
+
+                      <View style={authStyles.field}>
+                        <View style={authStyles.authInputRow}>
+                          <View style={authStyles.authInputIcon}>
+                            <PasswordInputIcon color="#9AA3AF" size={18} />
+                          </View>
+                          <Pressable
+                            accessibilityLabel={isPasswordVisible ? 'Скрыть пароль' : 'Показать пароль'}
+                            accessibilityRole="button"
+                            onPress={() => setIsPasswordVisible((current) => !current)}
+                            style={authStyles.authInputRightIcon}
+                          >
+                            {isPasswordVisible ? (
+                              <EyeOnIcon color="#9AA3AF" size={20} />
+                            ) : (
+                              <EyeOffIcon color="#9AA3AF" size={20} />
+                            )}
+                          </Pressable>
+                          <TextInput
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                            inputMode="text"
+                            onBlur={() => onFocusedFieldChange('')}
+                            onChangeText={onPasswordChange}
+                            onFocus={() => onFocusedFieldChange('password')}
+                            onSubmitEditing={handleSubmitPress}
+                            placeholder="Пароль"
+                            placeholderTextColor="#9AA3AF"
+                            returnKeyType="done"
+                            secureTextEntry={!isPasswordVisible}
+                            style={[
+                              authStyles.authInput,
+                              authStyles.authInputWithIcon,
+                              authStyles.authInputWithRightIcon,
+                              focusedField === 'password' && authStyles.authInputFocused,
+                            ]}
+                            value={password}
+                          />
+                        </View>
                       </View>
                     </View>
 
-                    <View style={authStyles.field}>
-                      <View style={authStyles.authInputRow}>
-                        <View style={authStyles.authInputIcon}>
-                          <PasswordInputIcon color="#9AA3AF" size={18} />
-                        </View>
-                        <Pressable
-                          accessibilityLabel={isPasswordVisible ? 'Скрыть пароль' : 'Показать пароль'}
-                          accessibilityRole="button"
-                          onPress={() => setIsPasswordVisible((current) => !current)}
-                          style={authStyles.authInputRightIcon}
-                        >
-                          {isPasswordVisible ? (
-                            <EyeOnIcon color="#9AA3AF" size={20} />
-                          ) : (
-                            <EyeOffIcon color="#9AA3AF" size={20} />
-                          )}
-                        </Pressable>
-                        <TextInput
-                          autoCapitalize="none"
-                          autoCorrect={false}
-                          inputMode="text"
-                          onBlur={() => onFocusedFieldChange('')}
-                          onChangeText={onPasswordChange}
-                          onFocus={() => onFocusedFieldChange('password')}
-                          placeholder="Пароль"
-                          placeholderTextColor="#9AA3AF"
-                          returnKeyType="done"
-                          secureTextEntry={!isPasswordVisible}
-                          style={[
-                            authStyles.authInput,
-                            authStyles.authInputWithIcon,
-                            authStyles.authInputWithRightIcon,
-                            focusedField === 'password' && authStyles.authInputFocused,
-                          ]}
-                          value={password}
-                        />
-                      </View>
-                    </View>
+                    {!!error && <Text style={authStyles.errorText}>{error}</Text>}
+
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={handleSubmitPress}
+                      style={({ pressed }) => [
+                        authStyles.authPrimaryButton,
+                        pressed && authStyles.pressedButton,
+                      ]}
+                    >
+                      <Text style={authStyles.authPrimaryButtonText}>ВОЙТИ</Text>
+                    </Pressable>
+
+                    <Pressable accessibilityRole="button">
+                      <Text style={authStyles.forgotPasswordTextCenter}>Забыли пароль?</Text>
+                    </Pressable>
                   </View>
-
-                  {!!error && <Text style={authStyles.errorText}>{error}</Text>}
-
-                  <Pressable
-                    accessibilityRole="button"
-                    onPress={onSubmitLogin}
-                    style={({ pressed }) => [
-                      authStyles.authPrimaryButton,
-                      pressed && authStyles.pressedButton,
-                    ]}
-                  >
-                    <Text style={authStyles.authPrimaryButtonText}>ВОЙТИ</Text>
-                  </Pressable>
-
-                  <Pressable accessibilityRole="button">
-                    <Text style={authStyles.forgotPasswordTextCenter}>Забыли пароль?</Text>
-                  </Pressable>
-                </View>
+                </Animated.View>
               </Animated.View>
-            </Animated.View>
-          </View>
+            </View>
+          </ScrollView>
         </KeyboardAvoidingView>
       </ImageBackground>
     </SafeAreaView>
@@ -251,13 +287,11 @@ const authStyles = StyleSheet.create({
   authFullScreen: {
     backgroundColor: '#091C10',
     flex: 1,
-    height: '100%',
     overflow: 'hidden',
     width: '100%',
   },
   authBg: {
     flex: 1,
-    height: '100%',
     overflow: 'hidden',
     width: '100%',
   },
@@ -270,6 +304,13 @@ const authStyles = StyleSheet.create({
     overflow: 'hidden',
     width: '100%',
   },
+  authScroll: {
+    flex: 1,
+    width: '100%',
+  },
+  authScrollContent: {
+    flexGrow: 1,
+  },
   authScene: {
     alignSelf: 'stretch',
     flex: 1,
@@ -281,6 +322,7 @@ const authStyles = StyleSheet.create({
     justifyContent: 'center',
   },
   authBottomZone: {
+    justifyContent: 'flex-end',
     overflow: 'visible',
     width: '100%',
   },
@@ -317,27 +359,16 @@ const authStyles = StyleSheet.create({
     paddingBottom: 28,
     paddingHorizontal: 24,
     paddingTop: 26,
-    ...Platform.select({
-      android: {
-        elevation: 12,
-        shadowColor: '#102015',
-      },
-      default: {
-        shadowColor: '#102015',
-        shadowOffset: { width: 0, height: 14 },
-        shadowOpacity: 0.06,
-        shadowRadius: 24,
-      },
-    }),
+    boxShadow: '0px 14px 24px 0px rgba(16, 32, 21, 0.06)',
   },
   authPanelFloating: {
     alignSelf: 'stretch',
     borderBottomLeftRadius: 0,
     borderBottomRightRadius: 0,
-    height: '100%',
     paddingHorizontal: 24,
     paddingTop: 24,
     width: '100%',
+    height: Platform.OS === 'android' ? undefined : '100%',
   },
   form: {
     gap: 22,
@@ -366,18 +397,7 @@ const authStyles = StyleSheet.create({
     fontSize: 16,
     minHeight: 56,
     paddingHorizontal: 18,
-    ...Platform.select({
-      android: {
-        elevation: 4,
-        shadowColor: '#101828',
-      },
-      default: {
-        shadowColor: '#101828',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 12,
-      },
-    }),
+    boxShadow: '0px 4px 12px 0px rgba(16, 24, 40, 0.12)',
   },
   authInputWithIcon: {
     paddingLeft: 50,
@@ -413,18 +433,7 @@ const authStyles = StyleSheet.create({
     marginTop: 4,
     minHeight: 58,
     paddingHorizontal: 18,
-    ...Platform.select({
-      android: {
-        elevation: 7,
-        shadowColor: '#15863F',
-      },
-      default: {
-        shadowColor: '#15863F',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.14,
-        shadowRadius: 12,
-      },
-    }),
+    boxShadow: '0px 8px 12px 0px rgba(21, 134, 63, 0.14)',
   },
   authPrimaryButtonText: {
     color: '#FFFFFF',
