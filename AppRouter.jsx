@@ -1,5 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { useEffect, useLayoutEffect, useRef } from 'react';
+import { Animated, Easing, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import styles from './styles';
 import BottomTabBar from './src/components/BottomTabBar';
@@ -98,6 +99,33 @@ export default function AppRouter({ actions, state }) {
     userRole,
     varietyOptions,
   } = state;
+
+  const screenTransition = useRef(new Animated.Value(1)).current;
+  const previousScreenRef = useRef(currentScreen);
+
+  useLayoutEffect(() => {
+    if (previousScreenRef.current === currentScreen) {
+      return;
+    }
+
+    previousScreenRef.current = currentScreen;
+    screenTransition.setValue(0);
+  }, [currentScreen, screenTransition]);
+
+  useEffect(() => {
+    const animation = Animated.timing(screenTransition, {
+      toValue: 1,
+      duration: 180,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    });
+
+    animation.start();
+
+    return () => {
+      animation.stop();
+    };
+  }, [currentScreen, screenTransition]);
 
   const {
     cancelDeleteOperation,
@@ -443,53 +471,41 @@ export default function AppRouter({ actions, state }) {
   }
 
   function renderAuthenticatedScreens() {
+    let screenNode = null;
+
     if (
       isSupportedPlantingStage &&
       currentScreen === 'cultureForm'
     ) {
-      return renderCultureFormScreen();
-    }
-
-    if (
+      screenNode = renderCultureFormScreen();
+    } else if (
       isSupportedPlantingStage &&
       currentScreen === 'cultureCalendar' &&
       selectedCard
     ) {
-      return renderCultureCalendarScreen();
-    }
-
-    if (
+      screenNode = renderCultureCalendarScreen();
+    } else if (
       currentScreen === 'introActionForm' &&
       selectedCard
     ) {
-      return renderIntroActionFormScreen();
-    }
-
-    if (
+      screenNode = renderIntroActionFormScreen();
+    } else if (
       (isCloneStage || isAdaptationStage || isGreenhouseStage) &&
       currentScreen === 'statusChangeForm' &&
       selectedCard
     ) {
-      return renderStatusChangeFormScreen();
-    }
-
-    if (currentScreen === 'recommendations') {
-      return renderRecommendationsScreen();
-    }
-
-    if (
+      screenNode = renderStatusChangeFormScreen();
+    } else if (currentScreen === 'recommendations') {
+      screenNode = renderRecommendationsScreen();
+    } else if (
       isSupportedPlantingStage &&
       currentScreen === 'cultureList'
     ) {
-      return renderCultureListScreen();
-    }
-
-    if (currentScreen === 'globalJournal') {
-      return renderGlobalJournalScreen();
-    }
-
-    if (currentScreen === 'menu') {
-      return (
+      screenNode = renderCultureListScreen();
+    } else if (currentScreen === 'globalJournal') {
+      screenNode = renderGlobalJournalScreen();
+    } else if (currentScreen === 'menu') {
+      screenNode = (
         <MenuScreen
           activeCardsCount={activeCardsCount}
           bottomInset={bottomInset}
@@ -512,10 +528,8 @@ export default function AppRouter({ actions, state }) {
           taskCount={taskCount}
         />
       );
-    }
-
-    if (currentScreen === 'tasks') {
-      return (
+    } else if (currentScreen === 'tasks') {
+      screenNode = (
         <TasksScreen
           bottomInset={bottomInset}
           onHomePress={() => setCurrentScreen('stages')}
@@ -526,54 +540,76 @@ export default function AppRouter({ actions, state }) {
           tasks={careTasks}
         />
       );
+    } else {
+      screenNode = (
+        <SafeAreaView style={styles.safeArea}>
+          <StatusBar style="dark" />
+          <ScrollView
+            contentContainerStyle={styles.stagesScrollContent}
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.stagesScreen}>
+              <View style={styles.stageGrid}>
+                {stageHomeItemsConfig.map((stage) => (
+                  <Pressable
+                    accessibilityRole="button"
+                    key={stage.title}
+                    onPress={() => handleStagePress(stage.title)}
+                    style={({ pressed }) => [
+                      styles.stageCard,
+                      pressed && styles.stageCardPressed,
+                    ]}
+                  >
+                    <View style={[styles.stageIconBox, styles[stage.iconBoxStyle]]}>
+                      <StageItemIcon name={stage.iconName} size={24} />
+                    </View>
+                    <Text style={styles.stageName}>{stage.label}</Text>
+                  </Pressable>
+                ))}
+              </View>
+
+              {!!notice && <Text style={styles.homeNoticeText}>{notice}</Text>}
+              {!!storageError && <Text style={styles.homeErrorText}>{storageError}</Text>}
+            </View>
+          </ScrollView>
+
+          <BottomTabBar
+            activeTab="home"
+            bottomInset={bottomInset}
+            onHomePress={() => setCurrentScreen('stages')}
+            onJournalPress={() => {
+              setJournalFilter('important');
+              setCurrentScreen('globalJournal');
+            }}
+            onMenuPress={openMenu}
+            onScanPress={handleScanPress}
+            onTasksPress={openTasks}
+            taskCount={taskCount}
+          />
+        </SafeAreaView>
+      );
     }
 
+    const shouldUseVerticalOffset = Platform.OS !== 'android';
+    const translateY = shouldUseVerticalOffset
+      ? screenTransition.interpolate({
+        inputRange: [0, 1],
+        outputRange: [8, 0],
+      })
+      : 0;
+
     return (
-      <SafeAreaView style={styles.safeArea}>
-        <StatusBar style="dark" />
-        <ScrollView
-          contentContainerStyle={styles.stagesScrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.stagesScreen}>
-            <View style={styles.stageGrid}>
-              {stageHomeItemsConfig.map((stage) => (
-                <Pressable
-                  accessibilityRole="button"
-                  key={stage.title}
-                  onPress={() => handleStagePress(stage.title)}
-                  style={({ pressed }) => [
-                    styles.stageCard,
-                    pressed && styles.stageCardPressed,
-                  ]}
-                >
-                  <View style={[styles.stageIconBox, styles[stage.iconBoxStyle]]}>
-                    <StageItemIcon name={stage.iconName} size={24} />
-                  </View>
-                  <Text style={styles.stageName}>{stage.label}</Text>
-                </Pressable>
-              ))}
-            </View>
-
-            {!!notice && <Text style={styles.homeNoticeText}>{notice}</Text>}
-            {!!storageError && <Text style={styles.homeErrorText}>{storageError}</Text>}
-          </View>
-        </ScrollView>
-
-        <BottomTabBar
-          activeTab="home"
-          bottomInset={bottomInset}
-          onHomePress={() => setCurrentScreen('stages')}
-          onJournalPress={() => {
-            setJournalFilter('important');
-            setCurrentScreen('globalJournal');
-          }}
-          onMenuPress={openMenu}
-          onScanPress={handleScanPress}
-          onTasksPress={openTasks}
-          taskCount={taskCount}
-        />
-      </SafeAreaView>
+      <Animated.View
+        style={[
+          styles.screenTransitionContainer,
+          {
+            opacity: screenTransition,
+          },
+          shouldUseVerticalOffset ? { transform: [{ translateY }] } : null,
+        ]}
+      >
+        {screenNode}
+      </Animated.View>
     );
   }
 

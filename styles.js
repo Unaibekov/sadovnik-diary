@@ -8,6 +8,11 @@ export default StyleSheet.create({
     flex: 1,
     backgroundColor: '#F5F5F5',
   },
+  screenTransitionContainer: {
+    flex: 1,
+    overflow: 'hidden',
+    width: '100%',
+  },
   authFullScreen: {
     backgroundColor: '#091C10',
     flex: 1,

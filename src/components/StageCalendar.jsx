@@ -71,7 +71,9 @@ export default function StageCalendar({
   }, [currentMonthIsoDays, focusedStripDate, isExpanded]);
 
   const toggleExpanded = () => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    if (Platform.OS !== 'android') {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    }
     setIsExpanded((value) => !value);
   };
 
