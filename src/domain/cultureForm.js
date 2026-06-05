@@ -1,5 +1,7 @@
 import { EMPTY_CATALOG_VALUE } from './constants';
 import { generatePlantingCode } from './batch';
+import { createEmptyCultureForm } from './forms';
+import { removeRecommendationFields } from './recommendations';
 
 export function applyCultureSelection(currentForm, cultureName) {
   return {
@@ -51,6 +53,67 @@ export function buildGeneratedPlantingCode({
   const isDuplicateCode = isDuplicateCardCode(cultureCards, code, editingCardId);
 
   return { code, isDuplicateCode };
+}
+
+export function buildCultureFormGeneratedCodeState({
+  cultureCards,
+  createdAt,
+  selectedStage,
+  editingCardId,
+}) {
+  const { code, isDuplicateCode } = buildGeneratedPlantingCode({
+    cultureCards,
+    createdAt,
+    selectedStage,
+    editingCardId,
+  });
+
+  if (isDuplicateCode) {
+    return {
+      isDuplicateCode: true,
+      error: 'Код уже существует. Сгенерируйте код ещё раз.',
+    };
+  }
+
+  return {
+    isDuplicateCode: false,
+    error: '',
+    nextCultureForm: {
+      code,
+      qrStatus: 'pending_print',
+    },
+  };
+}
+
+export function buildCultureFormForEdit(card) {
+  return {
+    ...createEmptyCultureForm(),
+    ...removeRecommendationFields(card),
+    qrPrinted: card?.qrPrinted || false,
+    qrPrintedAt: card?.qrPrintedAt || null,
+    qrPrintedBy: card?.qrPrintedBy || null,
+  };
+}
+
+export function buildCultureFormSelectionResult({
+  currentForm,
+  type,
+  value,
+  plantsCatalog,
+}) {
+  if (type === 'culture') {
+    return applyCultureSelection(currentForm, value);
+  }
+
+  if (type === 'species') {
+    return applySpeciesSelection(currentForm, value);
+  }
+
+  if (type === 'variety') {
+    return applyVarietySelection(currentForm, value, plantsCatalog);
+  }
+
+  return currentForm;
 }
 
 export function isRequiredFieldMissingInForm(cultureForm, touchedSubmit, field) {

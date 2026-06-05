@@ -10,17 +10,12 @@ import plantsCatalog from "./data/plantsCatalog";
 import styles from "./styles";
 import {
   BATCH_STATUS_LABELS,
-  EMPTY_CATALOG_VALUE,
   INTRO_STAGE,
-  SOURCE_MATERIAL_OPTIONS,
   currentUser,
-  stageMoveTargetLabels,
   stages,
 } from "./src/domain/constants";
 import {
   dateFromIso,
-  formatDisplayDate,
-  getMonthDays,
   getShiftedMonthStartDate,
   getTodayIsoDate,
 } from "./src/domain/dates";
@@ -30,7 +25,6 @@ import {
   createEmptyStatusForm,
 } from "./src/domain/forms";
 import {
-  canEditIdentityFields,
   getAdaptationStats,
   getCardCurrentQuantity,
   getCardDisplayName,
@@ -40,38 +34,27 @@ import {
   getNextStage,
   getOperationSummaryItems,
   getQrStatus,
-  getStageMoveButtonLabel,
-  isPositiveInteger,
 } from "./src/domain/batch";
 import {
-  buildCultureFormOptions,
-  getPlantCardStatusDotStyle,
   getResolvedBatchStatus,
-  getUniqueOptions,
+  getPlantCardStatusDotStyle,
 } from "./src/domain/cardSelectors";
 import {
   cultureCreateBatchStatuses,
-  editableStatusOperationTypes,
   introOperationFields,
   protectedOperationTypes,
   stageHomeItems as stageHomeItemsConfig,
   statusEventCountFields,
 } from "./src/domain/operationConfig";
 import {
-  buildGroupedGlobalJournalCards,
-  getActiveCardsCount,
-  filterCultureCards,
-  getAllVisibleStageCardsCount,
-  getSelectedStageCardsCount,
-} from "./src/domain/cultureSelectors";
-import {
-  buildRecommendationEntries,
   removeRecommendationFields,
 } from "./src/domain/recommendations";
 import {
   buildCloseRecommendationsState,
   buildGlobalJournalNavigationState,
   buildMenuNavigationState,
+  buildSelectedCardRecommendationsNavigationState,
+  buildStagePressNavigationState,
   buildStageRecommendationsNavigationState,
   buildTasksNavigationState,
 } from "./src/domain/navigation";
@@ -79,24 +62,20 @@ import { buildAppDerivedState } from "./src/domain/appDerivedState";
 import {
   findCultureCardByScannedCode,
   getBottomInset,
-  getOpenCultureCalendarInitialDate,
   getScannedCode,
   getTaskCardByTask,
   getUpdatedCardById,
   isDuplicateCultureCode,
 } from "./src/domain/appModel";
 import {
-  applyCultureSelection,
-  applySpeciesSelection,
-  applyVarietySelection,
-  buildGeneratedPlantingCode,
+  buildCultureFormGeneratedCodeState,
+  buildCultureFormSelectionResult,
   isRequiredFieldMissingInForm,
 } from "./src/domain/cultureForm";
 import {
-  buildCancelledCultureCards,
-  buildCultureCardPayload,
-  buildSavedCultureCards,
-} from "./src/domain/cultureCardBuilder";
+  buildCultureCardCancelResult,
+  buildCultureCardSaveResult,
+} from "./src/domain/cultureCardSave";
 import { validateCultureCardInput } from "./src/domain/cultureFormValidation";
 import { updateFormField } from "./src/domain/formState";
 import {
@@ -111,33 +90,56 @@ import {
 } from "./src/services/localNotifications";
 import { shareQrCode } from "./src/services/shareQrCodeService";
 import { shareCultureCardsReport } from "./src/services/shareReportService";
-import {
-  doesJournalEventMatchFilter,
-  getGlobalJournalEvents,
-  getJournalFilterLabel,
-  getLatestFilledCalendarDate,
-  isOperationVisibleInCurrentStage,
-  buildSelectedCardJournalData,
-} from "./src/domain/journal";
-import { buildCareTasks } from "./src/domain/tasks";
+import { getJournalFilterLabel } from "./src/domain/journal";
 import {
   getIntroActionConfig,
   getStatusEventConfig,
 } from "./src/domain/statusOperations";
-import { getStatusBaseValidationError } from "./src/domain/statusValidation";
-import { getAdaptationValidationError } from "./src/domain/statusStageValidation";
-import { getGreenhouseValidationError } from "./src/domain/statusGreenhouseValidation";
 import { buildStatusOperation } from "./src/domain/statusOperationBuilder";
-import { buildStatusFormFromOperation } from "./src/domain/statusOperationForm";
 import {
   buildStageChangeOperation,
   buildStageTransitionCard,
 } from "./src/domain/stageTransition";
-import { buildIntroActionUpdatedCard } from "./src/domain/introActionCardBuilder";
 import { buildUpdatedStatusCard } from "./src/domain/statusCardBuilder";
-import { buildIntroActionOperation } from "./src/domain/introActionOperationBuilder";
 import { buildStatusOperationContext } from "./src/domain/statusOperationContext";
-import { buildDeletedOperationCard } from "./src/domain/operationDeletion";
+import { buildDeletedOperationCards } from "./src/domain/operationDeletion";
+import { getStageMoveValidationError } from "./src/domain/stageMoveValidation";
+import {
+  getStatusChangeValidationError,
+  getStatusChangeValidationMessage,
+} from "./src/domain/statusChangeValidation";
+import { buildIntroActionSaveResult } from "./src/domain/introActionSave";
+import { buildTestDataResetState } from "./src/domain/testDataReset";
+import { buildOperationEditState } from "./src/domain/operationEditState";
+import { buildCultureCalendarOpenState } from "./src/domain/cultureCalendarState";
+import { buildCultureCalendarCloseState } from "./src/domain/cultureCalendarCloseState";
+import {
+  buildStatusChangeCloseState,
+  buildStatusChangeOpenState,
+} from "./src/domain/statusChangeState";
+import {
+  buildCultureFormCloseState,
+  buildCultureDateChangeResult,
+  buildCultureFormEditState,
+  buildCultureFormOpenState,
+} from "./src/domain/cultureFormState";
+import { buildLogoutState } from "./src/domain/logoutState";
+import {
+  buildForgotPasswordState,
+  buildLoginState,
+  buildRegisterState,
+} from "./src/domain/authState";
+import { buildTaskCardOpenState } from "./src/domain/tasks";
+import {
+  getShareQrNotice,
+  getShareReportNotice,
+} from "./src/domain/shareNotice";
+import { getWateringReminderNotice } from "./src/domain/notificationNotice";
+import {
+  getScanErrorNotice,
+  getScanNotice,
+  getScanWebNotice,
+} from "./src/domain/scanNotice";
 import AuthScreen from "./src/screens/AuthScreen";
 import AppRouter from "./AppRouter";
 import AppErrorBoundary from "./AppErrorBoundary";
@@ -289,24 +291,32 @@ function AppContent() {
     }
   }
 
+  function resetSelectedCardContext() {
+    setSelectedStage("");
+    setSelectedCardId(null);
+    setSelectedCalendarDate("");
+  }
+
   function handleLogin() {
-    setNotice("");
-    setError("");
-    setIsAuthenticated(true);
+    const nextState = buildLoginState();
+
+    setNotice(nextState.notice);
+    setError(nextState.error);
+    setIsAuthenticated(nextState.isAuthenticated);
   }
 
   function handleForgotPassword() {
-    setError("");
-    setNotice(
-      "Восстановление пароля будет добавлено на следующем шаге.",
-    );
+    const nextState = buildForgotPasswordState();
+
+    setError(nextState.error);
+    setNotice(nextState.notice);
   }
 
   function handleRegister() {
-    setError("");
-    setNotice(
-      "Регистрация будет добавлена отдельно. Роль назначает суперадминистратор.",
-    );
+    const nextState = buildRegisterState();
+
+    setError(nextState.error);
+    setNotice(nextState.notice);
   }
 
   function toggleJournalCard(cardId) {
@@ -318,15 +328,15 @@ function AppContent() {
   }
 
   function handleStagePress(stage) {
-    setSelectedStage(stage);
-    setCurrentScreen("cultureList");
+    const nextState = buildStagePressNavigationState(stage);
+
+    setSelectedStage(nextState.selectedStage);
+    setCurrentScreen(nextState.currentScreen);
   }
 
   function openGlobalJournal() {
     const nextState = buildGlobalJournalNavigationState();
-    setSelectedStage("");
-    setSelectedCardId(null);
-    setSelectedCalendarDate("");
+    resetSelectedCardContext();
     setJournalFilter(nextState.journalFilter);
     setExpandedJournalCardIds(nextState.expandedJournalCardIds);
     setCurrentScreen(nextState.currentScreen);
@@ -334,27 +344,21 @@ function AppContent() {
 
   function openTasks() {
     const nextState = buildTasksNavigationState();
-    setSelectedStage("");
-    setSelectedCardId(null);
-    setSelectedCalendarDate("");
+    resetSelectedCardContext();
     setCurrentScreen(nextState.currentScreen);
     setNotice(nextState.notice);
   }
 
   function openMenu() {
     const nextState = buildMenuNavigationState();
-    setSelectedStage("");
-    setSelectedCardId(null);
-    setSelectedCalendarDate("");
+    resetSelectedCardContext();
     setIsDirectoriesSheetVisible(false);
     setCurrentScreen(nextState.currentScreen);
     setNotice(nextState.notice);
   }
 
   function openDirectories() {
-    setSelectedStage("");
-    setSelectedCardId(null);
-    setSelectedCalendarDate("");
+    resetSelectedCardContext();
     setCurrentScreen("menu");
     setIsDirectoriesSheetVisible(true);
   }
@@ -364,18 +368,14 @@ function AppContent() {
   }
 
   function openSupport() {
-    setSelectedStage("");
-    setSelectedCardId(null);
-    setSelectedCalendarDate("");
+    resetSelectedCardContext();
     setIsDirectoriesSheetVisible(false);
     setCurrentScreen("support");
   }
 
   async function handleScanPress() {
     if (Platform.OS === "web") {
-      setNotice(
-        "QR-сканер доступен только в мобильном приложении.",
-      );
+      setNotice(getScanWebNotice());
       return;
     }
 
@@ -401,27 +401,22 @@ function AppContent() {
           scannedCode,
         );
 
+        const scanNotice = getScanNotice({ scannedCode, matchedCard });
+        setNotice(scanNotice);
+
         if (!matchedCard) {
-          setNotice(
-            scannedCode
-              ? `Карточка с QR-кодом ${scannedCode} не найдена.`
-              : "QR-код найден, но его значение пустое.",
-          );
           return;
         }
 
         setSelectedStage(matchedCard.stage || INTRO_STAGE);
         openCultureCalendar(matchedCard);
-        setNotice(
-          `Открыта карточка: ${getCardDisplayName(matchedCard)}.`,
-        );
       });
 
       await CameraView.launchScanner({
         barcodeTypes: ["qr"],
       });
     } catch (scanError) {
-      setNotice("Не удалось открыть сканер QR-кода.");
+      setNotice(getScanErrorNotice());
     } finally {
       subscription?.remove();
     }
@@ -430,22 +425,7 @@ function AppContent() {
   async function handleShareQrPress(card) {
     try {
       const shareResult = await shareQrCode(card?.code);
-
-      if (shareResult === "web_ready") {
-        setNotice("QR-код подготовлен для отправки.");
-        return;
-      }
-
-      if (shareResult === "native_unavailable") {
-        setNotice(
-          "Системное отправление недоступно, QR-код подготовлен текстом.",
-        );
-        return;
-      }
-
-      setNotice(
-        "QR-код отправлен через системное меню.",
-      );
+      setNotice(getShareQrNotice(shareResult));
     } catch (shareError) {
       setNotice("Не удалось отправить QR-код.");
     }
@@ -459,7 +439,9 @@ function AppContent() {
       return;
     }
 
-    setSelectedStage(taskCard.stage || INTRO_STAGE);
+    const nextState = buildTaskCardOpenState(taskCard);
+
+    setSelectedStage(nextState.selectedStage);
     openCultureCalendar(taskCard);
   }
 
@@ -470,20 +452,7 @@ function AppContent() {
         getOperationSummaryItems,
         getResolvedBatchStatus,
       });
-
-      if (shareResult === "web_ready") {
-        setNotice("Excel-отчет подготовлен.");
-        return;
-      }
-
-      if (shareResult === "native_unavailable") {
-        setNotice(
-          "Отправка Excel-файла недоступна на устройстве.",
-        );
-        return;
-      }
-
-      setNotice("Excel-файл отчета готов к отправке.");
+      setNotice(getShareReportNotice(shareResult));
     } catch (shareError) {
       setNotice("Не удалось подготовить Excel-отчет.");
     }
@@ -494,13 +463,9 @@ function AppContent() {
         body: "Тестовое напоминание: пора проверить полив.",
         date: new Date(Date.now() + 60 * 1000),
       });
-      setNotice(
-        "Напоминание о поливе запланировано через 1 минуту.",
-      );
+      setNotice(getWateringReminderNotice('scheduled'));
     } catch (notificationError) {
-      setNotice(
-        "Не удалось включить уведомления. Проверьте разрешения телефона.",
-      );
+      setNotice(getWateringReminderNotice('error'));
     }
   }
 
@@ -519,13 +484,16 @@ function AppContent() {
       return;
     }
 
-    setRecommendationsContext({
+    const nextState = buildSelectedCardRecommendationsNavigationState({
       backScreen,
-      cardId: selectedCard.id,
-      stage: selectedCard.stage || selectedStage,
+      selectedCardId: selectedCard.id,
+      selectedCardStage: selectedCard.stage,
+      selectedStage,
     });
-    setRecommendationsMode("current");
-    setCurrentScreen("recommendations");
+
+    setRecommendationsContext(nextState.recommendationsContext);
+    setRecommendationsMode(nextState.recommendationsMode);
+    setCurrentScreen(nextState.currentScreen);
   }
 
   function closeRecommendations() {
@@ -538,33 +506,34 @@ function AppContent() {
   }
 
   function handleLogout() {
-    setSelectedStage("");
-    setCurrentScreen("stages");
-    setSelectedCardId(null);
-    setSelectedCalendarDate("");
-    setIsAuthenticated(false);
+    const nextState = buildLogoutState();
+
+    setSelectedStage(nextState.selectedStage);
+    setCurrentScreen(nextState.currentScreen);
+    setSelectedCardId(nextState.selectedCardId);
+    setSelectedCalendarDate(nextState.selectedCalendarDate);
+    setIsAuthenticated(nextState.isAuthenticated);
   }
 
   async function handleClearTestData() {
     try {
       await clearCultureCardsForTests();
-      setCultureCards([]);
-      setSelectedStage("");
-      setSelectedCardId(null);
-      setSelectedCalendarDate("");
-      setEditingCardId(null);
-      setEditingOperationId(null);
-      setCultureForm(createEmptyCultureForm());
-      setStatusForm(createEmptyStatusForm());
-      setIntroActionForm(createEmptyIntroActionForm());
-      setIntroActionType("");
-      setCultureCalendarTab("calendar");
-      setIsDateEntryExpanded(false);
-      setCurrentScreen("stages");
-      setStorageError("");
-      setNotice(
-        "Карточки стадий и журнал очищены.",
-      );
+      const resetState = buildTestDataResetState();
+      setCultureCards(resetState.cultureCards);
+      setSelectedStage(resetState.selectedStage);
+      setSelectedCardId(resetState.selectedCardId);
+      setSelectedCalendarDate(resetState.selectedCalendarDate);
+      setEditingCardId(resetState.editingCardId);
+      setEditingOperationId(resetState.editingOperationId);
+      setCultureForm(resetState.cultureForm);
+      setStatusForm(resetState.statusForm);
+      setIntroActionForm(resetState.introActionForm);
+      setIntroActionType(resetState.introActionType);
+      setCultureCalendarTab(resetState.cultureCalendarTab);
+      setIsDateEntryExpanded(resetState.isDateEntryExpanded);
+      setCurrentScreen(resetState.currentScreen);
+      setStorageError(resetState.storageError);
+      setNotice(resetState.notice);
     } catch (clearError) {
       setStorageError(
         "Не удалось очистить карточки стадий",
@@ -587,66 +556,68 @@ function AppContent() {
   }
 
   function openCultureForm() {
-    setCultureForm(createEmptyCultureForm());
-    setFormError("");
-    setShowDatePicker(false);
-    setOpenDropdown("");
-    setTouchedSubmit(false);
-    setEditingCardId(null);
-    setCurrentScreen("cultureForm");
+    const nextState = buildCultureFormOpenState();
+
+    setCultureForm(nextState.cultureForm);
+    setFormError(nextState.formError);
+    setShowDatePicker(nextState.showDatePicker);
+    setOpenDropdown(nextState.openDropdown);
+    setTouchedSubmit(nextState.touchedSubmit);
+    setEditingCardId(nextState.editingCardId);
+    setCurrentScreen(nextState.currentScreen);
   }
 
   function openEditCultureForm(card) {
-    setCultureForm({
-      ...createEmptyCultureForm(),
-      ...removeRecommendationFields(card),
-      qrPrinted: card.qrPrinted || false,
-      qrPrintedAt: card.qrPrintedAt || null,
-      qrPrintedBy: card.qrPrintedBy || null,
-    });
-    setFormError("");
-    setShowDatePicker(false);
-    setOpenDropdown("");
-    setTouchedSubmit(false);
-    setEditingCardId(card.id);
-    setCurrentScreen("cultureForm");
+    const nextState = buildCultureFormEditState(card);
+
+    setCultureForm(nextState.cultureForm);
+    setFormError(nextState.formError);
+    setShowDatePicker(nextState.showDatePicker);
+    setOpenDropdown(nextState.openDropdown);
+    setTouchedSubmit(nextState.touchedSubmit);
+    setEditingCardId(nextState.editingCardId);
+    setCurrentScreen(nextState.currentScreen);
   }
 
   function openCultureCalendar(card) {
-    const initialDate = getOpenCultureCalendarInitialDate(card);
+    const nextState = buildCultureCalendarOpenState(card);
 
-    setSelectedCardId(card.id);
-    setSelectedCalendarDate(initialDate);
-    setCultureCalendarTab("calendar");
-    setIsDateEntryExpanded(false);
-    setIntroActionType("");
-    setIntroActionForm(createEmptyIntroActionForm());
-    setStageActionError("");
-    setCalendarMonth(dateFromIso(initialDate));
-    setCurrentScreen("cultureCalendar");
+    setSelectedCardId(nextState.selectedCardId);
+    setSelectedCalendarDate(nextState.selectedCalendarDate);
+    setCultureCalendarTab(nextState.cultureCalendarTab);
+    setIsDateEntryExpanded(nextState.isDateEntryExpanded);
+    setIntroActionType(nextState.introActionType);
+    setIntroActionForm(nextState.introActionForm);
+    setStageActionError(nextState.stageActionError);
+    setCalendarMonth(nextState.calendarMonth);
+    setCurrentScreen(nextState.currentScreen);
   }
 
   function closeCultureForm() {
-    setCultureForm(createEmptyCultureForm());
-    setFormError("");
-    setShowDatePicker(false);
-    setOpenDropdown("");
-    setTouchedSubmit(false);
-    setEditingCardId(null);
-    setCurrentScreen("cultureList");
+    const nextState = buildCultureFormCloseState();
+
+    setCultureForm(nextState.cultureForm);
+    setFormError(nextState.formError);
+    setShowDatePicker(nextState.showDatePicker);
+    setOpenDropdown(nextState.openDropdown);
+    setTouchedSubmit(nextState.touchedSubmit);
+    setEditingCardId(nextState.editingCardId);
+    setCurrentScreen(nextState.currentScreen);
   }
 
   function closeCultureCalendar() {
-    setSelectedCardId(null);
-    setSelectedCalendarDate("");
-    setCultureCalendarTab("calendar");
-    setIsDateEntryExpanded(false);
-    setIntroActionType("");
-    setIntroActionForm(createEmptyIntroActionForm());
-    setEditingOperationId(null);
-    setIsStageMoveConfirmVisible(false);
-    setStageActionError("");
-    setCurrentScreen("cultureList");
+    const nextState = buildCultureCalendarCloseState();
+
+    setSelectedCardId(nextState.selectedCardId);
+    setSelectedCalendarDate(nextState.selectedCalendarDate);
+    setCultureCalendarTab(nextState.cultureCalendarTab);
+    setIsDateEntryExpanded(nextState.isDateEntryExpanded);
+    setIntroActionType(nextState.introActionType);
+    setIntroActionForm(nextState.introActionForm);
+    setEditingOperationId(nextState.editingOperationId);
+    setIsStageMoveConfirmVisible(nextState.isStageMoveConfirmVisible);
+    setStageActionError(nextState.stageActionError);
+    setCurrentScreen(nextState.currentScreen);
   }
 
   function openStatusChangeForm() {
@@ -654,27 +625,25 @@ function AppContent() {
       return;
     }
 
-    setStatusForm(createEmptyStatusForm());
-    setEditingOperationId(null);
-    setIntroActionType(
-      selectedCard.stage === stages[2]
-        ? "adaptationStress"
-        : selectedCard.stage === stages[3]
-          ? "greenhouseObservation"
-          : "rooting",
-    );
-    setStatusFormError("");
-    setStatusFormNotice("");
-    setCurrentScreen("statusChangeForm");
+    const nextState = buildStatusChangeOpenState(selectedCard);
+
+    setStatusForm(nextState.statusForm);
+    setEditingOperationId(nextState.editingOperationId);
+    setIntroActionType(nextState.introActionType);
+    setStatusFormError(nextState.statusFormError);
+    setStatusFormNotice(nextState.statusFormNotice);
+    setCurrentScreen(nextState.currentScreen);
   }
 
   function closeStatusChangeForm() {
-    setStatusForm(createEmptyStatusForm());
-    setEditingOperationId(null);
-    setStatusFormError("");
-    setStatusFormNotice("");
-    setIntroActionType("");
-    setCurrentScreen("cultureCalendar");
+    const nextState = buildStatusChangeCloseState();
+
+    setStatusForm(nextState.statusForm);
+    setEditingOperationId(nextState.editingOperationId);
+    setStatusFormError(nextState.statusFormError);
+    setStatusFormNotice(nextState.statusFormNotice);
+    setIntroActionType(nextState.introActionType);
+    setCurrentScreen(nextState.currentScreen);
   }
 
   function openEditOperation(operation) {
@@ -691,32 +660,39 @@ function AppContent() {
     setStatusFormError("");
     setStatusFormNotice("");
     setStageActionError("");
+    const editState = buildOperationEditState({
+      operation,
+      selectedCardStage: selectedCard.stage,
+      introOperationFields,
+      statusEventCountFields,
+    });
 
-    if (
-      selectedCard.stage === INTRO_STAGE &&
-      introOperationFields[operation.type]
-    ) {
-      setIntroActionType(operation.type);
-      setIntroActionForm({
-        ...createEmptyIntroActionForm(),
-        [introOperationFields[operation.type]]:
-          operation[introOperationFields[operation.type]] || "",
-      });
-      setIsDateEntryExpanded(true);
-      setCultureCalendarTab("calendar");
-      setCurrentScreen("introActionForm");
+    if (!editState) {
       return;
     }
 
-    if (editableStatusOperationTypes.includes(operation.type)) {
-      const countField = statusEventCountFields[operation.type];
+    if (editState.introActionType) {
+      setIntroActionType(editState.introActionType);
+    }
 
-      setIntroActionType(operation.type);
-      setStatusForm({
-        ...createEmptyStatusForm(),
-        ...buildStatusFormFromOperation(operation, countField),
-      });
-      setCurrentScreen("statusChangeForm");
+    if (editState.introActionForm) {
+      setIntroActionForm(editState.introActionForm);
+    }
+
+    if (editState.statusForm) {
+      setStatusForm(editState.statusForm);
+    }
+
+    if (editState.isDateEntryExpanded !== undefined) {
+      setIsDateEntryExpanded(editState.isDateEntryExpanded);
+    }
+
+    if (editState.cultureCalendarTab) {
+      setCultureCalendarTab(editState.cultureCalendarTab);
+    }
+
+    if (editState.currentScreen) {
+      setCurrentScreen(editState.currentScreen);
     }
   }
 
@@ -725,10 +701,10 @@ function AppContent() {
       return;
     }
 
-    const nextCards = cultureCards.map((card) =>
-      card.id === selectedCard.id
-        ? buildDeletedOperationCard(card, operationId)
-        : card,
+    const nextCards = buildDeletedOperationCards(
+      cultureCards,
+      selectedCard.id,
+      operationId,
     );
 
     await saveCultureCards(nextCards);
@@ -760,9 +736,11 @@ function AppContent() {
       return;
     }
 
-    setCultureForm((currentForm) =>
-      applyCultureSelection(currentForm, cultureName),
-    );
+    setCultureForm((currentForm) => buildCultureFormSelectionResult({
+      currentForm,
+      type: "culture",
+      value: cultureName,
+    }));
     setOpenDropdown("");
   }
 
@@ -771,9 +749,11 @@ function AppContent() {
       return;
     }
 
-    setCultureForm((currentForm) =>
-      applySpeciesSelection(currentForm, speciesName),
-    );
+    setCultureForm((currentForm) => buildCultureFormSelectionResult({
+      currentForm,
+      type: "species",
+      value: speciesName,
+    }));
     setOpenDropdown("");
   }
 
@@ -782,9 +762,12 @@ function AppContent() {
       return;
     }
 
-    setCultureForm((currentForm) =>
-      applyVarietySelection(currentForm, varietyName, plantsCatalog),
-    );
+    setCultureForm((currentForm) => buildCultureFormSelectionResult({
+      currentForm,
+      type: "variety",
+      value: varietyName,
+      plantsCatalog,
+    }));
     setOpenDropdown("");
   }
 
@@ -793,15 +776,20 @@ function AppContent() {
       return;
     }
 
-    if (Platform.OS === "android") {
-      setShowDatePicker(false);
-    }
+    const nextState = buildCultureDateChangeResult({
+      isAndroid: Platform.OS === "android",
+      selectedDate,
+    });
 
-    if (!selectedDate) {
+    if (!nextState) {
       return;
     }
 
-    updateCultureForm("createdAt", isoFromDate(selectedDate));
+    if (nextState.shouldHideDatePicker) {
+      setShowDatePicker(false);
+    }
+
+    updateCultureForm("createdAt", nextState.createdAt);
   }
 
   function handleGenerateCode() {
@@ -809,23 +797,21 @@ function AppContent() {
       return;
     }
 
-    const { code, isDuplicateCode } = buildGeneratedPlantingCode({
+    const nextState = buildCultureFormGeneratedCodeState({
       cultureCards,
       createdAt: cultureForm.createdAt,
       selectedStage,
       editingCardId,
     });
-    if (isDuplicateCode) {
-      setFormError(
-        "Код уже существует. Сгенерируйте код ещё раз.",
-      );
+
+    if (nextState.isDuplicateCode) {
+      setFormError(nextState.error);
       return;
     }
 
     setCultureForm((currentForm) => ({
       ...currentForm,
-      code,
-      qrStatus: "pending_print",
+      ...nextState.nextCultureForm,
     }));
     setFormError("");
   }
@@ -848,99 +834,20 @@ function AppContent() {
       return;
     }
 
-    if (selectedCard.sterilityStatus === "contaminated") {
-      setStageActionError(
-        "Материал заражён: переход стадии заблокирован до решения администратора или агронома",
-      );
+    const stageMoveValidationError = getStageMoveValidationError({
+      selectedCard,
+      qrStatus: getQrStatus(selectedCard),
+      cloneStats:
+        selectedCard.stage === stages[1] ? getCloneStats(selectedCard) : null,
+      adaptationStats:
+        selectedCard.stage === stages[2]
+          ? getAdaptationStats(selectedCard)
+          : null,
+    });
+
+    if (stageMoveValidationError) {
+      setStageActionError(stageMoveValidationError);
       return;
-    }
-
-    if (selectedCard.stage === INTRO_STAGE) {
-      if ((selectedCard.batchStatus || "active") !== "active") {
-        setStageActionError(
-          "Перевести можно только активную партию",
-        );
-        return;
-      }
-
-      if (getQrStatus(selectedCard) === "none") {
-        setStageActionError("QR-код ещё не создан");
-        return;
-      }
-    }
-
-    if (selectedCard.stage === stages[1]) {
-      const cloneStats = getCloneStats(selectedCard);
-
-      if ((selectedCard.batchStatus || "active") === "quarantine") {
-        setStageActionError(
-          "Партия в карантине и не может быть переведена дальше",
-        );
-        return;
-      }
-
-      if (
-        (selectedCard.batchStatus || "active") === "problem" ||
-        cloneStats.riskStatus === "Критический"
-      ) {
-        setStageActionError(
-          "Нельзя перевести партию с критическим статусом",
-        );
-        return;
-      }
-
-      if (cloneStats.rootedCount <= 0) {
-        setStageActionError(
-          "Сначала зафиксируйте укоренившиеся растения",
-        );
-        return;
-      }
-
-      if (cloneStats.currentQuantity <= 0) {
-        setStageActionError(
-          "Остаток партии должен быть больше 0",
-        );
-        return;
-      }
-    }
-
-    if (selectedCard.stage === stages[2]) {
-      const adaptationStats = getAdaptationStats(selectedCard);
-
-      if ((selectedCard.batchStatus || "active") === "quarantine") {
-        setStageActionError(
-          "Партия в карантине и не может быть переведена дальше",
-        );
-        return;
-      }
-
-      if (selectedCard.sterilityStatus === "contaminated") {
-        setStageActionError(
-          "Есть активная контаминация",
-        );
-        return;
-      }
-
-      if (adaptationStats.riskStatus === "Критический") {
-        setStageActionError(
-          "Нельзя перевести партию с критическим стрессом",
-        );
-        return;
-      }
-
-      if (adaptationStats.stability !== "Стабильна") {
-        setStageActionError(
-          "Сначала зафиксируйте стабильность партии",
-        );
-        return;
-      }
-
-      if (adaptationStats.currentQuantity <= 0) {
-        setStageActionError(
-          "Остаток партии должен быть больше 0",
-        );
-        return;
-      }
     }
 
     const cloneTransitionStats =
@@ -983,10 +890,23 @@ function AppContent() {
       return;
     }
 
-    if (selectedCalendarDate !== getTodayIsoDate()) {
-      setStatusFormError(
-        "Производственные события можно фиксировать только на текущую дату",
-      );
+    const { editedOperation, currentQuantity } = buildStatusOperationContext({
+      editingOperationId,
+      selectedCard,
+      selectedCardOperations,
+    });
+    const validationError = getStatusChangeValidationError({
+      editingOperationId,
+      introActionType,
+      selectedCard,
+      currentQuantity,
+      statusForm,
+      canReleaseQuarantine,
+      selectedCalendarDate,
+    });
+
+    if (validationError) {
+      setStatusFormError(getStatusChangeValidationMessage(validationError));
       return;
     }
 
@@ -994,116 +914,6 @@ function AppContent() {
     const count = eventConfig.countField
       ? statusForm[eventConfig.countField].trim()
       : "";
-    const { editedOperation, currentQuantity } = buildStatusOperationContext({
-      editingOperationId,
-      selectedCard,
-      selectedCardOperations,
-    });
-    const baseValidationError = getStatusBaseValidationError({
-      eventConfig,
-      count,
-      introActionType,
-      currentQuantity,
-      reason: statusForm.reason,
-      canReleaseQuarantine,
-      isEditingOperation: Boolean(editingOperationId),
-      batchStatus: selectedCard.batchStatus,
-    });
-
-    if (baseValidationError === "invalid_count") {
-      setStatusFormError(
-        "Укажите корректное количество",
-      );
-      return;
-    }
-
-    if (baseValidationError === "count_gt_current") {
-      setStatusFormError(
-        "Количество не может быть больше текущего остатка",
-      );
-      return;
-    }
-
-    if (baseValidationError === "missing_reason") {
-      setStatusFormError("Укажите причину");
-      return;
-    }
-
-    if (baseValidationError === "release_forbidden") {
-      setStatusFormError(
-        "Снять карантин может только агроном или администратор",
-      );
-      return;
-    }
-
-    if (baseValidationError === "not_in_quarantine") {
-      setStatusFormError(
-        "Партия не находится в карантине",
-      );
-      return;
-    }
-
-    const adaptationValidationError = getAdaptationValidationError(
-      introActionType,
-      statusForm,
-    );
-
-    if (adaptationValidationError === "adaptation_stress_missing") {
-      setStatusFormError(
-        "Укажите хотя бы один параметр наблюдения",
-      );
-      return;
-    }
-
-    if (adaptationValidationError === "adaptation_environment_missing") {
-      setStatusFormError(
-        "Укажите хотя бы один параметр среды",
-      );
-      return;
-    }
-
-    if (adaptationValidationError === "adaptation_humidity_reduction_missing") {
-      setStatusFormError(
-        "Укажите снижение влажности или состояние партии",
-      );
-      return;
-    }
-
-    if (adaptationValidationError === "adaptation_care_type_missing") {
-      setStatusFormError("Укажите тип ухода");
-      return;
-    }
-
-    const greenhouseValidationError = getGreenhouseValidationError(
-      introActionType,
-      statusForm,
-    );
-
-    if (greenhouseValidationError === "greenhouse_observation_missing") {
-      setStatusFormError(
-        "Укажите хотя бы один параметр наблюдения",
-      );
-      return;
-    }
-
-    if (greenhouseValidationError === "greenhouse_care_type_missing") {
-      setStatusFormError("Укажите тип ухода");
-      return;
-    }
-
-    if (greenhouseValidationError === "greenhouse_environment_missing") {
-      setStatusFormError(
-        "Укажите хотя бы один параметр среды",
-      );
-      return;
-    }
-
-    if (greenhouseValidationError === "greenhouse_disease_missing") {
-      setStatusFormError(
-        "Укажите болезнь, вредителя или уровень риска",
-      );
-      return;
-    }
 
     const nowIso = new Date().toISOString();
     const nextOperation = buildStatusOperation({
@@ -1186,31 +996,17 @@ function AppContent() {
       return false;
     }
 
-    const { editedOperation } = buildStatusOperationContext({
-      editingOperationId,
-      selectedCard,
-      selectedCardOperations,
-    });
-    const nextOperation = buildIntroActionOperation({
+    const { nextCards } = buildIntroActionSaveResult({
       actionConfig,
+      cultureCards,
       editingOperationId,
-      editedOperation,
+      introActionType,
+      introActionForm,
       nowIso,
+      selectedCard,
       selectedCalendarDate,
-      selectedStage: selectedCard.stage || INTRO_STAGE,
+      selectedCardOperations,
       userId: currentUser.id,
-      value,
-    });
-    const nextCards = cultureCards.map((card) => {
-      if (card.id !== selectedCard.id) {
-        return card;
-      }
-
-      return buildIntroActionUpdatedCard(card, {
-        editingOperationId,
-        introActionType,
-        nextOperation,
-      });
     });
 
     await saveCultureCards(nextCards);
@@ -1267,7 +1063,8 @@ function AppContent() {
     }
 
     const nowIso = new Date().toISOString();
-    const nextCard = buildCultureCardPayload({
+    const { nextCards } = buildCultureCardSaveResult({
+      cultureCards,
       cultureForm,
       editingCardId,
       selectedStage,
@@ -1284,12 +1081,6 @@ function AppContent() {
       nowIso,
     });
 
-    const nextCards = buildSavedCultureCards(
-      cultureCards,
-      editingCardId,
-      nextCard,
-    );
-
     await saveCultureCards(nextCards);
     closeCultureForm();
   }
@@ -1300,12 +1091,12 @@ function AppContent() {
     }
 
     const nowIso = new Date().toISOString();
-    const nextCards = buildCancelledCultureCards(
+    const { nextCards } = buildCultureCardCancelResult({
       cultureCards,
       editingCardId,
-      currentUser.id,
+      userId: currentUser.id,
       nowIso,
-    );
+    });
 
     await saveCultureCards(nextCards);
     closeCultureForm();

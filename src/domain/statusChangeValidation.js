@@ -1,0 +1,98 @@
+import { getTodayIsoDate } from './dates';
+import { getStatusEventConfig } from './statusOperations';
+import { getStatusBaseValidationError } from './statusValidation';
+import { getAdaptationValidationError } from './statusStageValidation';
+import { getGreenhouseValidationError } from './statusGreenhouseValidation';
+
+export function getStatusChangeValidationError({
+  editingOperationId,
+  introActionType,
+  selectedCard,
+  currentQuantity,
+  statusForm,
+  canReleaseQuarantine,
+  selectedCalendarDate,
+}) {
+  if (!selectedCard || !selectedCalendarDate) {
+    return '';
+  }
+
+  if (selectedCalendarDate !== getTodayIsoDate()) {
+    return 'date_not_today';
+  }
+
+  const eventConfig = getStatusEventConfig(introActionType);
+  const count = eventConfig.countField
+    ? statusForm[eventConfig.countField].trim()
+    : '';
+
+  const baseValidationError = getStatusBaseValidationError({
+    eventConfig,
+    count,
+    introActionType,
+    currentQuantity,
+    reason: statusForm.reason,
+    canReleaseQuarantine,
+    isEditingOperation: Boolean(editingOperationId),
+    batchStatus: selectedCard.batchStatus,
+  });
+
+  if (baseValidationError) {
+    return baseValidationError;
+  }
+
+  const adaptationValidationError = getAdaptationValidationError(
+    introActionType,
+    statusForm,
+  );
+
+  if (adaptationValidationError) {
+    return adaptationValidationError;
+  }
+
+  const greenhouseValidationError = getGreenhouseValidationError(
+    introActionType,
+    statusForm,
+  );
+
+  if (greenhouseValidationError) {
+    return greenhouseValidationError;
+  }
+
+  return '';
+}
+
+export function getStatusChangeValidationMessage(validationError) {
+  switch (validationError) {
+    case 'date_not_today':
+      return 'Производственные события можно фиксировать только на текущую дату';
+    case 'invalid_count':
+      return 'Укажите корректное количество';
+    case 'count_gt_current':
+      return 'Количество не может быть больше текущего остатка';
+    case 'missing_reason':
+      return 'Укажите причину';
+    case 'release_forbidden':
+      return 'Снять карантин может только агроном или администратор';
+    case 'not_in_quarantine':
+      return 'Партия не находится в карантине';
+    case 'adaptation_stress_missing':
+      return 'Укажите хотя бы один параметр наблюдения';
+    case 'adaptation_environment_missing':
+      return 'Укажите хотя бы один параметр среды';
+    case 'adaptation_humidity_reduction_missing':
+      return 'Укажите снижение влажности или состояние партии';
+    case 'adaptation_care_type_missing':
+      return 'Укажите тип ухода';
+    case 'greenhouse_observation_missing':
+      return 'Укажите хотя бы один параметр наблюдения';
+    case 'greenhouse_care_type_missing':
+      return 'Укажите тип ухода';
+    case 'greenhouse_environment_missing':
+      return 'Укажите хотя бы один параметр среды';
+    case 'greenhouse_disease_missing':
+      return 'Укажите болезнь, вредителя или уровень риска';
+    default:
+      return '';
+  }
+}

@@ -20,12 +20,36 @@ export function buildMenuNavigationState() {
   };
 }
 
+export function buildStagePressNavigationState(stage) {
+  return {
+    selectedStage: stage,
+    currentScreen: 'cultureList',
+  };
+}
+
 export function buildStageRecommendationsNavigationState(selectedStage) {
   return {
     currentScreen: 'recommendations',
     recommendationsContext: {
       mode: 'stage',
       stage: selectedStage,
+    },
+    recommendationsMode: 'current',
+  };
+}
+
+export function buildSelectedCardRecommendationsNavigationState({
+  backScreen,
+  selectedCardId,
+  selectedCardStage,
+  selectedStage,
+}) {
+  return {
+    currentScreen: 'recommendations',
+    recommendationsContext: {
+      backScreen,
+      cardId: selectedCardId,
+      stage: selectedCardStage || selectedStage,
     },
     recommendationsMode: 'current',
   };

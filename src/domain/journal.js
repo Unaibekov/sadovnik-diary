@@ -1,4 +1,4 @@
-import { getCardDisplayName } from './batch';
+п»їimport { getCardDisplayName } from './batch';
 import { INTRO_STAGE, stages } from './constants';
 import { getTodayIsoDate } from './dates';
 
@@ -191,17 +191,17 @@ export function doesJournalEventMatchFilter(event, filter) {
 
 export function getJournalFilterLabel(filter) {
   return {
-    important: 'Важные',
-    all: 'Все',
-    comment: 'Комментарии',
-    photo: 'Фото',
-    contamination: 'Контаминация',
-    quarantine: 'Карантин',
-    losses: 'Потери',
-    sales: 'Продажи',
-    rooting: 'Укоренение',
-    propagation: 'Размножение',
-    transplant: 'Пересадка',
-    stageChange: 'Переходы',
+    important: 'Р’Р°Р¶РЅС‹Рµ',
+    all: 'Р’СЃРµ',
+    comment: 'РљРѕРјРјРµРЅС‚Р°СЂРёРё',
+    photo: 'Р¤РѕС‚Рѕ',
+    contamination: 'РљРѕРЅС‚Р°РјРёРЅР°С†РёСЏ',
+    quarantine: 'РљР°СЂР°РЅС‚РёРЅ',
+    losses: 'РџРѕС‚РµСЂРё',
+    sales: 'РџСЂРѕРґР°Р¶Рё',
+    rooting: 'РЈРєРѕСЂРµРЅРµРЅРёРµ',
+    propagation: 'Р Р°Р·РјРЅРѕР¶РµРЅРёРµ',
+    transplant: 'РџРµСЂРµСЃР°РґРєР°',
+    stageChange: 'РџРµСЂРµС…РѕРґС‹',
   }[filter] || filter;
 }

@@ -76,3 +76,9 @@ export function buildCareTasks(cards, getResolvedBatchStatus) {
     first.cardName.localeCompare(second.cardName, 'ru')
   ));
 }
+
+export function buildTaskCardOpenState(taskCard) {
+  return {
+    selectedStage: taskCard.stage || INTRO_STAGE,
+  };
+}

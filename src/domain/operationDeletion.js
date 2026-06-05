@@ -12,3 +12,11 @@ export function buildDeletedOperationCard(card, operationId) {
     status: getResolvedBatchStatus(nextCard) === 'sold' ? 'archived' : 'active',
   };
 }
+
+export function buildDeletedOperationCards(cultureCards, selectedCardId, operationId) {
+  return cultureCards.map((card) => (
+    card.id === selectedCardId
+      ? buildDeletedOperationCard(card, operationId)
+      : card
+  ));
+}
