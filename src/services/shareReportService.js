@@ -1,4 +1,4 @@
-import * as FileSystem from 'expo-file-system/legacy';
+﻿import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as XLSX from 'xlsx';
 import { Platform, Share } from 'react-native';
@@ -16,7 +16,7 @@ export async function shareCultureCardsReport(cultureCards, reportDeps) {
   if (Platform.OS === 'web' || !FileSystem.documentDirectory) {
     await Share.share({
       title: fileName,
-      message: 'Excel-РѕС‚С‡РµС‚ Sadovnik Diary РїРѕРґРіРѕС‚РѕРІР»РµРЅ РІ РјРѕР±РёР»СЊРЅРѕРј РїСЂРёР»РѕР¶РµРЅРёРё.',
+      message: 'Excel-отчет Sadovnik Diary подготовлен в мобильном приложении.',
     });
     return 'web_ready';
   }
@@ -26,7 +26,7 @@ export async function shareCultureCardsReport(cultureCards, reportDeps) {
   if (!isSharingAvailable) {
     await Share.share({
       title: fileName,
-      message: 'Excel-РѕС‚С‡РµС‚ Sadovnik Diary РїРѕРґРіРѕС‚РѕРІР»РµРЅ, РЅРѕ РѕС‚РїСЂР°РІРєР° С„Р°Р№Р»РѕРІ РЅРµРґРѕСЃС‚СѓРїРЅР°.',
+      message: 'Excel-отчет Sadovnik Diary подготовлен, но отправка файлов недоступна.',
     });
     return 'native_unavailable';
   }
@@ -36,7 +36,7 @@ export async function shareCultureCardsReport(cultureCards, reportDeps) {
     encoding: FileSystem.EncodingType.Base64,
   });
   await Sharing.shareAsync(fileUri, {
-    dialogTitle: 'РџРѕРґРµР»РёС‚СЊСЃСЏ РѕС‚С‡РµС‚РѕРј Sadovnik Diary',
+    dialogTitle: 'Поделиться отчетом Sadovnik Diary',
     mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     UTI: 'org.openxmlformats.spreadsheetml.sheet',
   });

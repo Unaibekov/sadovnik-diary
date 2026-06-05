@@ -21,6 +21,7 @@ import {
   dateFromIso,
   formatDisplayDate,
   getMonthDays,
+  getShiftedMonthStartDate,
   getTodayIsoDate,
 } from "./src/domain/dates";
 import {
@@ -30,7 +31,6 @@ import {
 } from "./src/domain/forms";
 import {
   canEditIdentityFields,
-  generatePlantingCode,
   getAdaptationStats,
   getCardCurrentQuantity,
   getCardDisplayName,
@@ -75,11 +75,21 @@ import {
   buildStageRecommendationsNavigationState,
   buildTasksNavigationState,
 } from "./src/domain/navigation";
+import { buildAppDerivedState } from "./src/domain/appDerivedState";
+import {
+  findCultureCardByScannedCode,
+  getBottomInset,
+  getOpenCultureCalendarInitialDate,
+  getScannedCode,
+  getTaskCardByTask,
+  getUpdatedCardById,
+  isDuplicateCultureCode,
+} from "./src/domain/appModel";
 import {
   applyCultureSelection,
   applySpeciesSelection,
   applyVarietySelection,
-  isDuplicateCardCode,
+  buildGeneratedPlantingCode,
   isRequiredFieldMissingInForm,
 } from "./src/domain/cultureForm";
 import {
@@ -134,7 +144,7 @@ import AppErrorBoundary from "./AppErrorBoundary";
 
 function AppContent() {
   const safeAreaInsets = useSafeAreaInsets();
-  const bottomInset = Math.max(safeAreaInsets.bottom || 0, 0);
+  const bottomInset = getBottomInset(safeAreaInsets);
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -147,6 +157,7 @@ function AppContent() {
   const [isCardsLoading, setIsCardsLoading] = useState(true);
   const [storageError, setStorageError] = useState("");
   const [currentScreen, setCurrentScreen] = useState("stages");
+  const [isDirectoriesSheetVisible, setIsDirectoriesSheetVisible] = useState(false);
   const [cultureForm, setCultureForm] = useState(createEmptyCultureForm);
   const [statusForm, setStatusForm] = useState(createEmptyStatusForm);
   const [introActionForm, setIntroActionForm] = useState(
@@ -176,119 +187,76 @@ function AppContent() {
     useState(null);
   const [recommendationsContext, setRecommendationsContext] = useState(null);
   const [recommendationsMode, setRecommendationsMode] = useState("current");
-
-  const editingCard = cultureCards.find((card) => card.id === editingCardId);
-  const selectedCard = cultureCards.find((card) => card.id === selectedCardId);
-  const isEditingCard = Boolean(editingCardId);
-  const canEditCurrentIdentity = canEditIdentityFields(
-    currentUser,
-    editingCard,
-  );
-  const calendarDays = getMonthDays(calendarMonth);
   const {
+    activeCardsCount,
+    allVisibleStageCardsCount,
+    careTasks,
+    canEditCurrentIdentity,
+    canReleaseQuarantine,
+    calendarDays,
+    cultureOptions,
+    editingCard,
+    filteredCultureCards,
+    globalJournalEvents,
+    groupedGlobalJournalCards,
+    isSelectedCloneCard,
+    isSupportedPlantingStage,
     operationDates,
+    recommendationCard,
+    recommendationEntries,
+    recommendationSourceCards,
+    recommendationStage,
+    selectedCard,
+    selectedCardActionLocked,
+    selectedCardAdaptationStats,
     selectedCardCalendarOperations,
+    selectedCardCloneStats,
+    selectedCardCurrentQuantity,
+    selectedCardDaysInStage,
+    selectedCardNextStage,
     selectedCardOperations,
     selectedDateOperations,
-  } = buildSelectedCardJournalData(selectedCard, selectedCalendarDate);
-  const selectedCardCurrentQuantity = getCardCurrentQuantity(selectedCard);
-  const selectedCardCloneStats = getCloneStats(selectedCard);
-  const selectedCardAdaptationStats = getAdaptationStats(selectedCard);
-  const selectedCardDaysInStage = getDaysInCurrentStage(selectedCard);
-  const isCultureIntroStage = selectedStage === INTRO_STAGE;
-  const isCloneStage = selectedStage === stages[1];
-  const isAdaptationStage = selectedStage === stages[2];
-  const isGreenhouseStage = selectedStage === stages[3];
-  const selectedCardNextStage = getNextStage(
-    selectedCard?.stage || selectedStage,
-  );
-  const selectedCardActionLocked =
-    selectedCard?.batchStatus === "quarantine" ||
-    selectedCard?.sterilityStatus === "contaminated";
-  const userRole = currentUser.role;
-  const stageMoveButtonLabel = selectedCardNextStage
-    ? `В ${stageMoveTargetLabels[selectedCardNextStage] || selectedCardNextStage.toLocaleLowerCase("ru-RU")}`
-    : getStageMoveButtonLabel(selectedCardNextStage);
-  const stageMoveBlockedMessage =
-    selectedCard?.stage === INTRO_STAGE &&
-    selectedCard.sterilityStatus === "contaminated"
-      ? "РџР°СЂС‚РёСЏ СЃ РєРѕРЅС‚Р°РјРёРЅР°С†РёРµР№. РџРµСЂРµРІРѕРґ РІ РєР»РѕРЅРёСЂРѕРІР°РЅРёРµ Р·Р°Р±Р»РѕРєРёСЂРѕРІР°РЅ."
-      : selectedCard?.stage === INTRO_STAGE &&
-          (selectedCard.batchStatus || "active") === "quarantine"
-        ? "РџР°СЂС‚РёСЏ РЅР° РєР°СЂР°РЅС‚РёРЅРµ. РџРµСЂРµРІРѕРґ РІ РєР»РѕРЅРёСЂРѕРІР°РЅРёРµ Р·Р°Р±Р»РѕРєРёСЂРѕРІР°РЅ."
-        : "";
-  const showIdentityAsText = isEditingCard;
-  const canSaveCultureForm = true;
-  const isSupportedPlantingStage = stages.includes(selectedStage);
-  const isSelectedCloneCard = selectedCard?.stage === stages[1];
-  const canReleaseQuarantine = ["agronomist", "admin", "superadmin"].includes(
-    currentUser.role,
-  );
-  const globalJournalEvents = getGlobalJournalEvents(cultureCards);
-  const careTasks = buildCareTasks(cultureCards, getResolvedBatchStatus);
-  const taskCount = careTasks.length;
-  const activeCardsCount = getActiveCardsCount(
-    cultureCards,
-    getResolvedBatchStatus,
-  );
-  const groupedGlobalJournalCards = buildGroupedGlobalJournalCards(
-    cultureCards,
-    globalJournalEvents,
-    journalFilter,
-    doesJournalEventMatchFilter,
-  );
-
-  const { cultureOptions, speciesOptions, varietyOptions } =
-    buildCultureFormOptions(plantsCatalog, cultureForm);
-
-  const filteredCultureCards = filterCultureCards(cultureCards, {
+    selectedStageCardsCount,
+    selectedStageFlags,
+    showIdentityAsText,
+    speciesOptions,
+    stageMoveBlockedMessage,
+    stageMoveButtonLabel,
+    varietyOptions,
+  } = buildAppDerivedState({
     batchStatusFilter,
     cardSearch,
-    getCardDisplayName,
-    getResolvedBatchStatus,
+    calendarMonth,
+    cultureCards,
+    cultureForm,
+    currentUser,
+    editingCardId,
+    journalFilter,
+    recommendationsContext,
+    recommendationsMode,
+    selectedCalendarDate,
+    selectedCardId,
+    selectedStage,
+  });
+  const {
     isAdaptationStage,
     isCloneStage,
     isCultureIntroStage,
     isGreenhouseStage,
-    selectedStage,
-  });
-
-  const allVisibleStageCardsCount = getAllVisibleStageCardsCount(cultureCards, {
-    cardSearch,
-    getCardDisplayName,
-    getResolvedBatchStatus,
-    selectedStage,
-  });
-  const selectedStageCardsCount = getSelectedStageCardsCount(
-    cultureCards,
-    selectedStage,
-    getResolvedBatchStatus,
-  );
-  const recommendationStage =
-    recommendationsContext?.stage || selectedCard?.stage || selectedStage;
-  const recommendationCard = recommendationsContext?.cardId
-    ? cultureCards.find((card) => card.id === recommendationsContext.cardId)
-    : null;
-  const recommendationSourceCards = recommendationCard
-    ? [recommendationCard]
-    : cultureCards.filter(
-        (card) =>
-          (card.stage || INTRO_STAGE) === recommendationStage &&
-          card.status !== "cancelled" &&
-          card.status !== "archived",
-      );
-  const recommendationEntries = buildRecommendationEntries({
-    plantsCatalog,
-    recommendationCard,
-    recommendationMode: recommendationsMode,
-    recommendationSourceCards,
-    recommendationStage,
-  });
+  } = selectedStageFlags;
+  const isEditingCard = Boolean(editingCardId);
+  const taskCount = careTasks.length;
 
   useEffect(() => {
     loadCultureCards();
     initializeLocalNotifications().catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (currentScreen !== "menu" && isDirectoriesSheetVisible) {
+      setIsDirectoriesSheetVisible(false);
+    }
+  }, [currentScreen, isDirectoriesSheetVisible]);
 
   async function loadCultureCards() {
     try {
@@ -299,7 +267,7 @@ function AppContent() {
       setStorageError("");
     } catch (loadError) {
       setStorageError(
-        "РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РіСЂСѓР·РёС‚СЊ Р»РѕРєР°Р»СЊРЅС‹Рµ РґР°РЅРЅС‹Рµ",
+        "Не удалось загрузить локальные данные",
       );
     } finally {
       setIsCardsLoading(false);
@@ -316,7 +284,7 @@ function AppContent() {
       setStorageError("");
     } catch (saveError) {
       setStorageError(
-        "РќРµ СѓРґР°Р»РѕСЃСЊ СЃРѕС…СЂР°РЅРёС‚СЊ Р»РѕРєР°Р»СЊРЅС‹Рµ РґР°РЅРЅС‹Рµ",
+        "Не удалось сохранить локальные данные",
       );
     }
   }
@@ -330,14 +298,14 @@ function AppContent() {
   function handleForgotPassword() {
     setError("");
     setNotice(
-      "Р’РѕСЃСЃС‚Р°РЅРѕРІР»РµРЅРёРµ РїР°СЂРѕР»СЏ Р±СѓРґРµС‚ РґРѕР±Р°РІР»РµРЅРѕ РЅР° СЃР»РµРґСѓСЋС‰РµРј С€Р°РіРµ.",
+      "Восстановление пароля будет добавлено на следующем шаге.",
     );
   }
 
   function handleRegister() {
     setError("");
     setNotice(
-      "Р РµРіРёСЃС‚СЂР°С†РёСЏ Р±СѓРґРµС‚ РґРѕР±Р°РІР»РµРЅР° РѕС‚РґРµР»СЊРЅРѕ. Р РѕР»СЊ РЅР°Р·РЅР°С‡Р°РµС‚ СЃСѓРїРµСЂР°РґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂ.",
+      "Регистрация будет добавлена отдельно. Роль назначает суперадминистратор.",
     );
   }
 
@@ -378,14 +346,35 @@ function AppContent() {
     setSelectedStage("");
     setSelectedCardId(null);
     setSelectedCalendarDate("");
+    setIsDirectoriesSheetVisible(false);
     setCurrentScreen(nextState.currentScreen);
     setNotice(nextState.notice);
+  }
+
+  function openDirectories() {
+    setSelectedStage("");
+    setSelectedCardId(null);
+    setSelectedCalendarDate("");
+    setCurrentScreen("menu");
+    setIsDirectoriesSheetVisible(true);
+  }
+
+  function closeDirectories() {
+    setIsDirectoriesSheetVisible(false);
+  }
+
+  function openSupport() {
+    setSelectedStage("");
+    setSelectedCardId(null);
+    setSelectedCalendarDate("");
+    setIsDirectoriesSheetVisible(false);
+    setCurrentScreen("support");
   }
 
   async function handleScanPress() {
     if (Platform.OS === "web") {
       setNotice(
-        "QR-СЃРєР°РЅРµСЂ РґРѕСЃС‚СѓРїРµРЅ С‚РѕР»СЊРєРѕ РІ РјРѕР±РёР»СЊРЅРѕРј РїСЂРёР»РѕР¶РµРЅРёРё.",
+        "QR-сканер доступен только в мобильном приложении.",
       );
       return;
     }
@@ -406,18 +395,17 @@ function AppContent() {
           await CameraView.dismissScanner();
         }
 
-        const scannedCode = `${event?.data || ""}`.trim();
-        const matchedCard = cultureCards.find(
-          (card) =>
-            `${card.code || ""}`.trim().toLowerCase() ===
-            scannedCode.toLowerCase(),
+        const scannedCode = getScannedCode(event);
+        const matchedCard = findCultureCardByScannedCode(
+          cultureCards,
+          scannedCode,
         );
 
         if (!matchedCard) {
           setNotice(
             scannedCode
-              ? `РљР°СЂС‚РѕС‡РєР° СЃ QR-РєРѕРґРѕРј ${scannedCode} РЅРµ РЅР°Р№РґРµРЅР°.`
-              : "QR-РєРѕРґ РЅР°Р№РґРµРЅ, РЅРѕ РµРіРѕ Р·РЅР°С‡РµРЅРёРµ РїСѓСЃС‚РѕРµ.",
+              ? `Карточка с QR-кодом ${scannedCode} не найдена.`
+              : "QR-код найден, но его значение пустое.",
           );
           return;
         }
@@ -425,7 +413,7 @@ function AppContent() {
         setSelectedStage(matchedCard.stage || INTRO_STAGE);
         openCultureCalendar(matchedCard);
         setNotice(
-          `РћС‚РєСЂС‹С‚Р° РєР°СЂС‚РѕС‡РєР°: ${getCardDisplayName(matchedCard)}.`,
+          `Открыта карточка: ${getCardDisplayName(matchedCard)}.`,
         );
       });
 
@@ -433,7 +421,7 @@ function AppContent() {
         barcodeTypes: ["qr"],
       });
     } catch (scanError) {
-      setNotice("РќРµ СѓРґР°Р»РѕСЃСЊ РѕС‚РєСЂС‹С‚СЊ СЃРєР°РЅРµСЂ QR-РєРѕРґР°.");
+      setNotice("Не удалось открыть сканер QR-кода.");
     } finally {
       subscription?.remove();
     }
@@ -444,30 +432,30 @@ function AppContent() {
       const shareResult = await shareQrCode(card?.code);
 
       if (shareResult === "web_ready") {
-        setNotice("QR-РєРѕРґ РїРѕРґРіРѕС‚РѕРІР»РµРЅ РґР»СЏ РѕС‚РїСЂР°РІРєРё.");
+        setNotice("QR-код подготовлен для отправки.");
         return;
       }
 
       if (shareResult === "native_unavailable") {
         setNotice(
-          "РЎРёСЃС‚РµРјРЅРѕРµ РѕС‚РїСЂР°РІР»РµРЅРёРµ РЅРµРґРѕСЃС‚СѓРїРЅРѕ, QR-РєРѕРґ РїРѕРґРіРѕС‚РѕРІР»РµРЅ С‚РµРєСЃС‚РѕРј.",
+          "Системное отправление недоступно, QR-код подготовлен текстом.",
         );
         return;
       }
 
       setNotice(
-        "QR-РєРѕРґ РѕС‚РїСЂР°РІР»РµРЅ С‡РµСЂРµР· СЃРёСЃС‚РµРјРЅРѕРµ РјРµРЅСЋ.",
+        "QR-код отправлен через системное меню.",
       );
     } catch (shareError) {
-      setNotice("РќРµ СѓРґР°Р»РѕСЃСЊ РѕС‚РїСЂР°РІРёС‚СЊ QR-РєРѕРґ.");
+      setNotice("Не удалось отправить QR-код.");
     }
   }
 
   function openTaskCard(task) {
-    const taskCard = cultureCards.find((card) => card.id === task.cardId);
+    const taskCard = getTaskCardByTask(cultureCards, task);
 
     if (!taskCard) {
-      setNotice("РџР°СЂС‚РёСЏ РґР»СЏ Р·Р°РґР°С‡Рё РЅРµ РЅР°Р№РґРµРЅР°.");
+      setNotice("Партия для задачи не найдена.");
       return;
     }
 
@@ -484,34 +472,34 @@ function AppContent() {
       });
 
       if (shareResult === "web_ready") {
-        setNotice("Excel-РѕС‚С‡РµС‚ РїРѕРґРіРѕС‚РѕРІР»РµРЅ.");
+        setNotice("Excel-отчет подготовлен.");
         return;
       }
 
       if (shareResult === "native_unavailable") {
         setNotice(
-          "РћС‚РїСЂР°РІРєР° Excel-С„Р°Р№Р»Р° РЅРµРґРѕСЃС‚СѓРїРЅР° РЅР° СѓСЃС‚СЂРѕР№СЃС‚РІРµ.",
+          "Отправка Excel-файла недоступна на устройстве.",
         );
         return;
       }
 
-      setNotice("Excel-С„Р°Р№Р» РѕС‚С‡РµС‚Р° РіРѕС‚РѕРІ Рє РѕС‚РїСЂР°РІРєРµ.");
+      setNotice("Excel-файл отчета готов к отправке.");
     } catch (shareError) {
-      setNotice("РќРµ СѓРґР°Р»РѕСЃСЊ РїРѕРґРіРѕС‚РѕРІРёС‚СЊ Excel-РѕС‚С‡РµС‚.");
+      setNotice("Не удалось подготовить Excel-отчет.");
     }
   }
   async function handleScheduleWateringReminder() {
     try {
       await scheduleWateringReminder({
-        body: "РўРµСЃС‚РѕРІРѕРµ РЅР°РїРѕРјРёРЅР°РЅРёРµ: РїРѕСЂР° РїСЂРѕРІРµСЂРёС‚СЊ РїРѕР»РёРІ.",
+        body: "Тестовое напоминание: пора проверить полив.",
         date: new Date(Date.now() + 60 * 1000),
       });
       setNotice(
-        "РќР°РїРѕРјРёРЅР°РЅРёРµ Рѕ РїРѕР»РёРІРµ Р·Р°РїР»Р°РЅРёСЂРѕРІР°РЅРѕ С‡РµСЂРµР· 1 РјРёРЅСѓС‚Сѓ.",
+        "Напоминание о поливе запланировано через 1 минуту.",
       );
     } catch (notificationError) {
       setNotice(
-        "РќРµ СѓРґР°Р»РѕСЃСЊ РІРєР»СЋС‡РёС‚СЊ СѓРІРµРґРѕРјР»РµРЅРёСЏ. РџСЂРѕРІРµСЂСЊС‚Рµ СЂР°Р·СЂРµС€РµРЅРёСЏ С‚РµР»РµС„РѕРЅР°.",
+        "Не удалось включить уведомления. Проверьте разрешения телефона.",
       );
     }
   }
@@ -557,10 +545,6 @@ function AppContent() {
     setIsAuthenticated(false);
   }
 
-  function handleMenuAction(title) {
-    setNotice(`${title}: СЂР°Р·РґРµР» Р±СѓРґРµС‚ РґРѕР±Р°РІР»РµРЅ РїРѕР·Р¶Рµ.`);
-  }
-
   async function handleClearTestData() {
     try {
       await clearCultureCardsForTests();
@@ -579,11 +563,11 @@ function AppContent() {
       setCurrentScreen("stages");
       setStorageError("");
       setNotice(
-        "РљР°СЂС‚РѕС‡РєРё СЃС‚Р°РґРёР№ Рё Р¶СѓСЂРЅР°Р» РѕС‡РёС‰РµРЅС‹.",
+        "Карточки стадий и журнал очищены.",
       );
     } catch (clearError) {
       setStorageError(
-        "РќРµ СѓРґР°Р»РѕСЃСЊ РѕС‡РёСЃС‚РёС‚СЊ РєР°СЂС‚РѕС‡РєРё СЃС‚Р°РґРёР№",
+        "Не удалось очистить карточки стадий",
       );
     }
   }
@@ -629,7 +613,7 @@ function AppContent() {
   }
 
   function openCultureCalendar(card) {
-    const initialDate = getLatestFilledCalendarDate(card);
+    const initialDate = getOpenCultureCalendarInitialDate(card);
 
     setSelectedCardId(card.id);
     setSelectedCalendarDate(initialDate);
@@ -825,15 +809,15 @@ function AppContent() {
       return;
     }
 
-    const code = generatePlantingCode(cultureForm.createdAt, selectedStage);
-    const isDuplicateCode = isDuplicateCardCode(
+    const { code, isDuplicateCode } = buildGeneratedPlantingCode({
       cultureCards,
-      code,
+      createdAt: cultureForm.createdAt,
+      selectedStage,
       editingCardId,
-    );
+    });
     if (isDuplicateCode) {
       setFormError(
-        "РљРѕРґ СѓР¶Рµ СЃСѓС‰РµСЃС‚РІСѓРµС‚. РЎРіРµРЅРµСЂРёСЂСѓР№С‚Рµ РєРѕРґ РµС‰С‘ СЂР°Р·.",
+        "Код уже существует. Сгенерируйте код ещё раз.",
       );
       return;
     }
@@ -847,13 +831,8 @@ function AppContent() {
   }
 
   function changeCalendarMonth(monthOffset) {
-    setCalendarMonth(
-      (currentDate) =>
-        new Date(
-          currentDate.getFullYear(),
-          currentDate.getMonth() + monthOffset,
-          1,
-        ),
+    setCalendarMonth((currentDate) =>
+      getShiftedMonthStartDate(currentDate, monthOffset),
     );
     setSelectedCalendarDate("");
   }
@@ -871,7 +850,7 @@ function AppContent() {
 
     if (selectedCard.sterilityStatus === "contaminated") {
       setStageActionError(
-        "РњР°С‚РµСЂРёР°Р» Р·Р°СЂР°Р¶С‘РЅ: РїРµСЂРµС…РѕРґ СЃС‚Р°РґРёРё Р·Р°Р±Р»РѕРєРёСЂРѕРІР°РЅ РґРѕ СЂРµС€РµРЅРёСЏ Р°РґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂР° РёР»Рё Р°РіСЂРѕРЅРѕРјР°",
+        "Материал заражён: переход стадии заблокирован до решения администратора или агронома",
       );
       return;
     }
@@ -879,13 +858,13 @@ function AppContent() {
     if (selectedCard.stage === INTRO_STAGE) {
       if ((selectedCard.batchStatus || "active") !== "active") {
         setStageActionError(
-          "РџРµСЂРµРІРµСЃС‚Рё РјРѕР¶РЅРѕ С‚РѕР»СЊРєРѕ Р°РєС‚РёРІРЅСѓСЋ РїР°СЂС‚РёСЋ",
+          "Перевести можно только активную партию",
         );
         return;
       }
 
       if (getQrStatus(selectedCard) === "none") {
-        setStageActionError("QR-РєРѕРґ РµС‰С‘ РЅРµ СЃРѕР·РґР°РЅ");
+        setStageActionError("QR-код ещё не создан");
         return;
       }
     }
@@ -895,31 +874,31 @@ function AppContent() {
 
       if ((selectedCard.batchStatus || "active") === "quarantine") {
         setStageActionError(
-          "РџР°СЂС‚РёСЏ РІ РєР°СЂР°РЅС‚РёРЅРµ Рё РЅРµ РјРѕР¶РµС‚ Р±С‹С‚СЊ РїРµСЂРµРІРµРґРµРЅР° РґР°Р»СЊС€Рµ",
+          "Партия в карантине и не может быть переведена дальше",
         );
         return;
       }
 
       if (
         (selectedCard.batchStatus || "active") === "problem" ||
-        cloneStats.riskStatus === "РљСЂРёС‚РёС‡РµСЃРєРёР№"
+        cloneStats.riskStatus === "Критический"
       ) {
         setStageActionError(
-          "РќРµР»СЊР·СЏ РїРµСЂРµРІРµСЃС‚Рё РїР°СЂС‚РёСЋ СЃ РєСЂРёС‚РёС‡РµСЃРєРёРј СЃС‚Р°С‚СѓСЃРѕРј",
+          "Нельзя перевести партию с критическим статусом",
         );
         return;
       }
 
       if (cloneStats.rootedCount <= 0) {
         setStageActionError(
-          "РЎРЅР°С‡Р°Р»Р° Р·Р°С„РёРєСЃРёСЂСѓР№С‚Рµ СѓРєРѕСЂРµРЅРёРІС€РёРµСЃСЏ СЂР°СЃС‚РµРЅРёСЏ",
+          "Сначала зафиксируйте укоренившиеся растения",
         );
         return;
       }
 
       if (cloneStats.currentQuantity <= 0) {
         setStageActionError(
-          "РћСЃС‚Р°С‚РѕРє РїР°СЂС‚РёРё РґРѕР»Р¶РµРЅ Р±С‹С‚СЊ Р±РѕР»СЊС€Рµ 0",
+          "Остаток партии должен быть больше 0",
         );
         return;
       }
@@ -930,35 +909,35 @@ function AppContent() {
 
       if ((selectedCard.batchStatus || "active") === "quarantine") {
         setStageActionError(
-          "РџР°СЂС‚РёСЏ РІ РєР°СЂР°РЅС‚РёРЅРµ Рё РЅРµ РјРѕР¶РµС‚ Р±С‹С‚СЊ РїРµСЂРµРІРµРґРµРЅР° РґР°Р»СЊС€Рµ",
+          "Партия в карантине и не может быть переведена дальше",
         );
         return;
       }
 
       if (selectedCard.sterilityStatus === "contaminated") {
         setStageActionError(
-          "Р•СЃС‚СЊ Р°РєС‚РёРІРЅР°СЏ РєРѕРЅС‚Р°РјРёРЅР°С†РёСЏ",
+          "Есть активная контаминация",
         );
         return;
       }
 
-      if (adaptationStats.riskStatus === "РљСЂРёС‚РёС‡РµСЃРєРёР№") {
+      if (adaptationStats.riskStatus === "Критический") {
         setStageActionError(
-          "РќРµР»СЊР·СЏ РїРµСЂРµРІРµСЃС‚Рё РїР°СЂС‚РёСЋ СЃ РєСЂРёС‚РёС‡РµСЃРєРёРј СЃС‚СЂРµСЃСЃРѕРј",
+          "Нельзя перевести партию с критическим стрессом",
         );
         return;
       }
 
-      if (adaptationStats.stability !== "РЎС‚Р°Р±РёР»СЊРЅР°") {
+      if (adaptationStats.stability !== "Стабильна") {
         setStageActionError(
-          "РЎРЅР°С‡Р°Р»Р° Р·Р°С„РёРєСЃРёСЂСѓР№С‚Рµ СЃС‚Р°Р±РёР»СЊРЅРѕСЃС‚СЊ РїР°СЂС‚РёРё",
+          "Сначала зафиксируйте стабильность партии",
         );
         return;
       }
 
       if (adaptationStats.currentQuantity <= 0) {
         setStageActionError(
-          "РћСЃС‚Р°С‚РѕРє РїР°СЂС‚РёРё РґРѕР»Р¶РµРЅ Р±С‹С‚СЊ Р±РѕР»СЊС€Рµ 0",
+          "Остаток партии должен быть больше 0",
         );
         return;
       }
@@ -1006,7 +985,7 @@ function AppContent() {
 
     if (selectedCalendarDate !== getTodayIsoDate()) {
       setStatusFormError(
-        "РџСЂРѕРёР·РІРѕРґСЃС‚РІРµРЅРЅС‹Рµ СЃРѕР±С‹С‚РёСЏ РјРѕР¶РЅРѕ С„РёРєСЃРёСЂРѕРІР°С‚СЊ С‚РѕР»СЊРєРѕ РЅР° С‚РµРєСѓС‰СѓСЋ РґР°С‚Сѓ",
+        "Производственные события можно фиксировать только на текущую дату",
       );
       return;
     }
@@ -1033,33 +1012,33 @@ function AppContent() {
 
     if (baseValidationError === "invalid_count") {
       setStatusFormError(
-        "РЈРєР°Р¶РёС‚Рµ РєРѕСЂСЂРµРєС‚РЅРѕРµ РєРѕР»РёС‡РµСЃС‚РІРѕ",
+        "Укажите корректное количество",
       );
       return;
     }
 
     if (baseValidationError === "count_gt_current") {
       setStatusFormError(
-        "РљРѕР»РёС‡РµСЃС‚РІРѕ РЅРµ РјРѕР¶РµС‚ Р±С‹С‚СЊ Р±РѕР»СЊС€Рµ С‚РµРєСѓС‰РµРіРѕ РѕСЃС‚Р°С‚РєР°",
+        "Количество не может быть больше текущего остатка",
       );
       return;
     }
 
     if (baseValidationError === "missing_reason") {
-      setStatusFormError("РЈРєР°Р¶РёС‚Рµ РїСЂРёС‡РёРЅСѓ");
+      setStatusFormError("Укажите причину");
       return;
     }
 
     if (baseValidationError === "release_forbidden") {
       setStatusFormError(
-        "РЎРЅСЏС‚СЊ РєР°СЂР°РЅС‚РёРЅ РјРѕР¶РµС‚ С‚РѕР»СЊРєРѕ Р°РіСЂРѕРЅРѕРј РёР»Рё Р°РґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂ",
+        "Снять карантин может только агроном или администратор",
       );
       return;
     }
 
     if (baseValidationError === "not_in_quarantine") {
       setStatusFormError(
-        "РџР°СЂС‚РёСЏ РЅРµ РЅР°С…РѕРґРёС‚СЃСЏ РІ РєР°СЂР°РЅС‚РёРЅРµ",
+        "Партия не находится в карантине",
       );
       return;
     }
@@ -1071,27 +1050,27 @@ function AppContent() {
 
     if (adaptationValidationError === "adaptation_stress_missing") {
       setStatusFormError(
-        "РЈРєР°Р¶РёС‚Рµ С…РѕС‚СЏ Р±С‹ РѕРґРёРЅ РїР°СЂР°РјРµС‚СЂ РЅР°Р±Р»СЋРґРµРЅРёСЏ",
+        "Укажите хотя бы один параметр наблюдения",
       );
       return;
     }
 
     if (adaptationValidationError === "adaptation_environment_missing") {
       setStatusFormError(
-        "РЈРєР°Р¶РёС‚Рµ С…РѕС‚СЏ Р±С‹ РѕРґРёРЅ РїР°СЂР°РјРµС‚СЂ СЃСЂРµРґС‹",
+        "Укажите хотя бы один параметр среды",
       );
       return;
     }
 
     if (adaptationValidationError === "adaptation_humidity_reduction_missing") {
       setStatusFormError(
-        "РЈРєР°Р¶РёС‚Рµ СЃРЅРёР¶РµРЅРёРµ РІР»Р°Р¶РЅРѕСЃС‚Рё РёР»Рё СЃРѕСЃС‚РѕСЏРЅРёРµ РїР°СЂС‚РёРё",
+        "Укажите снижение влажности или состояние партии",
       );
       return;
     }
 
     if (adaptationValidationError === "adaptation_care_type_missing") {
-      setStatusFormError("РЈРєР°Р¶РёС‚Рµ С‚РёРї СѓС…РѕРґР°");
+      setStatusFormError("Укажите тип ухода");
       return;
     }
 
@@ -1102,26 +1081,26 @@ function AppContent() {
 
     if (greenhouseValidationError === "greenhouse_observation_missing") {
       setStatusFormError(
-        "РЈРєР°Р¶РёС‚Рµ С…РѕС‚СЏ Р±С‹ РѕРґРёРЅ РїР°СЂР°РјРµС‚СЂ РЅР°Р±Р»СЋРґРµРЅРёСЏ",
+        "Укажите хотя бы один параметр наблюдения",
       );
       return;
     }
 
     if (greenhouseValidationError === "greenhouse_care_type_missing") {
-      setStatusFormError("РЈРєР°Р¶РёС‚Рµ С‚РёРї СѓС…РѕРґР°");
+      setStatusFormError("Укажите тип ухода");
       return;
     }
 
     if (greenhouseValidationError === "greenhouse_environment_missing") {
       setStatusFormError(
-        "РЈРєР°Р¶РёС‚Рµ С…РѕС‚СЏ Р±С‹ РѕРґРёРЅ РїР°СЂР°РјРµС‚СЂ СЃСЂРµРґС‹",
+        "Укажите хотя бы один параметр среды",
       );
       return;
     }
 
     if (greenhouseValidationError === "greenhouse_disease_missing") {
       setStatusFormError(
-        "РЈРєР°Р¶РёС‚Рµ Р±РѕР»РµР·РЅСЊ, РІСЂРµРґРёС‚РµР»СЏ РёР»Рё СѓСЂРѕРІРµРЅСЊ СЂРёСЃРєР°",
+        "Укажите болезнь, вредителя или уровень риска",
       );
       return;
     }
@@ -1158,9 +1137,9 @@ function AppContent() {
 
     if (
       introActionType === "greenhouseCare" &&
-      statusForm.careType.trim() === "РџРѕР»РёРІ"
+      statusForm.careType.trim() === "Полив"
     ) {
-      const updatedCard = nextCards.find((card) => card.id === selectedCard.id);
+      const updatedCard = getUpdatedCardById(nextCards, selectedCard.id);
       const wateringStats = getGreenhouseStats(updatedCard);
       const reminderPayload = buildWateringReminderPayload(
         updatedCard,
@@ -1185,7 +1164,7 @@ function AppContent() {
     }
 
     setStatusFormNotice(
-      "РЎРѕР±С‹С‚РёРµ СЃРѕС…СЂР°РЅРµРЅРѕ. РњРѕР¶РЅРѕ РґРѕР±Р°РІРёС‚СЊ СЃР»РµРґСѓСЋС‰РµРµ.",
+      "Событие сохранено. Можно добавить следующее.",
     );
   }
 
@@ -1254,7 +1233,7 @@ function AppContent() {
     const sourceMaterial = cultureForm.sourceMaterial.trim();
     const parentBatch = cultureForm.parentBatch.trim();
     const startPhotoNote = cultureForm.startPhotoNote.trim();
-    const isDuplicateCode = isDuplicateCardCode(
+    const isDuplicateCode = isDuplicateCultureCode(
       cultureCards,
       code,
       editingCardId,
@@ -1271,19 +1250,19 @@ function AppContent() {
       isDuplicateCode,
     });
     if (validationError === "missing_fields") {
-      setFormError("Р—Р°РїРѕР»РЅРёС‚Рµ РІСЃРµ РїРѕР»СЏ");
+      setFormError("Заполните все поля");
       return;
     }
 
     if (validationError === "invalid_quantity") {
       setFormError(
-        "РљРѕР»РёС‡РµСЃС‚РІРѕ СѓРєР°Р·Р°РЅРѕ РЅРµРєРѕСЂСЂРµРєС‚РЅРѕ",
+        "Количество указано некорректно",
       );
       return;
     }
 
     if (validationError === "duplicate_code") {
-      setFormError("РљРѕРґ СѓР¶Рµ СЃСѓС‰РµСЃС‚РІСѓРµС‚");
+      setFormError("Код уже существует");
       return;
     }
 
@@ -1351,6 +1330,7 @@ function AppContent() {
     cultureForm,
     cultureOptions,
     currentScreen,
+    isDirectoriesSheetVisible,
     editingOperationId,
     expandedJournalCardIds,
     filteredCultureCards,
@@ -1402,7 +1382,7 @@ function AppContent() {
     statusFormError,
     statusFormNotice,
     taskCount,
-    userRole,
+    userRole: currentUser.role,
     varietyOptions,
   };
 
@@ -1419,7 +1399,9 @@ function AppContent() {
     handleDateChange,
     handleGenerateCode,
     handleLogout,
-    handleMenuAction,
+    openDirectories,
+    closeDirectories,
+    openSupport,
     handleSaveCultureCard,
     handleSaveIntroAction,
     handleSaveStatusChange,
@@ -1428,6 +1410,7 @@ function AppContent() {
     handleShareData,
     handleShareQrPress,
     handleStagePress,
+    openStageRecommendations,
     openCultureCalendar,
     openCultureForm,
     openEditCultureForm,

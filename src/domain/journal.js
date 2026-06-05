@@ -191,12 +191,17 @@ export function doesJournalEventMatchFilter(event, filter) {
 
 export function getJournalFilterLabel(filter) {
   return {
-    important: 'Р’Р°Р¶РЅС‹Рµ',
-    all: 'Р’СЃРµ',
-    contamination: 'РљРѕРЅС‚Р°РјРёРЅР°С†РёСЏ',
-    quarantine: 'РљР°СЂР°РЅС‚РёРЅ',
-    losses: 'РџРѕС‚РµСЂРё',
-    sales: 'РџСЂРѕРґР°Р¶Рё',
-    stageChange: 'РџРµСЂРµС…РѕРґС‹',
+    important: 'Важные',
+    all: 'Все',
+    comment: 'Комментарии',
+    photo: 'Фото',
+    contamination: 'Контаминация',
+    quarantine: 'Карантин',
+    losses: 'Потери',
+    sales: 'Продажи',
+    rooting: 'Укоренение',
+    propagation: 'Размножение',
+    transplant: 'Пересадка',
+    stageChange: 'Переходы',
   }[filter] || filter;
 }

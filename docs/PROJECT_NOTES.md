@@ -37,12 +37,14 @@ Source document: `c:\Users\uin-a\OneDrive\Документы\works\Прилож�
 - `Адаптация` now follows the latest scenario core: passport stays read-only, list/status filters show survival, stress, risk, and days in stage; the card shows adaptation state, Excel recommendations, stress/turgor/stability, and current remainder; events cover stress/state, environment changes, care actions, death, discard, and sale; sale/death/discard validate against current remainder and zero-remainder sale archives the batch; transition to greenhouse is blocked by quarantine, active contamination, critical stress, missing stability, or zero remainder.
 - `Теплица` now has the first MVP production core: cards arrive from adaptation, list/status filters show growth, losses, risk, and days in stage; the card shows greenhouse state, Excel recommendation placeholders, current remainder, losses, sales, transplants, stress, stability, and risk; events cover observation/state, care, environment, diseases/pests, transplant, death, discard, sale, and quarantine; transition to hardening is blocked by quarantine, critical disease/risk, missing stable growth, or zero remainder. Greenhouse care now has the first planning layer: `Уход -> Полив/Подкормка/Профилактика/Лечение` stores an interval in days, the card calculates last action, next action, due-today/overdue status, and the greenhouse list highlights any overdue care. The main stage-selection screen now shows `Задачи ухода` for greenhouse care due today or overdue, with quick open into the relevant card. Native push/local notifications are the next layer.
 - Started dev-architecture cleanup: domain constants, date helpers, empty form factories, batch/event calculations, and AsyncStorage access were moved out of `App.jsx` into `src/domain/*` and `src/services/cultureCardsStorage.js`. `App.jsx` still owns screens/UI and some catalog dropdown helpers.
+- Menu now opens a compact plant catalog bottom sheet backed by the local plant catalog.
+- Menu now has a working `Поддержка` screen with app diagnostics and quick actions instead of a notice stub.
 - `git` is not available in the current shell PATH.
 - Initial TypeScript scaffold was converted to JavaScript because the project owner prefers JS.
 
 ## Core product scope
 
-The application is a gardener diary for managing plant/crop batches across production stages, with calendars, operation history, notifications, photo evidence, code scanning, role-based access, and an AI assistant chat.
+The application is a gardener diary for managing plant/crop batches across production stages, with calendars, operation history, notifications, photo evidence, code scanning, and role-based access.
 
 ## Main stages
 
@@ -81,19 +83,11 @@ The application is a gardener diary for managing plant/crop batches across produ
   - date markers for recorded actions
   - add changes for a selected date
   - open full card information
-  - open assistant chat
 - Card information:
   - editable general fields
   - operations grouped by date
   - creation entry
   - operation-specific details
-- AI assistant:
-  - chat screen from the calendar
-  - user sends text question and receives text response
-  - future implementation should start with GigaChat API as the primary Russian AI provider for gardening questions
-  - YandexGPT / Alice AI Studio can be kept as a fallback provider if GigaChat quality, limits, or access are not enough
-  - AI API keys must not be stored in the React Native app; use a small backend/proxy that receives chat messages from the app and calls the provider API server-side
-  - base assistant prompt: answer in Russian as a gardener/nursery assistant; cover plant care, micropropagation, temperature, lighting, disease symptoms, transplanting, and adaptation; ask up to three clarifying questions when data is insufficient; do not invent exact norms for a variety when conditions are unknown
 
 ## Cross-cutting requirements
 
@@ -118,5 +112,5 @@ The application is a gardener diary for managing plant/crop batches across produ
 Before coding screens, decide the first vertical slice. The safest first slice is:
 
 1. Add navigation structure.
-2. Add placeholder screens for auth, stage selection, card list, card form, calendar, card info, chat.
+2. Add placeholder screens for auth, stage selection, card list, card form, calendar, and card info.
 3. Define JavaScript domain structures for stages, cards, operations, roles, and notifications.

@@ -5,8 +5,8 @@ export function getStatusFormComment(operation) {
 
   return [
     operation.comment,
-    operation.conditionDescription ? `РЎРѕСЃС‚РѕСЏРЅРёРµ: ${operation.conditionDescription}` : '',
-    operation.reason ? `РџСЂРёС‡РёРЅР°: ${operation.reason}` : '',
-    operation.turgor ? `РўСѓСЂРіРѕСЂ: ${operation.turgor}` : '',
+    operation.conditionDescription ? `Состояние: ${operation.conditionDescription}` : '',
+    operation.reason ? `Причина: ${operation.reason}` : '',
+    operation.turgor ? `Тургор: ${operation.turgor}` : '',
   ].filter(Boolean).join('\n');
 }

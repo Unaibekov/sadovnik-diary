@@ -14,10 +14,15 @@ import { formatDisplayDate, formatDisplayTime } from '../domain/dates';
 const journalFilters = [
   'important',
   'all',
+  'comment',
+  'photo',
   'contamination',
   'quarantine',
   'losses',
   'sales',
+  'rooting',
+  'propagation',
+  'transplant',
   'stageChange',
 ];
 

@@ -78,7 +78,7 @@ export default function CultureListScreen({
       <View style={styles.fixedCardsScreen}>
         <StageHeader
           onBack={onBack}
-          onOpenRecommendations={!isCultureIntroStage ? onOpenRecommendations : undefined}
+          onOpenRecommendations={selectedStageCardsCount > 0 ? onOpenRecommendations : undefined}
           title={selectedStage}
         >
           <View style={localStyles.searchRow}>

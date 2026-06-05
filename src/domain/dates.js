@@ -117,3 +117,11 @@ export function getMonthDays(date) {
 
   return days;
 }
+
+export function getShiftedMonthStartDate(currentDate, monthOffset) {
+  return new Date(
+    currentDate.getFullYear(),
+    currentDate.getMonth() + monthOffset,
+    1,
+  );
+}

@@ -14,7 +14,9 @@ import CultureListScreen from './src/screens/CultureListScreen';
 import GlobalJournalScreen from './src/screens/GlobalJournalScreen';
 import IntroActionFormScreen from './src/screens/IntroActionFormScreen';
 import MenuScreen from './src/screens/MenuScreen';
+import PlantCatalogBottomSheet from './src/components/PlantCatalogBottomSheet';
 import RecommendationsScreen from './src/screens/RecommendationsScreen';
+import SupportScreen from './src/screens/SupportScreen';
 import StatusChangeFormScreen from './src/screens/StatusChangeFormScreen';
 import TasksScreen from './src/screens/TasksScreen';
 import { createEmptyIntroActionForm, createEmptyStatusForm } from './src/domain/forms';
@@ -48,6 +50,7 @@ export default function AppRouter({ actions, state }) {
     cultureForm,
     cultureOptions,
     currentScreen,
+    isDirectoriesSheetVisible,
     expandedJournalCardIds,
     filteredCultureCards,
     formError,
@@ -148,14 +151,16 @@ export default function AppRouter({ actions, state }) {
     handleShareData,
     handleShareQrPress,
     handleStagePress,
-    handleMenuAction,
-    handleOpenJournalFromHome,
+    openDirectories,
+    closeDirectories,
+    openSupport,
     openCultureCalendar,
     openCultureForm,
     openEditCultureForm,
     openEditOperation,
     openGlobalJournal,
     openMenu,
+    openStageRecommendations,
     openSelectedCardRecommendations,
     openStatusChangeForm,
     openTaskCard,
@@ -390,6 +395,7 @@ export default function AppRouter({ actions, state }) {
         isEditing={Boolean(state.editingOperationId)}
         onBack={closeStatusChangeForm}
         onChangeField={updateStatusForm}
+        onOpenRecommendations={() => openSelectedCardRecommendations('statusChangeForm')}
         onSave={handleSaveStatusChange}
         onSelectEventType={(value) => {
           setIntroActionType(value);
@@ -438,6 +444,7 @@ export default function AppRouter({ actions, state }) {
         onChangeSearch={setCardSearch}
         onCreateCulture={openCultureForm}
         onEditCulture={openEditCultureForm}
+        onOpenRecommendations={openStageRecommendations}
         onOpenCultureCalendar={openCultureCalendar}
         selectedStage={selectedStage}
         storageError={storageError}
@@ -518,7 +525,8 @@ export default function AppRouter({ actions, state }) {
             setCurrentScreen('globalJournal');
           }}
           onLogout={handleLogout}
-          onMenuAction={handleMenuAction}
+          onOpenDirectories={openDirectories}
+          onOpenSupport={openSupport}
           onClearCards={handleClearTestData}
           onScheduleWateringReminder={handleScheduleWateringReminder}
           onShareData={handleShareData}
@@ -538,6 +546,31 @@ export default function AppRouter({ actions, state }) {
           onScanPress={handleScanPress}
           onTaskPress={openTaskCard}
           tasks={careTasks}
+        />
+      );
+    } else if (currentScreen === 'support') {
+      screenNode = (
+        <SupportScreen
+          activeCardsCount={activeCardsCount}
+          bottomInset={bottomInset}
+          currentScreenLabel="Поддержка"
+          login={login}
+          notice={notice}
+          onHomePress={() => setCurrentScreen('stages')}
+          onJournalPress={() => {
+            setJournalFilter('important');
+            setCurrentScreen('globalJournal');
+          }}
+          onMenuPress={openMenu}
+          onOpenMenu={openMenu}
+          onOpenTasks={openTasks}
+          onScheduleWateringReminder={handleScheduleWateringReminder}
+          onShareData={handleShareData}
+          onScanPress={handleScanPress}
+          onTasksPress={openTasks}
+          role={userRole}
+          storageError={storageError}
+          taskCount={taskCount}
         />
       );
     } else {
@@ -599,17 +632,24 @@ export default function AppRouter({ actions, state }) {
       : 0;
 
     return (
-      <Animated.View
-        style={[
-          styles.screenTransitionContainer,
-          {
-            opacity: screenTransition,
-          },
-          shouldUseVerticalOffset ? { transform: [{ translateY }] } : null,
-        ]}
-      >
-        {screenNode}
-      </Animated.View>
+      <>
+        <Animated.View
+          style={[
+            styles.screenTransitionContainer,
+            {
+              opacity: screenTransition,
+            },
+            shouldUseVerticalOffset ? { transform: [{ translateY }] } : null,
+          ]}
+        >
+          {screenNode}
+        </Animated.View>
+
+        <PlantCatalogBottomSheet
+          visible={isDirectoriesSheetVisible}
+          onClose={closeDirectories}
+        />
+      </>
     );
   }
 

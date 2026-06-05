@@ -1,4 +1,5 @@
 import { EMPTY_CATALOG_VALUE } from './constants';
+import { generatePlantingCode } from './batch';
 
 export function applyCultureSelection(currentForm, cultureName) {
   return {
@@ -38,6 +39,18 @@ export function isDuplicateCardCode(cards, nextCode, editingCardId) {
     card.id !== editingCardId &&
     (card.code || '').trim().toLowerCase() === (nextCode || '').trim().toLowerCase()
   ));
+}
+
+export function buildGeneratedPlantingCode({
+  cultureCards,
+  createdAt,
+  selectedStage,
+  editingCardId,
+}) {
+  const code = generatePlantingCode(createdAt, selectedStage);
+  const isDuplicateCode = isDuplicateCardCode(cultureCards, code, editingCardId);
+
+  return { code, isDuplicateCode };
 }
 
 export function isRequiredFieldMissingInForm(cultureForm, touchedSubmit, field) {
