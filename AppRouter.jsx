@@ -1,38 +1,46 @@
-import { StatusBar } from 'expo-status-bar';
-import { useEffect, useLayoutEffect, useRef } from 'react';
-import { Animated, Easing, Platform, Pressable, ScrollView, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import styles from './styles';
-import BottomTabBar from './src/components/BottomTabBar';
-import { StageItemIcon } from './src/components/icons';
-import CultureCalendarTab from './src/components/CultureCalendarTab';
-import CultureJournalTab from './src/components/CultureJournalTab';
-import CulturePassportTab from './src/components/CulturePassportTab';
-import CultureCalendarScreen from './src/screens/CultureCalendarScreen';
-import CultureFormScreen from './src/screens/CultureFormScreen';
-import CultureListScreen from './src/screens/CultureListScreen';
-import GlobalJournalScreen from './src/screens/GlobalJournalScreen';
-import IntroActionFormScreen from './src/screens/IntroActionFormScreen';
-import MenuScreen from './src/screens/MenuScreen';
-import PlantCatalogBottomSheet from './src/components/PlantCatalogBottomSheet';
-import RecommendationsScreen from './src/screens/RecommendationsScreen';
-import SupportScreen from './src/screens/SupportScreen';
-import StatusChangeFormScreen from './src/screens/StatusChangeFormScreen';
-import TasksScreen from './src/screens/TasksScreen';
-import { createEmptyIntroActionForm, createEmptyStatusForm } from './src/domain/forms';
-import { getTodayIsoDate } from './src/domain/dates';
-import { getCardDisplayName } from './src/domain/batch';
+import { StatusBar } from "expo-status-bar";
+import { useEffect, useLayoutEffect, useRef } from "react";
+import {
+  Animated,
+  Easing,
+  Platform,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import styles from "./styles";
+import BottomTabBar from "./src/components/BottomTabBar";
+import { StageItemIcon } from "./src/components/icons";
+import CultureCalendarTab from "./src/components/CultureCalendarTab";
+import CultureJournalTab from "./src/components/CultureJournalTab";
+import CulturePassportTab from "./src/components/CulturePassportTab";
+import CultureCalendarScreen from "./src/screens/CultureCalendarScreen";
+import CultureFormScreen from "./src/screens/CultureFormScreen";
+import CultureListScreen from "./src/screens/CultureListScreen";
+import GlobalJournalScreen from "./src/screens/GlobalJournalScreen";
+import IntroActionFormScreen from "./src/screens/IntroActionFormScreen";
+import MenuScreen from "./src/screens/MenuScreen";
+import PlantCatalogBottomSheet from "./src/components/PlantCatalogBottomSheet";
+import RecommendationsScreen from "./src/screens/RecommendationsScreen";
+import SupportScreen from "./src/screens/SupportScreen";
+import StatusChangeFormScreen from "./src/screens/StatusChangeFormScreen";
+import TasksScreen from "./src/screens/TasksScreen";
+import {
+  createEmptyIntroActionForm,
+  createEmptyStatusForm,
+} from "./src/domain/forms";
+import { getTodayIsoDate } from "./src/domain/dates";
+import { getCardDisplayName } from "./src/domain/batch";
 import {
   cultureCreateBatchStatuses,
   editableStatusOperationTypes,
   introOperationFields,
   protectedOperationTypes,
   stageHomeItems as stageHomeItemsConfig,
-} from './src/domain/operationConfig';
-import {
-  INTRO_STAGE,
-  SOURCE_MATERIAL_OPTIONS,
-} from './src/domain/constants';
+} from "./src/domain/operationConfig";
+import { INTRO_STAGE, SOURCE_MATERIAL_OPTIONS } from "./src/domain/constants";
 
 export default function AppRouter({ actions, state }) {
   const {
@@ -237,7 +245,8 @@ export default function AppRouter({ actions, state }) {
   }
 
   function renderCultureCalendarScreen() {
-    const selectedDate = selectedCalendarDate || selectedCard.createdAt || getTodayIsoDate();
+    const selectedDate =
+      selectedCalendarDate || selectedCard.createdAt || getTodayIsoDate();
 
     return (
       <CultureCalendarScreen
@@ -247,14 +256,14 @@ export default function AppRouter({ actions, state }) {
         isStageMoveConfirmVisible={isStageMoveConfirmVisible}
         onAddEvent={() => {
           setSelectedCalendarDate(selectedDate);
-          setStageActionError('');
+          setStageActionError("");
           setEditingOperationId(null);
 
           if (selectedCard.stage === INTRO_STAGE) {
             setIsDateEntryExpanded(false);
-            setIntroActionType('comment');
+            setIntroActionType("comment");
             setIntroActionForm(createEmptyIntroActionForm());
-            setCurrentScreen('introActionForm');
+            setCurrentScreen("introActionForm");
             return;
           }
 
@@ -266,39 +275,48 @@ export default function AppRouter({ actions, state }) {
         onChangeTab={(tab) => {
           setCultureCalendarTab(tab);
           setIsDateEntryExpanded(false);
-          setIntroActionType('');
+          setIntroActionType("");
           setEditingOperationId(null);
-          setStageActionError('');
+          setStageActionError("");
         }}
         onConfirmOperationDelete={confirmDeleteOperation}
         onConfirmStageMove={handleAddStageChange}
-        onOpenRecommendations={() => openSelectedCardRecommendations('cultureCalendar')}
+        onOpenRecommendations={() =>
+          openSelectedCardRecommendations("cultureCalendar")
+        }
         onRequestStageMove={() => {
-          setStageActionError('');
+          setStageActionError("");
           setIsStageMoveConfirmVisible(true);
         }}
-        showBottomActions={cultureCalendarTab === 'calendar' && !selectedCardActionLocked}
+        showBottomActions={
+          cultureCalendarTab === "calendar" && !selectedCardActionLocked
+        }
         stageActionError={stageActionError}
         stageMoveBlockedMessage={stageMoveBlockedMessage}
         stageMoveButtonLabel={stageMoveButtonLabel}
         stageMoveTarget={selectedCardNextStage}
-        subtitle={<Text style={styles.stageHeaderSubtitle}>{selectedCard.stage || selectedStage}</Text>}
+        subtitle={
+          <Text style={styles.stageHeaderSubtitle}>
+            {selectedCard.stage || selectedStage}
+          </Text>
+        }
         title={getCardDisplayName(selectedCard)}
       >
-        {cultureCalendarTab === 'calendar' && (
+        {cultureCalendarTab === "calendar" && (
           <CultureCalendarTab
             calendarDays={calendarDays}
             calendarMonth={calendarMonth}
-            canDeleteOperation={(operation) => (
-              (
-                (selectedCard.stage === INTRO_STAGE && introOperationFields[operation.type]) ||
-                editableStatusOperationTypes.includes(operation.type)
-              ) && !protectedOperationTypes.includes(operation.type)
-            )}
-            canEditOperation={(operation) => (
-              (selectedCard.stage === INTRO_STAGE && introOperationFields[operation.type]) ||
+            canDeleteOperation={(operation) =>
+              ((selectedCard.stage === INTRO_STAGE &&
+                introOperationFields[operation.type]) ||
+                editableStatusOperationTypes.includes(operation.type)) &&
+              !protectedOperationTypes.includes(operation.type)
+            }
+            canEditOperation={(operation) =>
+              (selectedCard.stage === INTRO_STAGE &&
+                introOperationFields[operation.type]) ||
               editableStatusOperationTypes.includes(operation.type)
-            )}
+            }
             card={selectedCard}
             onChangeMonth={changeCalendarMonth}
             onDeleteOperation={requestDeleteOperation}
@@ -306,10 +324,10 @@ export default function AppRouter({ actions, state }) {
             onSelectDate={(isoDate) => {
               setSelectedCalendarDate(isoDate);
               setIsDateEntryExpanded(false);
-              setIntroActionType('');
+              setIntroActionType("");
               setIntroActionForm(createEmptyIntroActionForm());
               setEditingOperationId(null);
-              setStageActionError('');
+              setStageActionError("");
             }}
             operationDates={operationDates}
             selectedDate={selectedDate}
@@ -320,7 +338,7 @@ export default function AppRouter({ actions, state }) {
           />
         )}
 
-        {cultureCalendarTab === 'passport' && (
+        {cultureCalendarTab === "passport" && (
           <CulturePassportTab
             adaptationStats={selectedCardAdaptationStats}
             card={selectedCard}
@@ -332,18 +350,19 @@ export default function AppRouter({ actions, state }) {
           />
         )}
 
-        {cultureCalendarTab === 'journal' && (
+        {cultureCalendarTab === "journal" && (
           <CultureJournalTab
-            canDeleteOperation={(operation) => (
-              (
-                (selectedCard.stage === INTRO_STAGE && introOperationFields[operation.type]) ||
-                editableStatusOperationTypes.includes(operation.type)
-              ) && !protectedOperationTypes.includes(operation.type)
-            )}
-            canEditOperation={(operation) => (
-              (selectedCard.stage === INTRO_STAGE && introOperationFields[operation.type]) ||
+            canDeleteOperation={(operation) =>
+              ((selectedCard.stage === INTRO_STAGE &&
+                introOperationFields[operation.type]) ||
+                editableStatusOperationTypes.includes(operation.type)) &&
+              !protectedOperationTypes.includes(operation.type)
+            }
+            canEditOperation={(operation) =>
+              (selectedCard.stage === INTRO_STAGE &&
+                introOperationFields[operation.type]) ||
               editableStatusOperationTypes.includes(operation.type)
-            )}
+            }
             card={selectedCard}
             operations={selectedCardOperations}
             onDeleteOperation={requestDeleteOperation}
@@ -362,23 +381,23 @@ export default function AppRouter({ actions, state }) {
         error={stageActionError}
         isEditing={Boolean(state.editingOperationId)}
         onBack={() => {
-          setIntroActionType('');
+          setIntroActionType("");
           setIntroActionForm(createEmptyIntroActionForm());
           setEditingOperationId(null);
-          setStageActionError('');
-          setCurrentScreen('cultureCalendar');
+          setStageActionError("");
+          setCurrentScreen("cultureCalendar");
         }}
         onChangeActionForm={updateIntroActionForm}
         onSave={async () => {
           const isSaved = await handleSaveIntroAction();
           if (isSaved) {
-            setCurrentScreen('cultureCalendar');
+            setCurrentScreen("cultureCalendar");
           }
         }}
         onSelectActionType={(value) => {
           setIntroActionType(value);
           setEditingOperationId(null);
-          setStageActionError('');
+          setStageActionError("");
         }}
         selectedCard={selectedCard}
       />
@@ -395,13 +414,15 @@ export default function AppRouter({ actions, state }) {
         isEditing={Boolean(state.editingOperationId)}
         onBack={closeStatusChangeForm}
         onChangeField={updateStatusForm}
-        onOpenRecommendations={() => openSelectedCardRecommendations('statusChangeForm')}
+        onOpenRecommendations={() =>
+          openSelectedCardRecommendations("statusChangeForm")
+        }
         onSave={handleSaveStatusChange}
         onSelectEventType={(value) => {
           setIntroActionType(value);
           setStatusForm(createEmptyStatusForm());
-          setStatusFormError('');
-          setStatusFormNotice('');
+          setStatusFormError("");
+          setStatusFormNotice("");
         }}
         selectedCard={selectedCard}
         selectedDate={selectedCalendarDate}
@@ -418,7 +439,11 @@ export default function AppRouter({ actions, state }) {
         onChangeMode={setRecommendationsMode}
         showModeSwitch={Boolean(recommendationCard)}
         stage={recommendationStage}
-        title={recommendationCard ? getCardDisplayName(recommendationCard) : 'Рекомендации'}
+        title={
+          recommendationCard
+            ? getCardDisplayName(recommendationCard)
+            : "Рекомендации"
+        }
       />
     );
   }
@@ -439,7 +464,7 @@ export default function AppRouter({ actions, state }) {
         isCultureIntroStage={isCultureIntroStage}
         isGreenhouseStage={isGreenhouseStage}
         selectedStageCardsCount={selectedStageCardsCount}
-        onBack={() => setSelectedStage('')}
+        onBack={() => setSelectedStage("")}
         onChangeBatchStatusFilter={setBatchStatusFilter}
         onChangeSearch={setCardSearch}
         onCreateCulture={openCultureForm}
@@ -462,7 +487,7 @@ export default function AppRouter({ actions, state }) {
         groupedCards={groupedGlobalJournalCards}
         journalFilter={journalFilter}
         onChangeJournalFilter={setJournalFilter}
-        onHomePress={() => setCurrentScreen('stages')}
+        onHomePress={() => setCurrentScreen("stages")}
         onJournalPress={openGlobalJournal}
         onMenuPress={openMenu}
         onOpenCard={(card) => {
@@ -480,38 +505,29 @@ export default function AppRouter({ actions, state }) {
   function renderAuthenticatedScreens() {
     let screenNode = null;
 
-    if (
-      isSupportedPlantingStage &&
-      currentScreen === 'cultureForm'
-    ) {
+    if (isSupportedPlantingStage && currentScreen === "cultureForm") {
       screenNode = renderCultureFormScreen();
     } else if (
       isSupportedPlantingStage &&
-      currentScreen === 'cultureCalendar' &&
+      currentScreen === "cultureCalendar" &&
       selectedCard
     ) {
       screenNode = renderCultureCalendarScreen();
-    } else if (
-      currentScreen === 'introActionForm' &&
-      selectedCard
-    ) {
+    } else if (currentScreen === "introActionForm" && selectedCard) {
       screenNode = renderIntroActionFormScreen();
     } else if (
       (isCloneStage || isAdaptationStage || isGreenhouseStage) &&
-      currentScreen === 'statusChangeForm' &&
+      currentScreen === "statusChangeForm" &&
       selectedCard
     ) {
       screenNode = renderStatusChangeFormScreen();
-    } else if (currentScreen === 'recommendations') {
+    } else if (currentScreen === "recommendations") {
       screenNode = renderRecommendationsScreen();
-    } else if (
-      isSupportedPlantingStage &&
-      currentScreen === 'cultureList'
-    ) {
+    } else if (isSupportedPlantingStage && currentScreen === "cultureList") {
       screenNode = renderCultureListScreen();
-    } else if (currentScreen === 'globalJournal') {
+    } else if (currentScreen === "globalJournal") {
       screenNode = renderGlobalJournalScreen();
-    } else if (currentScreen === 'menu') {
+    } else if (currentScreen === "menu") {
       screenNode = (
         <MenuScreen
           activeCardsCount={activeCardsCount}
@@ -519,10 +535,10 @@ export default function AppRouter({ actions, state }) {
           firstName={login}
           lastName=""
           notice={notice}
-          onHomePress={() => setCurrentScreen('stages')}
+          onHomePress={() => setCurrentScreen("stages")}
           onJournalPress={() => {
-            setJournalFilter('important');
-            setCurrentScreen('globalJournal');
+            setJournalFilter("important");
+            setCurrentScreen("globalJournal");
           }}
           onLogout={handleLogout}
           onOpenDirectories={openDirectories}
@@ -536,11 +552,11 @@ export default function AppRouter({ actions, state }) {
           taskCount={taskCount}
         />
       );
-    } else if (currentScreen === 'tasks') {
+    } else if (currentScreen === "tasks") {
       screenNode = (
         <TasksScreen
           bottomInset={bottomInset}
-          onHomePress={() => setCurrentScreen('stages')}
+          onHomePress={() => setCurrentScreen("stages")}
           onJournalPress={openGlobalJournal}
           onMenuPress={openMenu}
           onScanPress={handleScanPress}
@@ -548,7 +564,7 @@ export default function AppRouter({ actions, state }) {
           tasks={careTasks}
         />
       );
-    } else if (currentScreen === 'support') {
+    } else if (currentScreen === "support") {
       screenNode = (
         <SupportScreen
           activeCardsCount={activeCardsCount}
@@ -556,10 +572,10 @@ export default function AppRouter({ actions, state }) {
           currentScreenLabel="Поддержка"
           login={login}
           notice={notice}
-          onHomePress={() => setCurrentScreen('stages')}
+          onHomePress={() => setCurrentScreen("stages")}
           onJournalPress={() => {
-            setJournalFilter('important');
-            setCurrentScreen('globalJournal');
+            setJournalFilter("important");
+            setCurrentScreen("globalJournal");
           }}
           onMenuPress={openMenu}
           onOpenMenu={openMenu}
@@ -593,7 +609,9 @@ export default function AppRouter({ actions, state }) {
                       pressed && styles.stageCardPressed,
                     ]}
                   >
-                    <View style={[styles.stageIconBox, styles[stage.iconBoxStyle]]}>
+                    <View
+                      style={[styles.stageIconBox, styles[stage.iconBoxStyle]]}
+                    >
                       <StageItemIcon name={stage.iconName} size={24} />
                     </View>
                     <Text style={styles.stageName}>{stage.label}</Text>
@@ -602,17 +620,19 @@ export default function AppRouter({ actions, state }) {
               </View>
 
               {!!notice && <Text style={styles.homeNoticeText}>{notice}</Text>}
-              {!!storageError && <Text style={styles.homeErrorText}>{storageError}</Text>}
+              {!!storageError && (
+                <Text style={styles.homeErrorText}>{storageError}</Text>
+              )}
             </View>
           </ScrollView>
 
           <BottomTabBar
             activeTab="home"
             bottomInset={bottomInset}
-            onHomePress={() => setCurrentScreen('stages')}
+            onHomePress={() => setCurrentScreen("stages")}
             onJournalPress={() => {
-              setJournalFilter('important');
-              setCurrentScreen('globalJournal');
+              setJournalFilter("important");
+              setCurrentScreen("globalJournal");
             }}
             onMenuPress={openMenu}
             onScanPress={handleScanPress}
@@ -623,12 +643,12 @@ export default function AppRouter({ actions, state }) {
       );
     }
 
-    const shouldUseVerticalOffset = Platform.OS !== 'android';
+    const shouldUseVerticalOffset = Platform.OS !== "android";
     const translateY = shouldUseVerticalOffset
       ? screenTransition.interpolate({
-        inputRange: [0, 1],
-        outputRange: [8, 0],
-      })
+          inputRange: [0, 1],
+          outputRange: [8, 0],
+        })
       : 0;
 
     return (

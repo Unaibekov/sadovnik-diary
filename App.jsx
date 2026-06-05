@@ -46,9 +46,7 @@ import {
   stageHomeItems as stageHomeItemsConfig,
   statusEventCountFields,
 } from "./src/domain/operationConfig";
-import {
-  removeRecommendationFields,
-} from "./src/domain/recommendations";
+import { removeRecommendationFields } from "./src/domain/recommendations";
 import {
   buildCloseRecommendationsState,
   buildGlobalJournalNavigationState,
@@ -159,7 +157,8 @@ function AppContent() {
   const [isCardsLoading, setIsCardsLoading] = useState(true);
   const [storageError, setStorageError] = useState("");
   const [currentScreen, setCurrentScreen] = useState("stages");
-  const [isDirectoriesSheetVisible, setIsDirectoriesSheetVisible] = useState(false);
+  const [isDirectoriesSheetVisible, setIsDirectoriesSheetVisible] =
+    useState(false);
   const [cultureForm, setCultureForm] = useState(createEmptyCultureForm);
   const [statusForm, setStatusForm] = useState(createEmptyStatusForm);
   const [introActionForm, setIntroActionForm] = useState(
@@ -268,9 +267,7 @@ function AppContent() {
       setCultureCards(savedCards);
       setStorageError("");
     } catch (loadError) {
-      setStorageError(
-        "Не удалось загрузить локальные данные",
-      );
+      setStorageError("Не удалось загрузить локальные данные");
     } finally {
       setIsCardsLoading(false);
     }
@@ -285,9 +282,7 @@ function AppContent() {
       setCultureCards(cardsWithoutRecommendations);
       setStorageError("");
     } catch (saveError) {
-      setStorageError(
-        "Не удалось сохранить локальные данные",
-      );
+      setStorageError("Не удалось сохранить локальные данные");
     }
   }
 
@@ -463,9 +458,9 @@ function AppContent() {
         body: "Тестовое напоминание: пора проверить полив.",
         date: new Date(Date.now() + 60 * 1000),
       });
-      setNotice(getWateringReminderNotice('scheduled'));
+      setNotice(getWateringReminderNotice("scheduled"));
     } catch (notificationError) {
-      setNotice(getWateringReminderNotice('error'));
+      setNotice(getWateringReminderNotice("error"));
     }
   }
 
@@ -535,9 +530,7 @@ function AppContent() {
       setStorageError(resetState.storageError);
       setNotice(resetState.notice);
     } catch (clearError) {
-      setStorageError(
-        "Не удалось очистить карточки стадий",
-      );
+      setStorageError("Не удалось очистить карточки стадий");
     }
   }
 
@@ -736,11 +729,13 @@ function AppContent() {
       return;
     }
 
-    setCultureForm((currentForm) => buildCultureFormSelectionResult({
-      currentForm,
-      type: "culture",
-      value: cultureName,
-    }));
+    setCultureForm((currentForm) =>
+      buildCultureFormSelectionResult({
+        currentForm,
+        type: "culture",
+        value: cultureName,
+      }),
+    );
     setOpenDropdown("");
   }
 
@@ -749,11 +744,13 @@ function AppContent() {
       return;
     }
 
-    setCultureForm((currentForm) => buildCultureFormSelectionResult({
-      currentForm,
-      type: "species",
-      value: speciesName,
-    }));
+    setCultureForm((currentForm) =>
+      buildCultureFormSelectionResult({
+        currentForm,
+        type: "species",
+        value: speciesName,
+      }),
+    );
     setOpenDropdown("");
   }
 
@@ -762,12 +759,14 @@ function AppContent() {
       return;
     }
 
-    setCultureForm((currentForm) => buildCultureFormSelectionResult({
-      currentForm,
-      type: "variety",
-      value: varietyName,
-      plantsCatalog,
-    }));
+    setCultureForm((currentForm) =>
+      buildCultureFormSelectionResult({
+        currentForm,
+        type: "variety",
+        value: varietyName,
+        plantsCatalog,
+      }),
+    );
     setOpenDropdown("");
   }
 
@@ -973,9 +972,7 @@ function AppContent() {
       return;
     }
 
-    setStatusFormNotice(
-      "Событие сохранено. Можно добавить следующее.",
-    );
+    setStatusFormNotice("Событие сохранено. Можно добавить следующее.");
   }
 
   async function handleSaveIntroAction() {
@@ -1051,9 +1048,7 @@ function AppContent() {
     }
 
     if (validationError === "invalid_quantity") {
-      setFormError(
-        "Количество указано некорректно",
-      );
+      setFormError("Количество указано некорректно");
       return;
     }
 
