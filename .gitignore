@@ -40,3 +40,6 @@ expo-server*.log
 # generated native folders
 /ios
 /android
+
+# IDE
+.idea/
