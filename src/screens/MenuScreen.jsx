@@ -145,6 +145,14 @@ export default function MenuScreen({
     }
   }
 
+  function handleClosePasswordSheet() {
+    setIsPasswordSheetVisible(false);
+    setPasswordSheetError('');
+    setCurrentPasswordValue('');
+    setNewPasswordValue('');
+    setRepeatPasswordValue('');
+  }
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar style="dark" />
@@ -211,7 +219,7 @@ export default function MenuScreen({
 
           <Modal
             animationType="fade"
-            onRequestClose={() => setIsPasswordSheetVisible(false)}
+            onRequestClose={handleClosePasswordSheet}
             transparent
             visible={isPasswordSheetVisible}
           >
@@ -221,10 +229,15 @@ export default function MenuScreen({
             >
               <Pressable
                 accessibilityRole="button"
-                onPress={() => setIsPasswordSheetVisible(false)}
+                onPress={handleClosePasswordSheet}
                 style={localStyles.passwordSheetBackdrop}
               />
-              <View style={localStyles.passwordSheetPanel}>
+              <View
+                style={[
+                  localStyles.passwordSheetPanel,
+                  { paddingBottom: 22 + bottomInset },
+                ]}
+              >
                 <Text style={localStyles.passwordSheetTitle}>Сменить пароль</Text>
 
                 <TextInput
@@ -286,7 +299,7 @@ export default function MenuScreen({
                 <View style={localStyles.passwordSheetActions}>
                   <Pressable
                     accessibilityRole="button"
-                    onPress={() => setIsPasswordSheetVisible(false)}
+                    onPress={handleClosePasswordSheet}
                     style={({ pressed }) => [
                       localStyles.passwordSheetSecondaryButton,
                       pressed && styles.linkButtonPressed,

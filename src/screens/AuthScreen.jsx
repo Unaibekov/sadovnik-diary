@@ -346,34 +346,7 @@ export default function AuthScreen({
         </>
       )}
 
-      {isBiometricAvailable && isBiometricPromptVisible ? (
-        <View style={authStyles.biometricCard}>
-          <Text style={authStyles.biometricTitle}>Включить биометрию?</Text>
-          <View style={authStyles.actionRow}>
-            <Pressable
-              accessibilityRole="button"
-              onPress={onEnableBiometricPress}
-              style={({ pressed }) => [
-                authStyles.primaryAction,
-                pressed && authStyles.pressedButton,
-              ]}
-            >
-              <Text style={authStyles.primaryActionText}>Да, включить</Text>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              onPress={onSkipBiometricPress}
-              style={({ pressed }) => [
-                authStyles.secondaryAction,
-                pressed && authStyles.pressedButton,
-              ]}
-            >
-              <Text style={authStyles.secondaryActionText}>Позже</Text>
-            </Pressable>
-          </View>
-        </View>
-      ) : (
-        <View style={authStyles.pinKeypad}>
+      <View style={authStyles.pinKeypad}>
           <View style={authStyles.row}>
             <PinKey label="1" haptic onPress={() => onQuickAuthKeyPress('1')} />
             <PinKey label="2" haptic onPress={() => onQuickAuthKeyPress('2')} />
@@ -429,8 +402,53 @@ export default function AuthScreen({
               {authPinStep === 'unlock' ? 'СБРОСИТЬ ПИН-КОД' : 'Назад'}
             </Text>
           </Pressable>
+      </View>
+
+      <Modal
+        animationType="fade"
+        onRequestClose={onSkipBiometricPress}
+        transparent
+        visible={isBiometricAvailable && isBiometricPromptVisible}
+      >
+        <View style={authStyles.confirmModalRoot}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={onSkipBiometricPress}
+            style={authStyles.confirmModalBackdrop}
+          />
+          <View style={authStyles.confirmModal}>
+            <Text style={authStyles.confirmModalTitle}>Включить биометрию?</Text>
+            <Text style={authStyles.confirmModalText}>
+              Быстрый вход по Face ID или отпечатку пальца можно включить
+              сразу после подтверждения.
+            </Text>
+            <View style={authStyles.confirmModalActions}>
+              <Pressable
+                accessibilityRole="button"
+                onPress={onSkipBiometricPress}
+                style={({ pressed }) => [
+                  authStyles.confirmModalButton,
+                  authStyles.confirmModalSecondaryButton,
+                  pressed && authStyles.pressedButton,
+                ]}
+              >
+                <Text style={authStyles.confirmModalSecondaryText}>Позже</Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                onPress={onEnableBiometricPress}
+                style={({ pressed }) => [
+                  authStyles.confirmModalButton,
+                  authStyles.confirmModalPrimaryButton,
+                  pressed && authStyles.pressedButton,
+                ]}
+              >
+                <Text style={authStyles.confirmModalPrimaryText}>Да, включить</Text>
+              </Pressable>
+            </View>
+          </View>
         </View>
-      )}
+      </Modal>
     </View>
   );
 
