@@ -59,3 +59,6 @@ export const currentUser = {
   id: 'local-user',
   role: 'operator',
 };
+
+export const AUTH_TEST_LOGIN = 'login';
+export const AUTH_TEST_PASSWORD = 'pass';

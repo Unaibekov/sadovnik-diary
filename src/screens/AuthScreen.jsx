@@ -8,10 +8,12 @@ import {
   Keyboard,
   KeyboardAvoidingView,
   Platform,
+  Modal,
   Pressable,
   StyleSheet,
   Text,
   TextInput,
+  Vibration,
   View,
   useWindowDimensions,
 } from 'react-native';
@@ -23,20 +25,41 @@ import {
   LogoElementIcon,
   LoginInputIcon,
   PasswordInputIcon,
+  TouchIdIcon,
 } from '../components/icons';
 
-function PinKey({ label, onPress, wide = false, disabled = false, variant = 'default' }) {
+function PinKey({
+  label,
+  onPress,
+  wide = false,
+  disabled = false,
+  variant = 'default',
+  haptic = false,
+}) {
+  const handlePress = () => {
+    if (haptic) {
+      Vibration.vibrate(12);
+    }
+
+    onPress?.();
+  };
+
   return (
     <Pressable
       accessibilityRole="button"
       disabled={disabled}
-      onPress={onPress}
+      android_ripple={
+        Platform.OS === 'android' && !disabled
+          ? { color: 'rgba(21, 134, 63, 0.14)', borderless: false }
+          : undefined
+      }
+      onPress={handlePress}
       style={({ pressed }) => [
         authStyles.pinKey,
         wide && authStyles.pinKeyWide,
         variant === 'ghost' && authStyles.pinKeyGhost,
         disabled && authStyles.pinKeyDisabled,
-        pressed && !disabled && authStyles.pressedButton,
+        pressed && !disabled && authStyles.pinKeyPressed,
       ]}
     >
       {typeof label === 'string' ? (
@@ -70,9 +93,11 @@ export default function AuthScreen({
   onFocusedFieldChange,
   onLoginChange,
   onPasswordChange,
+  onResetPermanentPassword,
   onQuickAuthBiometricSubmit,
   onQuickAuthKeyPress,
   onQuickAuthSubmit,
+  onBackFromQuickAuthPress,
   onResetQuickAuthPress,
   onSkipBiometricPress,
   onSubmitLogin,
@@ -82,6 +107,7 @@ export default function AuthScreen({
 }) {
   const windowHeight = useWindowDimensions().height;
   const [isLogoFinal, setIsLogoFinal] = useState(false);
+  const [isForgotPasswordVisible, setIsForgotPasswordVisible] = useState(false);
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const isPinMode = authMode !== 'credentials';
   const brandProgress = useRef(new Animated.Value(0)).current;
@@ -91,7 +117,7 @@ export default function AuthScreen({
   const submitLoginRef = useRef(onSubmitLogin);
   const initializedRef = useRef(false);
 
-  const loginPanelHeight = Math.max(Math.round(windowHeight * 0.4), 300);
+  const loginPanelHeight = Math.max(Math.round(windowHeight * 0.46), 340);
   const pinPanelHeight = Math.max(Math.round(windowHeight * 0.65), 440);
   const targetPanelHeight = isPinMode ? pinPanelHeight : loginPanelHeight;
 
@@ -117,7 +143,7 @@ export default function AuthScreen({
           duration: 700,
           easing: Easing.inOut(Easing.cubic),
           toValue: 1,
-          useNativeDriver: Platform.OS !== 'web',
+          useNativeDriver: false,
         }),
       ]),
       Animated.parallel([
@@ -131,7 +157,7 @@ export default function AuthScreen({
           duration: 700,
           easing: Easing.inOut(Easing.cubic),
           toValue: 1,
-          useNativeDriver: Platform.OS !== 'web',
+          useNativeDriver: false,
         }),
       ]),
     ]).start(() => {
@@ -261,8 +287,10 @@ export default function AuthScreen({
         </View>
       </View>
 
-      {!!error && <Text style={authStyles.errorText}>{error}</Text>}
-      {!!notice && !error && <Text style={authStyles.noticeText}>{notice}</Text>}
+      <View style={authStyles.authMessageSlot}>
+        {!!error && <Text style={authStyles.errorText}>{error}</Text>}
+        {!!notice && !error && <Text style={authStyles.noticeText}>{notice}</Text>}
+      </View>
 
       <Pressable
         accessibilityRole="button"
@@ -273,6 +301,17 @@ export default function AuthScreen({
         ]}
       >
         <Text style={authStyles.authPrimaryButtonText}>Войти</Text>
+      </Pressable>
+
+      <Pressable
+        accessibilityRole="button"
+        onPress={() => setIsForgotPasswordVisible(true)}
+        style={({ pressed }) => [
+          authStyles.forgotPasswordLink,
+          pressed && authStyles.forgotPasswordLinkPressed,
+        ]}
+      >
+        <Text style={authStyles.forgotPasswordLinkText}>Забыли пароль?</Text>
       </Pressable>
     </View>
   );
@@ -336,59 +375,59 @@ export default function AuthScreen({
       ) : (
         <View style={authStyles.pinKeypad}>
           <View style={authStyles.row}>
-            <PinKey label="1" onPress={() => onQuickAuthKeyPress('1')} />
-            <PinKey label="2" onPress={() => onQuickAuthKeyPress('2')} />
-            <PinKey label="3" onPress={() => onQuickAuthKeyPress('3')} />
+            <PinKey label="1" haptic onPress={() => onQuickAuthKeyPress('1')} />
+            <PinKey label="2" haptic onPress={() => onQuickAuthKeyPress('2')} />
+            <PinKey label="3" haptic onPress={() => onQuickAuthKeyPress('3')} />
           </View>
           <View style={authStyles.row}>
-            <PinKey label="4" onPress={() => onQuickAuthKeyPress('4')} />
-            <PinKey label="5" onPress={() => onQuickAuthKeyPress('5')} />
-            <PinKey label="6" onPress={() => onQuickAuthKeyPress('6')} />
+            <PinKey label="4" haptic onPress={() => onQuickAuthKeyPress('4')} />
+            <PinKey label="5" haptic onPress={() => onQuickAuthKeyPress('5')} />
+            <PinKey label="6" haptic onPress={() => onQuickAuthKeyPress('6')} />
           </View>
           <View style={authStyles.row}>
-            <PinKey label="7" onPress={() => onQuickAuthKeyPress('7')} />
-            <PinKey label="8" onPress={() => onQuickAuthKeyPress('8')} />
-            <PinKey label="9" onPress={() => onQuickAuthKeyPress('9')} />
+            <PinKey label="7" haptic onPress={() => onQuickAuthKeyPress('7')} />
+            <PinKey label="8" haptic onPress={() => onQuickAuthKeyPress('8')} />
+            <PinKey label="9" haptic onPress={() => onQuickAuthKeyPress('9')} />
           </View>
           <View style={authStyles.row}>
             <PinKey
               label={<DeleteIcon color="#15863F" size={24} />}
+              haptic
               onPress={() => onQuickAuthKeyPress('delete')}
               variant="ghost"
               wide
             />
-            <PinKey label="0" onPress={() => onQuickAuthKeyPress('0')} />
-            <PinKey
-              label="OK"
-              disabled={quickAuthPinInput.length !== 4}
-              onPress={onQuickAuthSubmit}
-              variant="ghost"
-              wide
-            />
+            <PinKey label="0" haptic onPress={() => onQuickAuthKeyPress('0')} />
+            {isBiometricEnabled && isBiometricAvailable ? (
+              <PinKey
+                label={<TouchIdIcon color="#15863F" size={24} />}
+                onPress={onQuickAuthBiometricSubmit}
+                variant="ghost"
+                wide
+              />
+            ) : (
+              <View
+                style={[
+                  authStyles.pinKey,
+                  authStyles.pinKeyGhost,
+                  authStyles.pinKeyPlaceholder,
+                  authStyles.pinKeyWide,
+                ]}
+              />
+            )}
           </View>
-
-          {isBiometricEnabled && isBiometricAvailable && (
-            <Pressable
-              accessibilityRole="button"
-              onPress={onQuickAuthBiometricSubmit}
-              style={({ pressed }) => [
-                authStyles.biometricButton,
-                pressed && authStyles.pressedButton,
-              ]}
-            >
-              <Text style={authStyles.biometricButtonText}>Войти по биометрии</Text>
-            </Pressable>
-          )}
 
           <Pressable
             accessibilityRole="button"
-            onPress={onResetQuickAuthPress}
+            onPress={authPinStep === 'unlock' ? onResetQuickAuthPress : onBackFromQuickAuthPress}
             style={({ pressed }) => [
               authStyles.resetLink,
               pressed && authStyles.resetLinkPressed,
             ]}
           >
-            <Text style={authStyles.resetLinkText}>СБРОСИТЬ ПИН-КОД</Text>
+            <Text style={authStyles.resetLinkText}>
+              {authPinStep === 'unlock' ? 'СБРОСИТЬ ПИН-КОД' : 'Назад'}
+            </Text>
           </Pressable>
         </View>
       )}
@@ -469,6 +508,55 @@ export default function AuthScreen({
             </Animated.View>
           </View>
         </KeyboardAvoidingView>
+
+        <Modal
+          animationType="fade"
+          onRequestClose={() => setIsForgotPasswordVisible(false)}
+          transparent
+          visible={isForgotPasswordVisible}
+        >
+          <View style={authStyles.confirmModalRoot}>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => setIsForgotPasswordVisible(false)}
+              style={authStyles.confirmModalBackdrop}
+            />
+            <View style={authStyles.confirmModal}>
+              <Text style={authStyles.confirmModalTitle}>Сбросить пароль?</Text>
+              <Text style={authStyles.confirmModalText}>
+                Данные карточек и стадий сохранятся. Будут сброшены только
+                настройки входа.
+              </Text>
+              <View style={authStyles.confirmModalActions}>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => setIsForgotPasswordVisible(false)}
+                  style={({ pressed }) => [
+                    authStyles.confirmModalButton,
+                    authStyles.confirmModalSecondaryButton,
+                    pressed && authStyles.pressedButton,
+                  ]}
+                >
+                  <Text style={authStyles.confirmModalSecondaryText}>Нет</Text>
+                </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={async () => {
+                    await onResetPermanentPassword();
+                    setIsForgotPasswordVisible(false);
+                  }}
+                  style={({ pressed }) => [
+                    authStyles.confirmModalButton,
+                    authStyles.confirmModalPrimaryButton,
+                    pressed && authStyles.pressedButton,
+                  ]}
+                >
+                  <Text style={authStyles.confirmModalPrimaryText}>Да</Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </Modal>
       </ImageBackground>
     </SafeAreaView>
   );
@@ -556,19 +644,19 @@ const authStyles = StyleSheet.create({
     boxShadow: '0px -10px 24px rgba(16, 32, 21, 0.08)',
     height: '100%',
     paddingHorizontal: 24,
-    paddingTop: 26,
+    paddingTop: 22,
   },
   authPanelPinMode: {
     paddingTop: 22,
   },
   form: {
-    gap: 18,
+    gap: 14,
   },
   authInputsGroup: {
-    gap: 10,
+    gap: 8,
   },
   field: {
-    gap: 6,
+    gap: 4,
   },
   authInputRow: {
     justifyContent: 'center',
@@ -629,7 +717,7 @@ const authStyles = StyleSheet.create({
     borderRadius: 999,
     justifyContent: 'center',
     marginTop: 4,
-    minHeight: 58,
+    minHeight: 54,
     paddingHorizontal: 18,
     boxShadow: '0px 8px 12px 0px rgba(21, 134, 63, 0.14)',
   },
@@ -637,6 +725,23 @@ const authStyles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 17,
     fontWeight: '800',
+  },
+  forgotPasswordLink: {
+    alignSelf: 'center',
+    marginTop: 10,
+  },
+  forgotPasswordLinkPressed: {
+    opacity: 0.75,
+  },
+  forgotPasswordLinkText: {
+    color: '#15863F',
+    fontSize: 14,
+    fontWeight: '700',
+    textDecorationLine: 'underline',
+  },
+  authMessageSlot: {
+    justifyContent: 'center',
+    minHeight: 28,
   },
   pinContent: {
     gap: 18,
@@ -694,6 +799,11 @@ const authStyles = StyleSheet.create({
   },
   pinKeyGhost: {
     backgroundColor: '#FFFFFF',
+  },
+  pinKeyPlaceholder: {
+    backgroundColor: 'transparent',
+    borderColor: 'transparent',
+    boxShadow: 'none',
   },
   pinKeyText: {
     color: '#101828',
@@ -790,5 +900,68 @@ const authStyles = StyleSheet.create({
   },
   pressedButton: {
     opacity: 0.82,
+  },
+  pinKeyPressed: {
+    backgroundColor: '#EAF7EF',
+    borderColor: '#BEE6CC',
+    opacity: 0.9,
+    transform: [{ scale: 0.965 }],
+  },
+  confirmModalRoot: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+  confirmModalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.38)',
+  },
+  confirmModal: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    gap: 12,
+    padding: 20,
+  },
+  confirmModalTitle: {
+    color: '#101828',
+    fontSize: 22,
+    fontWeight: '900',
+    textAlign: 'center',
+  },
+  confirmModalText: {
+    color: '#667085',
+    fontSize: 15,
+    lineHeight: 22,
+    textAlign: 'center',
+  },
+  confirmModalActions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 4,
+  },
+  confirmModalButton: {
+    alignItems: 'center',
+    borderRadius: 999,
+    flex: 1,
+    justifyContent: 'center',
+    minHeight: 50,
+  },
+  confirmModalSecondaryButton: {
+    backgroundColor: '#F8FAFC',
+    borderColor: '#E7ECEF',
+    borderWidth: 1,
+  },
+  confirmModalPrimaryButton: {
+    backgroundColor: '#15863F',
+  },
+  confirmModalSecondaryText: {
+    color: '#344054',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  confirmModalPrimaryText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '800',
   },
 });

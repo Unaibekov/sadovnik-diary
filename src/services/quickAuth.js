@@ -6,6 +6,7 @@ import { Platform } from 'react-native';
 
 const QUICK_AUTH_PIN_KEY = 'sadovnik.quick-auth.pin';
 const QUICK_AUTH_BIOMETRIC_KEY = 'sadovnik.quick-auth.biometric-enabled';
+const QUICK_AUTH_PASSWORD_KEY = 'sadovnik.quick-auth.password';
 
 async function readStoredValue(key) {
   if (Platform.OS !== 'web') {
@@ -71,13 +72,15 @@ function getBiometricDescription(authenticationTypes) {
 }
 
 export async function loadQuickAuthState() {
-  const [pinCode, biometricEnabledValue] = await Promise.all([
+  const [pinCode, biometricEnabledValue, password] = await Promise.all([
     readStoredValue(QUICK_AUTH_PIN_KEY),
     readStoredValue(QUICK_AUTH_BIOMETRIC_KEY),
+    readStoredValue(QUICK_AUTH_PASSWORD_KEY),
   ]);
 
   return {
     biometricEnabled: biometricEnabledValue === 'true',
+    password,
     pinCode,
   };
 }
@@ -100,6 +103,17 @@ export async function saveBiometricEnabled(isEnabled) {
   }
 
   await writeStoredValue(QUICK_AUTH_BIOMETRIC_KEY, 'true');
+}
+
+export async function saveQuickAuthPassword(password) {
+  const normalizedPassword = password.trim();
+
+  if (!normalizedPassword) {
+    await writeStoredValue(QUICK_AUTH_PASSWORD_KEY, null);
+    return;
+  }
+
+  await writeStoredValue(QUICK_AUTH_PASSWORD_KEY, normalizedPassword);
 }
 
 export async function getQuickAuthBiometricInfo() {

@@ -1,9 +1,15 @@
 // Экран главного меню приложения.
 import { StatusBar } from 'expo-status-bar';
+import { useState } from 'react';
 import {
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
   Pressable,
   ScrollView,
+  StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -21,9 +27,11 @@ const roleLabels = {
 export default function MenuScreen({
   activeCardsCount = 0,
   bottomInset = 0,
+  currentPassword = '',
   firstName,
   lastName,
   notice,
+  onChangePermanentPassword,
   onHomePress,
   onJournalPress,
   onLogout,
@@ -40,12 +48,29 @@ export default function MenuScreen({
   const normalizedFirstName = firstName?.trim();
   const displayName = normalizedFirstName || 'Пользователь';
   const initials = (displayName?.[0] || 'S').toLocaleUpperCase('ru-RU');
+  const [isPasswordSheetVisible, setIsPasswordSheetVisible] = useState(false);
+  const [currentPasswordValue, setCurrentPasswordValue] = useState('');
+  const [newPasswordValue, setNewPasswordValue] = useState('');
+  const [repeatPasswordValue, setRepeatPasswordValue] = useState('');
+  const [passwordSheetError, setPasswordSheetError] = useState('');
 
   const accountItems = [
     ['Активные партии', String(activeCardsCount)],
     ['Задачи', taskCount > 0 ? String(taskCount) : 'Нет новых'],
   ];
   const menuItems = [
+    {
+      key: 'password',
+      onPress: () => {
+        setCurrentPasswordValue('');
+        setNewPasswordValue('');
+        setRepeatPasswordValue('');
+        setPasswordSheetError('');
+        setIsPasswordSheetVisible(true);
+      },
+      subtitle: 'Назначить новый постоянный пароль',
+      title: 'Сменить пароль',
+    },
     {
       key: 'notifications',
       onPress: onScheduleWateringReminder,
@@ -77,6 +102,48 @@ export default function MenuScreen({
       title: 'Зачистить карточки',
     },
   ];
+
+  async function handleSavePassword() {
+    const normalizedCurrentPassword = currentPasswordValue.trim();
+    const normalizedNewPassword = newPasswordValue.trim();
+    const normalizedRepeatPassword = repeatPasswordValue.trim();
+
+    if (!normalizedCurrentPassword) {
+      setPasswordSheetError('Введите текущий пароль');
+      return;
+    }
+
+    if (normalizedCurrentPassword !== currentPassword.trim()) {
+      setPasswordSheetError('Неверный текущий пароль');
+      return;
+    }
+
+    if (!normalizedNewPassword) {
+      setPasswordSheetError('Введите новый пароль');
+      return;
+    }
+
+    if (normalizedNewPassword.length < 4) {
+      setPasswordSheetError('Пароль должен быть не короче 4 символов');
+      return;
+    }
+
+    if (normalizedNewPassword !== normalizedRepeatPassword) {
+      setPasswordSheetError('Пароли не совпадают');
+      return;
+    }
+
+    try {
+      await onChangePermanentPassword(normalizedNewPassword);
+      setIsPasswordSheetVisible(false);
+      setPasswordSheetError('');
+      setCurrentPasswordValue('');
+      setNewPasswordValue('');
+      setRepeatPasswordValue('');
+    } catch {
+      setPasswordSheetError('Не удалось сменить пароль');
+    }
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -140,10 +207,107 @@ export default function MenuScreen({
             ))}
           </View>
 
-          {!!notice && (
-            <Text style={styles.menuNoticeText}>{notice}</Text>
-          )}
+          {!!notice && <Text style={styles.menuNoticeText}>{notice}</Text>}
 
+          <Modal
+            animationType="fade"
+            onRequestClose={() => setIsPasswordSheetVisible(false)}
+            transparent
+            visible={isPasswordSheetVisible}
+          >
+            <KeyboardAvoidingView
+              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+              style={localStyles.passwordSheetRoot}
+            >
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => setIsPasswordSheetVisible(false)}
+                style={localStyles.passwordSheetBackdrop}
+              />
+              <View style={localStyles.passwordSheetPanel}>
+                <Text style={localStyles.passwordSheetTitle}>Сменить пароль</Text>
+
+                <TextInput
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  onChangeText={(value) => {
+                    setCurrentPasswordValue(value);
+                    if (passwordSheetError) {
+                      setPasswordSheetError('');
+                    }
+                  }}
+                  placeholder="Текущий пароль"
+                  placeholderTextColor="#98A2B3"
+                  secureTextEntry
+                  style={localStyles.passwordSheetInput}
+                  value={currentPasswordValue}
+                />
+
+                <TextInput
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  onChangeText={(value) => {
+                    setNewPasswordValue(value);
+                    if (passwordSheetError) {
+                      setPasswordSheetError('');
+                    }
+                  }}
+                  placeholder="Новый пароль"
+                  placeholderTextColor="#98A2B3"
+                  secureTextEntry
+                  style={localStyles.passwordSheetInput}
+                  value={newPasswordValue}
+                />
+
+                <TextInput
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  onChangeText={(value) => {
+                    setRepeatPasswordValue(value);
+                    if (passwordSheetError) {
+                      setPasswordSheetError('');
+                    }
+                  }}
+                  placeholder="Повторите пароль"
+                  placeholderTextColor="#98A2B3"
+                  secureTextEntry
+                  style={localStyles.passwordSheetInput}
+                  value={repeatPasswordValue}
+                />
+
+                <View style={localStyles.passwordSheetMessageSlot}>
+                  {!!passwordSheetError && (
+                    <Text style={localStyles.passwordSheetError}>
+                      {passwordSheetError}
+                    </Text>
+                  )}
+                </View>
+
+                <View style={localStyles.passwordSheetActions}>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => setIsPasswordSheetVisible(false)}
+                    style={({ pressed }) => [
+                      localStyles.passwordSheetSecondaryButton,
+                      pressed && styles.linkButtonPressed,
+                    ]}
+                  >
+                    <Text style={localStyles.passwordSheetSecondaryText}>Отмена</Text>
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={handleSavePassword}
+                    style={({ pressed }) => [
+                      localStyles.passwordSheetPrimaryButton,
+                      pressed && styles.linkButtonPressed,
+                    ]}
+                  >
+                    <Text style={localStyles.passwordSheetPrimaryText}>Сохранить</Text>
+                  </Pressable>
+                </View>
+              </View>
+            </KeyboardAvoidingView>
+          </Modal>
         </View>
       </ScrollView>
 
@@ -160,3 +324,80 @@ export default function MenuScreen({
     </SafeAreaView>
   );
 }
+
+const localStyles = StyleSheet.create({
+  passwordSheetRoot: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  passwordSheetBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.35)',
+  },
+  passwordSheetPanel: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    gap: 12,
+    paddingHorizontal: 20,
+    paddingBottom: 22,
+    paddingTop: 18,
+  },
+  passwordSheetTitle: {
+    color: '#101828',
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  passwordSheetMessageSlot: {
+    justifyContent: 'center',
+    minHeight: 24,
+  },
+  passwordSheetInput: {
+    backgroundColor: '#F9FAFB',
+    borderColor: '#E7ECEF',
+    borderRadius: 16,
+    borderWidth: 1,
+    color: '#101828',
+    fontSize: 16,
+    minHeight: 54,
+    paddingHorizontal: 16,
+  },
+  passwordSheetError: {
+    color: '#B42318',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  passwordSheetActions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 4,
+  },
+  passwordSheetSecondaryButton: {
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderColor: '#E7ECEF',
+    borderRadius: 999,
+    borderWidth: 1,
+    flex: 1,
+    justifyContent: 'center',
+    minHeight: 50,
+  },
+  passwordSheetSecondaryText: {
+    color: '#344054',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  passwordSheetPrimaryButton: {
+    alignItems: 'center',
+    backgroundColor: '#15863F',
+    borderRadius: 999,
+    flex: 1,
+    justifyContent: 'center',
+    minHeight: 50,
+  },
+  passwordSheetPrimaryText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+});

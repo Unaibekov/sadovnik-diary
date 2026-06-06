@@ -10,6 +10,8 @@ import plantsCatalog from "./data/plantsCatalog";
 import styles from "./styles";
 import {
   BATCH_STATUS_LABELS,
+  AUTH_TEST_LOGIN,
+  AUTH_TEST_PASSWORD,
   INTRO_STAGE,
   currentUser,
   stages,
@@ -94,6 +96,7 @@ import {
   loadQuickAuthState,
   saveBiometricEnabled,
   saveQuickAuthPin,
+  saveQuickAuthPassword,
 } from "./src/services/quickAuth";
 import { getJournalFilterLabel } from "./src/domain/journal";
 import {
@@ -130,8 +133,6 @@ import {
 } from "./src/domain/cultureFormState";
 import { buildLogoutState } from "./src/domain/logoutState";
 import {
-  buildForgotPasswordState,
-  buildLoginState,
   buildRegisterState,
 } from "./src/domain/authState";
 import { buildTaskCardOpenState } from "./src/domain/tasks";
@@ -161,6 +162,7 @@ function AppContent() {
   const [quickAuthPin, setQuickAuthPin] = useState("");
   const [quickAuthPinInput, setQuickAuthPinInput] = useState("");
   const [quickAuthPinConfirm, setQuickAuthPinConfirm] = useState("");
+  const [authPassword, setAuthPassword] = useState(AUTH_TEST_PASSWORD);
   const [isBiometricEnabled, setIsBiometricEnabled] = useState(false);
   const [isBiometricAvailable, setIsBiometricAvailable] = useState(false);
   const [biometricDescription, setBiometricDescription] = useState("");
@@ -286,6 +288,7 @@ function AppContent() {
 
         setQuickAuthPin(quickAuthState.pinCode);
         setIsBiometricEnabled(quickAuthState.biometricEnabled);
+        setAuthPassword(quickAuthState.password || AUTH_TEST_PASSWORD);
         setIsBiometricAvailable(biometricInfo.available);
         setBiometricDescription(biometricInfo.description);
         setAuthMode(quickAuthState.pinCode ? "pinUnlock" : "credentials");
@@ -347,10 +350,31 @@ function AppContent() {
   }
 
   function handleLogin() {
-    const nextState = buildLoginState();
+    const normalizedLogin = login.trim();
+    const normalizedPassword = password.trim();
 
-    setNotice(nextState.notice);
-    setError(nextState.error);
+    if (!normalizedLogin) {
+      setError("Введите логин");
+      setNotice("");
+      setFocusedField("login");
+      return;
+    }
+
+    if (!normalizedPassword) {
+      setError("Введите пароль");
+      setNotice("");
+      setFocusedField("password");
+      return;
+    }
+
+    if (normalizedLogin !== AUTH_TEST_LOGIN || normalizedPassword !== authPassword) {
+      setError("Неверный логин и пароль");
+      setNotice("");
+      return;
+    }
+
+    setError("");
+    setNotice("");
 
     if (quickAuthPin) {
       setAuthMode("pinUnlock");
@@ -528,6 +552,8 @@ function AppContent() {
       return;
     }
 
+    setLogin("");
+    setPassword("");
     setQuickAuthPin("");
     setQuickAuthPinInput("");
     setQuickAuthPinConfirm("");
@@ -535,15 +561,89 @@ function AppContent() {
     setIsBiometricPromptVisible(false);
     setError("");
     setNotice("");
+    setFocusedField("");
     setAuthMode("credentials");
     setAuthPinStep("setup");
   }
 
-  function handleForgotPassword() {
-    const nextState = buildForgotPasswordState();
+  async function handleChangePermanentPassword(nextPassword) {
+    const normalizedPassword = nextPassword.trim();
 
-    setError(nextState.error);
-    setNotice(nextState.notice);
+    if (!normalizedPassword) {
+      throw new Error("empty_password");
+    }
+
+    await Promise.all([
+      saveQuickAuthPassword(normalizedPassword),
+      saveQuickAuthPin(""),
+      saveBiometricEnabled(false),
+    ]);
+
+    setLogin("");
+    setPassword("");
+    setFocusedField("");
+    setAuthPassword(normalizedPassword);
+    setQuickAuthPin("");
+    setQuickAuthPinInput("");
+    setQuickAuthPinConfirm("");
+    setIsBiometricEnabled(false);
+    setIsBiometricPromptVisible(false);
+    setAuthMode("credentials");
+    setAuthPinStep("setup");
+    setNotice("Пароль изменён");
+    setError("");
+  }
+
+  async function handleResetPermanentPassword() {
+    await Promise.all([
+      saveQuickAuthPassword(AUTH_TEST_PASSWORD),
+      saveQuickAuthPin(""),
+      saveBiometricEnabled(false),
+    ]);
+
+    setAuthPassword(AUTH_TEST_PASSWORD);
+    setLogin("");
+    setPassword("");
+    setFocusedField("");
+    setQuickAuthPin("");
+    setQuickAuthPinInput("");
+    setQuickAuthPinConfirm("");
+    setIsBiometricEnabled(false);
+    setIsBiometricPromptVisible(false);
+    setAuthMode("credentials");
+    setAuthPinStep("setup");
+    setError("");
+    setNotice("");
+  }
+
+  function handleBackFromQuickAuth() {
+    setQuickAuthPinInput("");
+    setQuickAuthPinConfirm("");
+    setIsBiometricPromptVisible(false);
+    setError("");
+    setNotice("");
+    setAuthMode("credentials");
+    setAuthPinStep("setup");
+  }
+
+  function handleLoginChange(value) {
+    setLogin(value);
+    if (error) {
+      setError("");
+    }
+    if (notice) {
+      setNotice("");
+    }
+  }
+
+  function handlePasswordChange(value) {
+    setPassword(value);
+    if (error) {
+      setError("");
+    }
+    if (notice) {
+      setNotice("");
+    }
   }
 
   function handleRegister() {
@@ -747,11 +847,14 @@ function AppContent() {
     setSelectedCardId(nextState.selectedCardId);
     setSelectedCalendarDate(nextState.selectedCalendarDate);
     setIsAuthenticated(nextState.isAuthenticated);
+    setLogin("");
+    setPassword("");
     setQuickAuthPinInput("");
     setQuickAuthPinConfirm("");
     setIsBiometricPromptVisible(false);
     setError("");
     setNotice("");
+    setFocusedField("");
     setAuthMode(quickAuthPin ? "pinUnlock" : "credentials");
     setAuthPinStep(quickAuthPin ? "unlock" : "setup");
   }
@@ -1391,6 +1494,7 @@ function AppContent() {
     recommendationCard,
     recommendationEntries,
     recommendationStage,
+    authPassword,
     selectedCard,
     selectedCardActionLocked,
     selectedCardAdaptationStats,
@@ -1441,6 +1545,7 @@ function AppContent() {
     handleScheduleWateringReminder,
     handleShareData,
     handleShareQrPress,
+    handleChangePermanentPassword,
     handleStagePress,
     openStageRecommendations,
     openCultureCalendar,
@@ -1506,12 +1611,14 @@ function AppContent() {
       notice={notice}
       onEnableBiometricPress={handleEnableBiometricPress}
       onFocusedFieldChange={setFocusedField}
-      onLoginChange={setLogin}
-      onPasswordChange={setPassword}
+      onLoginChange={handleLoginChange}
+      onPasswordChange={handlePasswordChange}
+      onResetPermanentPassword={handleResetPermanentPassword}
       onQuickAuthBiometricSubmit={handleQuickAuthBiometricSubmit}
       onQuickAuthKeyPress={handleQuickAuthKeyPress}
       onQuickAuthSubmit={handleQuickAuthSubmit}
       onResetQuickAuthPress={handleResetQuickAuth}
+      onBackFromQuickAuthPress={handleBackFromQuickAuth}
       onSkipBiometricPress={handleSkipBiometricPress}
       onSubmitLogin={handleLogin}
       password={password}

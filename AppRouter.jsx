@@ -75,6 +75,7 @@ export default function AppRouter({ actions, state }) {
     isStageMoveConfirmVisible,
     isSupportedPlantingStage,
     journalFilter,
+    authPassword,
     login,
     notice,
     openDropdown,
@@ -157,6 +158,7 @@ export default function AppRouter({ actions, state }) {
     handleScanPress,
     handleScheduleWateringReminder,
     handleShareData,
+    handleChangePermanentPassword,
     handleShareQrPress,
     handleStagePress,
     openDirectories,
@@ -532,6 +534,7 @@ export default function AppRouter({ actions, state }) {
         <MenuScreen
           activeCardsCount={activeCardsCount}
           bottomInset={bottomInset}
+          currentPassword={authPassword}
           firstName={login}
           lastName=""
           notice={notice}
@@ -544,6 +547,7 @@ export default function AppRouter({ actions, state }) {
           onOpenDirectories={openDirectories}
           onOpenSupport={openSupport}
           onClearCards={handleClearTestData}
+          onChangePermanentPassword={handleChangePermanentPassword}
           onScheduleWateringReminder={handleScheduleWateringReminder}
           onShareData={handleShareData}
           onScanPress={handleScanPress}
