@@ -1,4 +1,5 @@
-﻿import { StatusBar } from 'expo-status-bar';
+// Экран входа в приложение.
+import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState } from 'react';
 import {
   Animated,

@@ -1,7 +1,9 @@
+// Утилиты для партий растений, количества и статусов карточек.
 import {
   currentUser,
   INTRO_STAGE,
   QR_STATUS_LABELS,
+  EMPTY_CATALOG_VALUE,
   stageMoveTargetLabels,
   stages,
 } from './constants';
@@ -27,7 +29,7 @@ export function getCardDisplayName(card) {
     card.cultureName,
     card.speciesName,
     card.varietyName,
-  ].filter(Boolean).join(' ') || card.name || card.code;
+  ].filter((value) => Boolean(value) && value !== EMPTY_CATALOG_VALUE).join(' ') || card.name || card.code;
 }
 
 export function createBatchCreatedOperation(card, createdAtIso = new Date().toISOString()) {

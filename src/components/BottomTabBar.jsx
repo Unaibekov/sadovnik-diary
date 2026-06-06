@@ -1,3 +1,4 @@
+// Нижняя панель навигации по основным экранам.
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import appStyles from '../../styles';
 import {

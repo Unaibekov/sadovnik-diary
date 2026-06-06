@@ -1,3 +1,4 @@
+// Проверка полей для тепличных операций.
 export function getGreenhouseValidationError(introActionType, statusForm) {
   if (introActionType === 'greenhouseObservation' && ![
     statusForm.growthRate,

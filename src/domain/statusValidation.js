@@ -1,3 +1,4 @@
+// Общая валидация полей для операций со статусом.
 import { isPositiveInteger } from './batch';
 
 export function getStatusBaseValidationError({

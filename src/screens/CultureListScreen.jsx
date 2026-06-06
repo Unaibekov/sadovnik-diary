@@ -1,3 +1,4 @@
+// Экран списка культур выбранной стадии.
 import { StatusBar } from 'expo-status-bar';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -37,7 +38,6 @@ export default function CultureListScreen({
   onChangeSearch,
   onCreateCulture,
   onEditCulture,
-  onOpenRecommendations,
   onOpenCultureCalendar,
   selectedStage,
   storageError,
@@ -78,7 +78,6 @@ export default function CultureListScreen({
       <View style={styles.fixedCardsScreen}>
         <StageHeader
           onBack={onBack}
-          onOpenRecommendations={selectedStageCardsCount > 0 ? onOpenRecommendations : undefined}
           title={selectedStage}
         >
           <View style={localStyles.searchRow}>
@@ -162,7 +161,9 @@ export default function CultureListScreen({
                 {
                   key: 'quantity',
                   icon: <LeaveIcon color="#15863F" size={16} />,
-                  value: `${getCardCurrentQuantity(card)} из ${card.quantity} шт.`,
+                  value: isCloneStage
+                    ? `${getCardCurrentQuantity(card)} шт.`
+                    : `${getCardCurrentQuantity(card)} из ${card.quantity} шт.`,
                 },
                 {
                   key: 'days',

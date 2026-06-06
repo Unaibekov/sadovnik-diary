@@ -1,3 +1,4 @@
+// Построение карточек культуры и операций по ним.
 import { createBatchCreatedOperation, getCardDisplayName } from './batch';
 import { removeRecommendationFields } from './recommendations';
 

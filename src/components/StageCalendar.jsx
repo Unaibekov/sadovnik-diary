@@ -1,3 +1,4 @@
+// Календарь событий для выбранной стадии.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   LayoutAnimation,

@@ -1,3 +1,4 @@
+// Проверка этапных параметров адаптационных операций.
 export function getAdaptationValidationError(introActionType, statusForm) {
   if (introActionType === 'adaptationStress' && ![
     statusForm.stressLevel,

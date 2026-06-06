@@ -1,3 +1,4 @@
+// Контекст для построения операций со статусом.
 import { getCardCurrentQuantity } from './batch';
 
 export function buildStatusOperationContext({

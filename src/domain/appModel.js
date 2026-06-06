@@ -1,3 +1,4 @@
+// Собирает и нормализует основную модель состояния приложения.
 import {
   canEditIdentityFields,
   getAdaptationStats,

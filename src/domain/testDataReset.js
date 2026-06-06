@@ -1,3 +1,4 @@
+// Сброс состояния в тестовые значения.
 import { createEmptyCultureForm, createEmptyIntroActionForm, createEmptyStatusForm } from './forms';
 
 export function buildTestDataResetState() {

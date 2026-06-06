@@ -1,3 +1,4 @@
+// Справочник конфигураций операций по статусу.
 const statusEventConfigs = {
   rooting: {
     title: 'Укоренение',

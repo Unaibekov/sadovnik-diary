@@ -1,3 +1,4 @@
+// Вкладка паспорта культуры с основными данными.
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import appStyles from '../../styles';
 import { DownloadSquareIcon } from './icons';

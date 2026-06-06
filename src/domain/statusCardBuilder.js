@@ -1,3 +1,4 @@
+// Сборка карточки после изменения статуса.
 import { getCardCurrentQuantity } from './batch';
 import { getResolvedBatchStatus } from './cardSelectors';
 import { getFallbackBatchStatus } from './statusCardStatusResolver';

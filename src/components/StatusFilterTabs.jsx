@@ -1,3 +1,4 @@
+// Вкладки фильтрации карточек по статусу.
 import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 import appStyles from '../../styles';
 

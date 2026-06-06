@@ -1,3 +1,4 @@
+// Состояние формы смены статуса.
 import { createEmptyStatusForm } from './forms';
 import { stages } from './constants';
 

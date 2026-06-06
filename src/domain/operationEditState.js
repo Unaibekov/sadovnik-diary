@@ -1,3 +1,4 @@
+// Начальное состояние экрана редактирования операции.
 import { createEmptyIntroActionForm, createEmptyStatusForm } from './forms';
 import { INTRO_STAGE } from './constants';
 import { buildStatusFormFromOperation } from './statusOperationForm';

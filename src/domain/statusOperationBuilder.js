@@ -1,3 +1,4 @@
+// Построение операции изменения статуса.
 export function buildStatusOperation({
   editingOperationId,
   introActionType,

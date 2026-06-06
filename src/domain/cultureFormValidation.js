@@ -1,3 +1,4 @@
+// Валидация ввода карточки культуры.
 import { isPositiveInteger } from './batch';
 
 export function validateCultureCardInput({

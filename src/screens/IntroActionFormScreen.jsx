@@ -1,3 +1,4 @@
+// Экран формы стартового действия для культуры.
 import { StatusBar } from 'expo-status-bar';
 import {
   KeyboardAvoidingView,

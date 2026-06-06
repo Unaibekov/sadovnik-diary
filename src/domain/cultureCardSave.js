@@ -1,3 +1,4 @@
+// Сборка результата сохранения карточек культуры.
 import { buildCancelledCultureCards, buildCultureCardPayload, buildSavedCultureCards } from './cultureCardBuilder';
 
 export function buildCultureCardSaveResult({

@@ -1,3 +1,4 @@
+// Состояние формы культуры для просмотра и редактирования.
 import { createEmptyCultureForm } from './forms';
 import { buildCultureFormForEdit } from './cultureForm';
 import { isoFromDate } from './dates';

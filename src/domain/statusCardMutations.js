@@ -1,3 +1,4 @@
+// Частичные изменения карточки для операций по статусам.
 export function getGreenhouseCareIntervalsPatch(card, introActionType, statusForm) {
   if (introActionType !== 'greenhouseCare' || !statusForm.careType.trim()) {
     return {};

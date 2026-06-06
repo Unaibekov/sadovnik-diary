@@ -1,3 +1,4 @@
+// Текст уведомления для результата сканирования.
 import { getCardDisplayName } from './batch';
 
 export function getScanNotice({ scannedCode, matchedCard }) {

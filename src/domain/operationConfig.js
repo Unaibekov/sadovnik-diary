@@ -1,4 +1,5 @@
-﻿import { BATCH_STATUS_LABELS, stages } from './constants';
+// Конфигурации событий операций и счетчики статусов.
+import { BATCH_STATUS_LABELS, stages } from './constants';
 
 export const statusEventCountFields = {
   rooting: 'rootedCount',

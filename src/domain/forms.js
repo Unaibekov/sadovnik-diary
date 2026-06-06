@@ -1,3 +1,4 @@
+// Фабрики пустых форм домена.
 import { getTodayIsoDate } from './dates';
 
 export function createEmptyCultureForm() {

@@ -1,3 +1,4 @@
+// Производные данные состояния приложения и каталога.
 import plantsCatalog from '../../data/plantsCatalog';
 import { getCardDisplayName } from './batch';
 import { buildCultureFormOptions, getResolvedBatchStatus } from './cardSelectors';

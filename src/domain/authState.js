@@ -1,3 +1,4 @@
+// Начальное состояние формы входа.
 export function buildLoginState() {
   return {
     error: '',

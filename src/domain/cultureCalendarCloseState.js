@@ -1,3 +1,4 @@
+// Состояние закрытия окна календаря культуры.
 import { createEmptyIntroActionForm } from './forms';
 
 export function buildCultureCalendarCloseState() {

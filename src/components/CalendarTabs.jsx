@@ -1,4 +1,6 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+// Вкладки переключения режимов календаря.
+import { useEffect, useRef, useState } from 'react';
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import appStyles from '../../styles';
 
 const calendarTabs = [
@@ -8,9 +10,44 @@ const calendarTabs = [
 ];
 
 export default function CalendarTabs({ activeTab, onChangeTab }) {
+  const [tabBarWidth, setTabBarWidth] = useState(0);
+  const indicatorX = useRef(new Animated.Value(0)).current;
+  const activeIndex = Math.max(
+    0,
+    calendarTabs.findIndex(([value]) => value === activeTab),
+  );
+  const tabWidth = tabBarWidth > 0 ? tabBarWidth / calendarTabs.length : 0;
+
+  useEffect(() => {
+    if (!tabWidth) {
+      return;
+    }
+
+    Animated.timing(indicatorX, {
+      duration: 220,
+      toValue: activeIndex * tabWidth,
+      useNativeDriver: true,
+    }).start();
+  }, [activeIndex, indicatorX, tabWidth]);
+
   return (
     <View style={appStyles.calendarPinnedContent}>
-      <View style={styles.calendarTabs}>
+      <View
+        onLayout={(event) => setTabBarWidth(event.nativeEvent.layout.width)}
+        style={styles.calendarTabs}
+      >
+        {tabWidth > 0 && (
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              styles.calendarTabIndicator,
+              {
+                width: tabWidth - 8,
+                transform: [{ translateX: indicatorX }],
+              },
+            ]}
+          />
+        )}
         {calendarTabs.map(([value, label]) => {
           const isActive = activeTab === value;
 
@@ -49,6 +86,7 @@ const styles = StyleSheet.create({
     gap: 0,
     marginBottom: 0,
     padding: 4,
+    position: 'relative',
     shadowColor: '#102015',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
@@ -63,7 +101,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   calendarTabActive: {
-    backgroundColor: '#15863F',
   },
   calendarTabText: {
     color: '#6B716D',
@@ -74,5 +111,13 @@ const styles = StyleSheet.create({
   calendarTabTextActive: {
     color: '#FFFFFF',
     fontWeight: '500',
+  },
+  calendarTabIndicator: {
+    backgroundColor: '#15863F',
+    borderRadius: 999,
+    bottom: 4,
+    left: 4,
+    position: 'absolute',
+    top: 4,
   },
 });

@@ -1,3 +1,4 @@
+// Селекторы для группировки карточек по журналу культур.
 import { INTRO_STAGE } from './constants';
 
 export function buildGroupedGlobalJournalCards(

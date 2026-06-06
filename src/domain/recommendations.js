@@ -1,3 +1,4 @@
+// Работа с рекомендациями, привязанными к карточке.
 import { EMPTY_CATALOG_VALUE, stages } from './constants';
 import { getCardDisplayName } from './batch';
 

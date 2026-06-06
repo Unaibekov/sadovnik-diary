@@ -1,3 +1,4 @@
+// Определение итогового статуса партии после операции.
 export function getFallbackBatchStatus(card, introActionType, nextQuantity, statusForm) {
   if (introActionType === 'sale' && nextQuantity === 0) {
     return 'sold';

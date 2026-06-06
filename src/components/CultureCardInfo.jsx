@@ -1,3 +1,4 @@
+// Блок подробной информации о карточке культуры.
 import { StyleSheet, Text, View } from 'react-native';
 import CardStatusLine from './CardStatusLine';
 

@@ -1,3 +1,4 @@
+// Состояние выхода из аккаунта и сброса выбора.
 export function buildLogoutState() {
   return {
     selectedStage: '',

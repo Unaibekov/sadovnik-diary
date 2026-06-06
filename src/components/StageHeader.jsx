@@ -1,12 +1,12 @@
+// Заголовок экрана стадии с кнопкой возврата.
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import appStyles from '../../styles';
-import { ArrowBackIcon, LampChargeIcon } from './icons';
+import { ArrowBackIcon } from './icons';
 
 export default function StageHeader({
   action,
   children,
   onBack,
-  onOpenRecommendations,
   subtitle,
   title,
 }) {
@@ -33,20 +33,6 @@ export default function StageHeader({
           </Text>
           {subtitle}
         </View>
-
-        {onOpenRecommendations && (
-          <Pressable
-            accessibilityLabel="Рекомендации"
-            accessibilityRole="button"
-            onPress={onOpenRecommendations}
-            style={({ pressed }) => [
-              styles.recommendationsButton,
-              pressed && appStyles.linkButtonPressed,
-            ]}
-          >
-            <LampChargeIcon size={26} />
-          </Pressable>
-        )}
 
         {action}
       </View>
@@ -79,21 +65,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginLeft: -14,
     width: 48,
-  },
-  recommendationsButton: {
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderColor: '#DCE7DE',
-    borderRadius: 999,
-    borderWidth: 1,
-    elevation: 2,
-    height: 44,
-    justifyContent: 'center',
-    shadowColor: '#101828',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.07,
-    shadowRadius: 8,
-    width: 44,
   },
   title: {
     color: '#111827',

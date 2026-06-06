@@ -1,4 +1,5 @@
-﻿import { StatusBar } from 'expo-status-bar';
+// Экран главного меню приложения.
+import { StatusBar } from 'expo-status-bar';
 import {
   Pressable,
   ScrollView,

@@ -1,3 +1,4 @@
+// Формирование задач и напоминаний по уходу.
 import { getAdaptationCareSchedules, getCardCurrentQuantity, getCardDisplayName, getGreenhouseCareSchedules } from './batch';
 import { INTRO_STAGE } from './constants';
 import { dateFromIso, getTodayIsoDate, isoFromDate } from './dates';

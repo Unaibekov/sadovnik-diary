@@ -1,3 +1,4 @@
+// Проверка корректности перемещения между стадиями.
 import { INTRO_STAGE, stages } from './constants';
 
 export function getStageMoveValidationError({

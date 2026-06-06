@@ -1,3 +1,4 @@
+// Вкладка календаря для конкретной культуры.
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import styles from '../../styles';
 import { formatDisplayDate, formatDisplayTime } from '../domain/dates';

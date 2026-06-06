@@ -1,3 +1,4 @@
+// Валидация изменения статуса с учетом даты и типа события.
 import { getTodayIsoDate } from './dates';
 import { getStatusEventConfig } from './statusOperations';
 import { getStatusBaseValidationError } from './statusValidation';

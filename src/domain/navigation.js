@@ -1,3 +1,4 @@
+// Состояние навигации по основным экранам.
 export function buildGlobalJournalNavigationState() {
   return {
     currentScreen: 'globalJournal',

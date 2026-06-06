@@ -1,3 +1,4 @@
+// Селекторы и вычисления для отображения карточек.
 import styles from '../../styles';
 import { getCardCurrentQuantity } from './batch';
 import { EMPTY_CATALOG_VALUE } from './constants';

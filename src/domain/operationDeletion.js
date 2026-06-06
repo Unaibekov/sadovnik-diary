@@ -1,3 +1,4 @@
+// Построение карточки после удаления операции.
 import { getResolvedBatchStatus } from './cardSelectors';
 
 export function buildDeletedOperationCard(card, operationId) {

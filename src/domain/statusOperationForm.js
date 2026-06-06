@@ -1,3 +1,4 @@
+// Построение формы статуса из операции.
 import { getStatusFormComment } from './statusForm';
 
 export function buildStatusFormFromOperation(operation, countField) {

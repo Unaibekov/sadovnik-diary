@@ -1,3 +1,4 @@
+// Построение операции для стартового действия.
 export function buildIntroActionOperation({
   actionConfig,
   editingOperationId,

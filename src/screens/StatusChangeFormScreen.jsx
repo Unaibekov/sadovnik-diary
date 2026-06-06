@@ -1,13 +1,14 @@
+// Экран формы изменения статуса партии.
 import { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import styles from '../../styles';
 import { formatDisplayDate } from '../domain/dates';
 import { getCardCurrentQuantity, getCardDisplayName } from '../domain/batch';
 import StageHeader from '../components/StageHeader';
 import SelectBottomSheet from '../components/SelectBottomSheet';
-import { ChevronDownIcon } from '../components/icons';
+import { ChevronDownIcon, LampChargeIcon } from '../components/icons';
 
 const countFieldByType = {
   rooting: 'rootedCount',
@@ -125,7 +126,19 @@ export default function StatusChangeFormScreen({
       <StatusBar style="dark" />
       <StageHeader
         onBack={onBack}
-        onOpenRecommendations={onOpenRecommendations}
+        action={onOpenRecommendations && (
+          <Pressable
+            accessibilityLabel="Рекомендации"
+            accessibilityRole="button"
+            onPress={onOpenRecommendations}
+            style={({ pressed }) => [
+              localStyles.recommendationsButton,
+              pressed && styles.linkButtonPressed,
+            ]}
+          >
+            <LampChargeIcon size={26} />
+          </Pressable>
+        )}
         title={isEditing ? 'Редактировать событие' : 'Добавить событие'}
       />
 
@@ -797,3 +810,22 @@ export default function StatusChangeFormScreen({
     </SafeAreaView>
   );
 }
+
+
+const localStyles = StyleSheet.create({
+  recommendationsButton: {
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderColor: '#DCE7DE',
+    borderRadius: 999,
+    borderWidth: 1,
+    elevation: 2,
+    height: 44,
+    justifyContent: 'center',
+    shadowColor: '#101828',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.07,
+    shadowRadius: 8,
+    width: 44,
+  },
+});

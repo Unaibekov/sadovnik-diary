@@ -1,3 +1,4 @@
+// Экран формы создания и редактирования культуры.
 import { StatusBar } from 'expo-status-bar';
 import {
   KeyboardAvoidingView,

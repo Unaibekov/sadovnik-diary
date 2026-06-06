@@ -1,3 +1,4 @@
+// Создание и подготовка формы культуры.
 import { EMPTY_CATALOG_VALUE } from './constants';
 import { generatePlantingCode } from './batch';
 import { createEmptyCultureForm } from './forms';

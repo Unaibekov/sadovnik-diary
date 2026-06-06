@@ -1,3 +1,4 @@
+// Состояние и дата для календаря культуры.
 import { createEmptyIntroActionForm } from './forms';
 import { dateFromIso } from './dates';
 import { getOpenCultureCalendarInitialDate } from './appModel';

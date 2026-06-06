@@ -1,3 +1,4 @@
+// Утилиты для работы с датами в ISO-формате.
 export function getTodayIsoDate() {
   const today = new Date();
   const year = today.getFullYear();

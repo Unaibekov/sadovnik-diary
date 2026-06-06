@@ -1,3 +1,4 @@
+// Вкладка журнала культуры со списком операций.
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import styles from '../../styles';
 import { INTRO_STAGE, stages } from '../domain/constants';

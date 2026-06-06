@@ -1,4 +1,5 @@
-﻿import { getCardDisplayName } from './batch';
+// Подготовка данных журнала и списков карточек.
+import { getCardDisplayName } from './batch';
 import { INTRO_STAGE, stages } from './constants';
 import { getTodayIsoDate } from './dates';
 

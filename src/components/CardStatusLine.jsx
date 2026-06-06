@@ -1,3 +1,4 @@
+// Строка отображения статуса или метаданных карточки.
 import { StyleSheet, Text, View } from 'react-native';
 
 export default function CardStatusLine({

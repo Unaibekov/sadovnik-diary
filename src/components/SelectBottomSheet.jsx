@@ -1,3 +1,4 @@
+// Универсальная нижняя панель выбора значения.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
@@ -5,6 +6,7 @@ import {
   Modal,
   PanResponder,
   Pressable,
+  StyleSheet,
   ScrollView,
   Text,
   TextInput,
@@ -22,6 +24,7 @@ export default function SelectBottomSheet({
   visible,
   title,
   options,
+  selectedKey,
   customInputLabel,
   customInputPlaceholder,
   customInputValue,
@@ -184,6 +187,7 @@ export default function SelectBottomSheet({
             >
               {options.map((option) => {
                 const key = getKey(option);
+                const isSelected = selectedKey !== undefined && key === selectedKey;
 
                 return (
                   <Pressable
@@ -195,10 +199,16 @@ export default function SelectBottomSheet({
                     }}
                     style={({ pressed }) => [
                       styles.bottomSheetOption,
+                      isSelected && sheetStyles.bottomSheetOptionSelected,
                       pressed && styles.linkButtonPressed,
                     ]}
                   >
-                    <Text style={styles.bottomSheetOptionText}>
+                    <Text
+                      style={[
+                        styles.bottomSheetOptionText,
+                        isSelected && sheetStyles.bottomSheetOptionTextSelected,
+                      ]}
+                    >
                       {getLabel(option)}
                     </Text>
                   </Pressable>
@@ -229,3 +239,19 @@ export default function SelectBottomSheet({
     </Modal>
   );
 }
+
+const sheetStyles = StyleSheet.create({
+  bottomSheetOptionSelected: {
+    backgroundColor: '#F0FAF4',
+  },
+  bottomSheetOptionText: {
+    color: '#111827',
+    fontSize: 15,
+    fontWeight: '600',
+    lineHeight: 20,
+  },
+  bottomSheetOptionTextSelected: {
+    color: '#15863F',
+    fontWeight: '700',
+  },
+});

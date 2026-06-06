@@ -1,3 +1,4 @@
+// Преобразование карточки после ввода стартового действия.
 export function buildIntroActionUpdatedCard(card, {
   editingOperationId,
   introActionType,

@@ -1,3 +1,4 @@
+// Сохранение стартового действия и связанных данных.
 import { buildIntroActionOperation } from './introActionOperationBuilder';
 import { buildIntroActionUpdatedCard } from './introActionCardBuilder';
 import { buildStatusOperationContext } from './statusOperationContext';

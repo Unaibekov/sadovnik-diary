@@ -1,3 +1,4 @@
+// Построение операции смены стадии и очистка рекомендаций.
 import { removeRecommendationFields } from './recommendations';
 
 export function buildStageChangeOperation({

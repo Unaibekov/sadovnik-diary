@@ -1,8 +1,12 @@
+// Экран общего журнала растений.
 import { StatusBar } from 'expo-status-bar';
+import { useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import styles from '../../styles';
 import BottomTabBar from '../components/BottomTabBar';
+import SelectBottomSheet from '../components/SelectBottomSheet';
+import { FilterIcon } from '../components/icons';
 import { BATCH_STATUS_LABELS, INTRO_STAGE } from '../domain/constants';
 import {
   getCardCurrentQuantity,
@@ -43,39 +47,27 @@ export default function GlobalJournalScreen({
   onToggleCard,
   taskCount = 0,
 }) {
+  const [isFilterSheetVisible, setIsFilterSheetVisible] = useState(false);
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar style="dark" />
       <View style={styles.fixedCardsScreen}>
-        <View style={styles.fixedCardsControls}>
-          <Text style={styles.globalJournalTitle}>Журнал</Text>
-          <ScrollView
-            contentContainerStyle={styles.globalJournalFilterRow}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.globalJournalFilterScroll}
-          >
-            {journalFilters.map((filter) => (
-              <Pressable
-                accessibilityRole="button"
-                key={filter}
-                onPress={() => onChangeJournalFilter(filter)}
-                style={[
-                  styles.filterButton,
-                  journalFilter === filter && styles.filterButtonActive,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.filterButtonText,
-                    journalFilter === filter && styles.filterButtonTextActive,
-                  ]}
-                >
-                  {getJournalFilterLabel(filter)}
-                </Text>
-              </Pressable>
-            ))}
-          </ScrollView>
+        <View style={localStyles.headerShell}>
+          <View style={localStyles.journalHeaderRow}>
+            <Text style={localStyles.journalHeaderTitle}>Журнал</Text>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => setIsFilterSheetVisible(true)}
+              style={({ pressed }) => [
+                localStyles.filterPill,
+                pressed && styles.linkButtonPressed,
+              ]}
+            >
+              <FilterIcon size={18} />
+              <Text style={localStyles.filterPillText}>Фильтр</Text>
+            </Pressable>
+          </View>
         </View>
 
         <ScrollView
@@ -194,7 +186,60 @@ export default function GlobalJournalScreen({
           onTasksPress={onTasksPress}
           taskCount={taskCount}
         />
+
+        <SelectBottomSheet
+          getKey={(filter) => filter}
+          getLabel={(filter) => getJournalFilterLabel(filter)}
+          onClose={() => setIsFilterSheetVisible(false)}
+          onSelect={(filter) => onChangeJournalFilter(filter)}
+          selectedKey={journalFilter}
+          options={journalFilters}
+          title="Фильтр журнала"
+          visible={isFilterSheetVisible}
+        />
       </View>
     </SafeAreaView>
   );
 }
+
+const localStyles = {
+  filterPill: {
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderColor: '#EEF2F0',
+    borderRadius: 999,
+    borderWidth: 1,
+    elevation: 2,
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'center',
+    minHeight: 44,
+    paddingHorizontal: 14,
+    shadowColor: '#101828',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.07,
+    shadowRadius: 8,
+  },
+  filterPillText: {
+    color: '#15863F',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  headerShell: {
+    paddingBottom: 8,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+  },
+  journalHeaderRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  journalHeaderTitle: {
+    color: '#111827',
+    fontSize: 22,
+    fontWeight: '800',
+    lineHeight: 28,
+  },
+};
