@@ -32,11 +32,18 @@
       "@react-native-community/datetimepicker",
       "expo-notifications",
       [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Allow Sadovnik Diary to use Face ID for quick access"
+        }
+      ],
+      [
         "expo-camera",
         {
           "cameraPermission": "Allow Sadovnik Diary to scan QR codes"
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "extra": {
       "eas": {

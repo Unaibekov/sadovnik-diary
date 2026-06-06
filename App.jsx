@@ -88,6 +88,13 @@ import {
 } from "./src/services/localNotifications";
 import { shareQrCode } from "./src/services/shareQrCodeService";
 import { shareCultureCardsReport } from "./src/services/shareReportService";
+import {
+  authenticateWithBiometrics,
+  getQuickAuthBiometricInfo,
+  loadQuickAuthState,
+  saveBiometricEnabled,
+  saveQuickAuthPin,
+} from "./src/services/quickAuth";
 import { getJournalFilterLabel } from "./src/domain/journal";
 import {
   getIntroActionConfig,
@@ -151,6 +158,16 @@ function AppContent() {
   const [notice, setNotice] = useState("");
   const [focusedField, setFocusedField] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [quickAuthPin, setQuickAuthPin] = useState("");
+  const [quickAuthPinInput, setQuickAuthPinInput] = useState("");
+  const [quickAuthPinConfirm, setQuickAuthPinConfirm] = useState("");
+  const [isBiometricEnabled, setIsBiometricEnabled] = useState(false);
+  const [isBiometricAvailable, setIsBiometricAvailable] = useState(false);
+  const [biometricDescription, setBiometricDescription] = useState("");
+  const [authMode, setAuthMode] = useState("credentials");
+  const [authPinStep, setAuthPinStep] = useState("unlock");
+  const [isBiometricPromptVisible, setIsBiometricPromptVisible] =
+    useState(false);
   const [selectedStage, setSelectedStage] = useState("");
   const [cardSearch, setCardSearch] = useState("");
   const [cultureCards, setCultureCards] = useState([]);
@@ -254,6 +271,43 @@ function AppContent() {
   }, []);
 
   useEffect(() => {
+    let isActive = true;
+
+    async function loadQuickAuthSettings() {
+      try {
+        const [quickAuthState, biometricInfo] = await Promise.all([
+          loadQuickAuthState(),
+          getQuickAuthBiometricInfo(),
+        ]);
+
+        if (!isActive) {
+          return;
+        }
+
+        setQuickAuthPin(quickAuthState.pinCode);
+        setIsBiometricEnabled(quickAuthState.biometricEnabled);
+        setIsBiometricAvailable(biometricInfo.available);
+        setBiometricDescription(biometricInfo.description);
+        setAuthMode(quickAuthState.pinCode ? "pinUnlock" : "credentials");
+        setAuthPinStep(quickAuthState.pinCode ? "unlock" : "setup");
+        setQuickAuthPinInput("");
+        setQuickAuthPinConfirm("");
+      } catch {
+        if (isActive) {
+          setIsBiometricAvailable(false);
+          setBiometricDescription("");
+        }
+      }
+    }
+
+    loadQuickAuthSettings();
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
+  useEffect(() => {
     if (currentScreen !== "menu" && isDirectoriesSheetVisible) {
       setIsDirectoriesSheetVisible(false);
     }
@@ -297,7 +351,192 @@ function AppContent() {
 
     setNotice(nextState.notice);
     setError(nextState.error);
-    setIsAuthenticated(nextState.isAuthenticated);
+
+    if (quickAuthPin) {
+      setAuthMode("pinUnlock");
+      setAuthPinStep("unlock");
+      setQuickAuthPinInput("");
+      return;
+    }
+
+    setAuthMode("pinSetup");
+    setAuthPinStep("setup");
+    setQuickAuthPinInput("");
+  }
+
+
+  async function submitQuickAuthPinValue(pinValue) {
+    const normalizedPin = pinValue.trim();
+
+    if (normalizedPin.length !== 4) {
+      return;
+    }
+
+    setError("");
+    setNotice("");
+
+    if (authMode === "pinSetup") {
+      if (authPinStep === "setup") {
+        setQuickAuthPinConfirm(normalizedPin);
+        setQuickAuthPinInput("");
+        setAuthPinStep("confirm");
+        setNotice("Повторите PIN еще раз");
+        return;
+      }
+
+      if (authPinStep === "confirm") {
+        if (normalizedPin !== quickAuthPinConfirm) {
+          setError("PIN не совпадает. Попробуйте еще раз.");
+          setNotice("");
+          setQuickAuthPinInput("");
+          setQuickAuthPinConfirm("");
+          setAuthPinStep("setup");
+          return;
+        }
+
+        try {
+          await saveQuickAuthPin(normalizedPin);
+          setQuickAuthPin(normalizedPin);
+          setQuickAuthPinInput("");
+          setQuickAuthPinConfirm("");
+          setAuthPinStep("unlock");
+          setAuthMode("pinUnlock");
+          setNotice("PIN сохранён");
+
+          if (isBiometricAvailable) {
+            setIsBiometricPromptVisible(true);
+          } else {
+            setIsAuthenticated(true);
+          }
+        } catch {
+          setError("Не удалось сохранить PIN");
+          setQuickAuthPinInput("");
+          setQuickAuthPinConfirm("");
+          setAuthPinStep("setup");
+        }
+
+        return;
+      }
+    }
+
+    if (authMode === "pinUnlock") {
+      if (normalizedPin !== quickAuthPin) {
+        setError("Неверный PIN");
+        setQuickAuthPinInput("");
+        return;
+      }
+
+      setQuickAuthPinInput("");
+      setIsAuthenticated(true);
+    }
+  }
+
+  function handleQuickAuthKeyPress(value) {
+    if (value === "delete") {
+      setQuickAuthPinInput((current) => current.slice(0, -1));
+      setError("");
+      return;
+    }
+
+    if (!/^[0-9]$/.test(value)) {
+      return;
+    }
+
+    setError("");
+
+    if (quickAuthPinInput.length >= 4) {
+      return;
+    }
+
+    const nextPin = `${quickAuthPinInput}${value}`;
+    setQuickAuthPinInput(nextPin);
+
+    if (nextPin.length === 4) {
+      void submitQuickAuthPinValue(nextPin);
+    }
+  }
+
+  function handleQuickAuthSubmit() {
+    void submitQuickAuthPinValue(quickAuthPinInput);
+  }
+
+  async function handleEnableBiometricPress() {
+    setError("");
+    setNotice("");
+
+    if (!isBiometricAvailable) {
+      setIsBiometricPromptVisible(false);
+      setIsAuthenticated(true);
+      return;
+    }
+
+    try {
+      const result = await authenticateWithBiometrics();
+
+      if (!result.success) {
+        setIsBiometricPromptVisible(false);
+        setIsAuthenticated(true);
+        return;
+      }
+
+      await saveBiometricEnabled(true);
+      setIsBiometricEnabled(true);
+      setIsBiometricPromptVisible(false);
+      setIsAuthenticated(true);
+      setNotice("Биометрия включена");
+    } catch {
+      setIsBiometricPromptVisible(false);
+      setIsAuthenticated(true);
+    }
+  }
+
+  function handleSkipBiometricPress() {
+    setIsBiometricPromptVisible(false);
+    setIsAuthenticated(true);
+  }
+
+  async function handleQuickAuthBiometricSubmit() {
+    setError("");
+    setNotice("");
+
+    if (!isBiometricAvailable) {
+      setError("Биометрия недоступна на этом устройстве");
+      return;
+    }
+
+    try {
+      const result = await authenticateWithBiometrics();
+
+      if (!result.success) {
+        if (result.error !== "user_cancel" && result.error !== "system_cancel") {
+          setError("Не удалось выполнить биометрический вход");
+        }
+        return;
+      }
+
+      setIsAuthenticated(true);
+    } catch {
+      setError("Не удалось выполнить биометрический вход");
+    }
+  }
+
+  async function handleResetQuickAuth() {
+    try {
+      await Promise.all([saveQuickAuthPin(""), saveBiometricEnabled(false)]);
+    } catch {
+      setError("Не удалось сбросить PIN");
+      return;
+    }
+
+    setQuickAuthPin("");
+    setQuickAuthPinInput("");
+    setQuickAuthPinConfirm("");
+    setIsBiometricEnabled(false);
+    setIsBiometricPromptVisible(false);
+    setError("");
+    setNotice("");
+    setAuthMode("credentials");
+    setAuthPinStep("setup");
   }
 
   function handleForgotPassword() {
@@ -508,6 +747,13 @@ function AppContent() {
     setSelectedCardId(nextState.selectedCardId);
     setSelectedCalendarDate(nextState.selectedCalendarDate);
     setIsAuthenticated(nextState.isAuthenticated);
+    setQuickAuthPinInput("");
+    setQuickAuthPinConfirm("");
+    setIsBiometricPromptVisible(false);
+    setError("");
+    setNotice("");
+    setAuthMode(quickAuthPin ? "pinUnlock" : "credentials");
+    setAuthPinStep(quickAuthPin ? "unlock" : "setup");
   }
 
   async function handleClearTestData() {
@@ -1248,14 +1494,29 @@ function AppContent() {
 
   return (
     <AuthScreen
+      authMode={authMode}
+      authPinStep={authPinStep}
+      biometricDescription={biometricDescription}
       error={error}
-      login={login}
       focusedField={focusedField}
-      password={password}
-      onLoginChange={setLogin}
+      isBiometricAvailable={isBiometricAvailable}
+      isBiometricEnabled={isBiometricEnabled}
+      isBiometricPromptVisible={isBiometricPromptVisible}
+      login={login}
+      notice={notice}
+      onEnableBiometricPress={handleEnableBiometricPress}
       onFocusedFieldChange={setFocusedField}
+      onLoginChange={setLogin}
       onPasswordChange={setPassword}
+      onQuickAuthBiometricSubmit={handleQuickAuthBiometricSubmit}
+      onQuickAuthKeyPress={handleQuickAuthKeyPress}
+      onQuickAuthSubmit={handleQuickAuthSubmit}
+      onResetQuickAuthPress={handleResetQuickAuth}
+      onSkipBiometricPress={handleSkipBiometricPress}
       onSubmitLogin={handleLogin}
+      password={password}
+      quickAuthPinInput={quickAuthPinInput}
+      safeAreaInsets={safeAreaInsets}
     />
   );
 }
