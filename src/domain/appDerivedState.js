@@ -13,7 +13,7 @@ import { getMonthDays } from './dates';
 import { buildRecommendationEntries } from './recommendations';
 import {
   buildSelectedCardJournalData,
-  doesJournalEventMatchFilter,
+  doesJournalEventMatchFilters,
   getGlobalJournalEvents,
 } from './journal';
 import { buildCareTasks } from './tasks';
@@ -42,6 +42,7 @@ export function buildAppDerivedState({
   currentUser,
   editingCardId,
   journalFilter,
+  journalSubFilter,
   recommendationsContext,
   recommendationsMode,
   selectedCalendarDate,
@@ -79,7 +80,8 @@ export function buildAppDerivedState({
     cultureCards,
     globalJournalEvents,
     journalFilter,
-    doesJournalEventMatchFilter,
+    journalSubFilter,
+    doesJournalEventMatchFilters,
   );
 
   const { cultureOptions, speciesOptions, varietyOptions } =

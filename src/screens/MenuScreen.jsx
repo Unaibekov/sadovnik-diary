@@ -36,6 +36,7 @@ export default function MenuScreen({
   onJournalPress,
   onLogout,
   onClearCards,
+  onGenerateTestData,
   onScheduleWateringReminder,
   onShareData,
   onScanPress,
@@ -58,6 +59,14 @@ export default function MenuScreen({
     ['Активные партии', String(activeCardsCount)],
     ['Задачи', taskCount > 0 ? String(taskCount) : 'Нет новых'],
   ];
+  const devMenuItems = __DEV__
+    ? [{
+      key: 'generateTestData',
+      onPress: onGenerateTestData,
+      subtitle: 'Добавить 40 карточек для тестирования MVP',
+      title: 'Заполнить тестовыми данными',
+    }]
+    : [];
   const menuItems = [
     {
       key: 'password',
@@ -95,6 +104,7 @@ export default function MenuScreen({
       subtitle: 'Вопросы и обратная связь',
       title: 'Поддержка',
     },
+    ...devMenuItems,
     {
       key: 'clearCards',
       onPress: onClearCards,

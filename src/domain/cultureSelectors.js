@@ -4,13 +4,15 @@ import { INTRO_STAGE } from './constants';
 export function buildGroupedGlobalJournalCards(
   cultureCards,
   globalJournalEvents,
-  journalFilter,
-  doesJournalEventMatchFilter,
+  journalMainFilter,
+  journalSubFilter,
+  doesJournalEventMatchFilters,
 ) {
   return cultureCards
     .map((card) => {
       const cardEvents = globalJournalEvents.filter((event) => (
-        event.cardId === card.id && doesJournalEventMatchFilter(event, journalFilter)
+        event.cardId === card.id &&
+        doesJournalEventMatchFilters(event, journalMainFilter, journalSubFilter)
       ));
 
       return {

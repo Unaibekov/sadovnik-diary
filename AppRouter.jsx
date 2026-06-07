@@ -75,6 +75,7 @@ export default function AppRouter({ actions, state }) {
     isStageMoveConfirmVisible,
     isSupportedPlantingStage,
     journalFilter,
+    journalSubFilter,
     authPassword,
     login,
     notice,
@@ -149,6 +150,7 @@ export default function AppRouter({ actions, state }) {
     confirmDeleteOperation,
     handleAddStageChange,
     handleClearTestData,
+    handleGenerateTestData,
     handleDateChange,
     handleGenerateCode,
     handleLogout,
@@ -196,6 +198,7 @@ export default function AppRouter({ actions, state }) {
     setIsDateEntryExpanded,
     setIsStageMoveConfirmVisible,
     setJournalFilter,
+    setJournalSubFilter,
     setNotice,
     setOpenDropdown,
     setOperationDeleteCandidateId,
@@ -494,7 +497,9 @@ export default function AppRouter({ actions, state }) {
         getResolvedBatchStatus={getResolvedBatchStatus}
         groupedCards={groupedGlobalJournalCards}
         journalFilter={journalFilter}
+        journalSubFilter={journalSubFilter}
         onChangeJournalFilter={setJournalFilter}
+        onChangeJournalSubFilter={setJournalSubFilter}
         onHomePress={() => setCurrentScreen("stages")}
         onJournalPress={openGlobalJournal}
         onMenuPress={openMenu}
@@ -546,13 +551,15 @@ export default function AppRouter({ actions, state }) {
           notice={notice}
           onHomePress={() => setCurrentScreen("stages")}
           onJournalPress={() => {
-            setJournalFilter("important");
+            setJournalFilter("all");
+            setJournalSubFilter("all");
             setCurrentScreen("globalJournal");
           }}
           onLogout={handleLogout}
           onOpenDirectories={openDirectories}
           onOpenSupport={openSupport}
           onClearCards={handleClearTestData}
+          onGenerateTestData={handleGenerateTestData}
           onChangePermanentPassword={handleChangePermanentPassword}
           onScheduleWateringReminder={handleScheduleWateringReminder}
           onShareData={handleShareData}
@@ -584,7 +591,8 @@ export default function AppRouter({ actions, state }) {
           notice={notice}
           onHomePress={() => setCurrentScreen("stages")}
           onJournalPress={() => {
-            setJournalFilter("important");
+            setJournalFilter("all");
+            setJournalSubFilter("all");
             setCurrentScreen("globalJournal");
           }}
           onMenuPress={openMenu}
@@ -639,9 +647,10 @@ export default function AppRouter({ actions, state }) {
           <BottomTabBar
             activeTab="home"
             bottomInset={bottomInset}
-            onHomePress={() => setCurrentScreen("stages")}
-            onJournalPress={() => {
-              setJournalFilter("important");
+          onHomePress={() => setCurrentScreen("stages")}
+          onJournalPress={() => {
+              setJournalFilter("all");
+              setJournalSubFilter("all");
               setCurrentScreen("globalJournal");
             }}
             onMenuPress={openMenu}

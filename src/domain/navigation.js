@@ -2,7 +2,8 @@
 export function buildGlobalJournalNavigationState() {
   return {
     currentScreen: 'globalJournal',
-    journalFilter: 'important',
+    journalFilter: 'all',
+    journalSubFilter: 'all',
     expandedJournalCardIds: [],
   };
 }

@@ -1153,7 +1153,9 @@ export default StyleSheet.create({
   },
   journalPanel: {
     gap: 10,
-    padding: 16,
+    paddingBottom: 16,
+    paddingHorizontal: 0,
+    paddingTop: 0,
   },
   journalTitle: {
     color: '#17251C',
@@ -1209,11 +1211,18 @@ export default StyleSheet.create({
   },
   globalJournalCard: {
     backgroundColor: '#FFFFFF',
-    borderColor: '#D7E0D8',
-    borderRadius: 8,
+    borderColor: '#EEF2F0',
+    borderRadius: 16,
     borderWidth: 1,
-    gap: 5,
-    padding: 12,
+    elevation: 2,
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    position: 'relative',
+    shadowColor: '#102015',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.045,
+    shadowRadius: 30,
   },
   globalJournalCardWarning: {
     backgroundColor: '#FFF7F5',
@@ -1249,11 +1258,6 @@ export default StyleSheet.create({
     paddingVertical: 5,
     textAlign: 'center',
   },
-  globalJournalToggleText: {
-    color: '#2C4B39',
-    fontSize: 12,
-    fontWeight: '800',
-  },
   globalJournalOpenCardButton: {
     alignItems: 'center',
     backgroundColor: '#E8F0EA',
@@ -1268,8 +1272,18 @@ export default StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
   },
+  globalJournalCollapseLink: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 16,
+  },
+  globalJournalCollapseLinkText: {
+    color: '#15863F',
+    fontSize: 14,
+    fontWeight: '800',
+  },
   globalJournalEventList: {
-    gap: 8,
+    gap: 0,
     marginTop: 8,
   },
   statusSummary: {

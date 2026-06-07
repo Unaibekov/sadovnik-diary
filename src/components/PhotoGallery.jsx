@@ -56,7 +56,8 @@ export default function PhotoGallery({
               <Pressable
                 accessibilityLabel={`Открыть фото ${index + 1}`}
                 accessibilityRole="button"
-                onPress={() => {
+                onPress={(event) => {
+                  event?.stopPropagation?.();
                   if (editable && typeof onReplace === 'function') {
                     onReplace(index);
                     return;
@@ -76,7 +77,10 @@ export default function PhotoGallery({
                 <Pressable
                   accessibilityLabel={`Удалить фото ${index + 1}`}
                   accessibilityRole="button"
-                  onPress={() => onRemove(index)}
+                  onPress={(event) => {
+                    event?.stopPropagation?.();
+                    onRemove(index);
+                  }}
                   style={({ pressed }) => [
                     localStyles.removeButton,
                     pressed && styles.linkButtonPressed,
@@ -95,7 +99,10 @@ export default function PhotoGallery({
         <View style={localStyles.actionsRow}>
           <Pressable
             accessibilityRole="button"
-            onPress={onAdd}
+            onPress={(event) => {
+              event?.stopPropagation?.();
+              onAdd?.();
+            }}
             style={({ pressed }) => [
               styles.secondaryOutlineButton,
               styles.transparentOutlineButton,

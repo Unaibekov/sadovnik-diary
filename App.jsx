@@ -78,6 +78,7 @@ import {
   buildCultureCardCancelResult,
   buildCultureCardSaveResult,
 } from "./src/domain/cultureCardSave";
+import { buildDevelopmentTestCultureCards } from "./src/domain/testDataGenerator";
 import { validateCultureCardInput } from "./src/domain/cultureFormValidation";
 import { updateFormField } from "./src/domain/formState";
 import { isRenderablePhotoUri } from "./src/domain/photoUri";
@@ -189,7 +190,8 @@ function AppContent() {
   const [introActionType, setIntroActionType] = useState("");
   const [stageActionError, setStageActionError] = useState("");
   const [batchStatusFilter, setBatchStatusFilter] = useState("all");
-  const [journalFilter, setJournalFilter] = useState("important");
+  const [journalFilter, setJournalFilter] = useState("all");
+  const [journalSubFilter, setJournalSubFilter] = useState("all");
   const [expandedJournalCardIds, setExpandedJournalCardIds] = useState([]);
   const [formError, setFormError] = useState("");
   const [statusFormError, setStatusFormError] = useState("");
@@ -255,6 +257,7 @@ function AppContent() {
     currentUser,
     editingCardId,
     journalFilter,
+    journalSubFilter,
     recommendationsContext,
     recommendationsMode,
     selectedCalendarDate,
@@ -675,6 +678,7 @@ function AppContent() {
     const nextState = buildGlobalJournalNavigationState();
     resetSelectedCardContext();
     setJournalFilter(nextState.journalFilter);
+    setJournalSubFilter(nextState.journalSubFilter);
     setExpandedJournalCardIds(nextState.expandedJournalCardIds);
     setCurrentScreen(nextState.currentScreen);
   }
@@ -883,6 +887,20 @@ function AppContent() {
       setNotice(resetState.notice);
     } catch (clearError) {
       setStorageError("Не удалось очистить карточки стадий");
+    }
+  }
+
+  async function handleGenerateTestData() {
+    try {
+      const result = buildDevelopmentTestCultureCards(cultureCards);
+      await saveCultureCardsToStorage(result.nextCards);
+      setCultureCards(result.nextCards);
+      setStorageError("");
+      setNotice(
+        `Создано ${result.createdCardsCount} карточек и ${result.journalRecordsCount} записей журнала.`,
+      );
+    } catch (generateError) {
+      setStorageError("Не удалось заполнить тестовыми данными");
     }
   }
 
@@ -1812,6 +1830,7 @@ function AppContent() {
     isStageMoveConfirmVisible,
     isSupportedPlantingStage,
     journalFilter,
+    journalSubFilter,
     login,
     notice,
     openDropdown,
@@ -1859,6 +1878,7 @@ function AppContent() {
     confirmDeleteOperation,
     handleAddStageChange,
     handleClearTestData,
+    handleGenerateTestData,
     handleDateChange,
     handleGenerateCode,
     handleLogout,
@@ -1907,6 +1927,7 @@ function AppContent() {
     setIsDateEntryExpanded,
     setIsStageMoveConfirmVisible,
     setJournalFilter,
+    setJournalSubFilter,
     setOpenDropdown,
     setOperationDeleteCandidateId,
     setRecommendationsContext,

@@ -3,6 +3,72 @@ import { getCardDisplayName } from './batch';
 import { INTRO_STAGE, stages } from './constants';
 import { getTodayIsoDate } from './dates';
 
+const MAIN_FILTER_LABELS = {
+  all: 'Все',
+  important: 'Важные',
+};
+
+const MAIN_FILTERS = new Set([
+  'all',
+  'important',
+  INTRO_STAGE,
+  stages[1],
+  stages[2],
+  stages[3],
+  stages[4],
+  stages[5],
+]);
+
+const SUB_FILTER_LABELS = {
+  all: 'Все',
+  comment: 'Комментарии',
+  photo: 'Фото',
+  contamination: 'Контаминация',
+  quarantine: 'Карантин',
+  risks: 'Риски',
+  losses: 'Потери',
+  disease: 'Болезни',
+  sales: 'Продажи',
+  rooting: 'Укоренение',
+  propagation: 'Размножение',
+  transplant: 'Пересадка',
+  stageChange: 'Переходы',
+  observation: 'Наблюдения',
+  environment: 'Среда',
+  care: 'Уход',
+};
+
+const STAGE_SUB_FILTERS = {
+  all: ['all', 'comment', 'photo', 'stageChange', 'sales'],
+  important: ['all', 'contamination', 'quarantine', 'risks', 'losses', 'disease'],
+  [INTRO_STAGE]: ['all', 'comment', 'photo', 'contamination', 'quarantine', 'stageChange'],
+  [stages[1]]: ['all', 'rooting', 'propagation', 'losses', 'sales', 'quarantine', 'stageChange'],
+  [stages[2]]: ['all', 'observation', 'environment', 'care', 'quarantine', 'losses', 'sales', 'stageChange'],
+  [stages[3]]: ['all', 'observation', 'environment', 'care', 'disease', 'transplant', 'quarantine', 'losses', 'sales', 'stageChange'],
+  [stages[4]]: ['all', 'observation', 'care', 'losses', 'sales', 'stageChange'],
+  [stages[5]]: ['all', 'observation', 'care', 'losses', 'sales', 'stageChange'],
+};
+
+function isCriticalLevel(level) {
+  return ['Высокий', 'Критический', 'Тяжелая', 'Критическая'].includes(level);
+}
+
+function matchesImportantRisk(event) {
+  if (event.type === 'adaptationStress') {
+    return isCriticalLevel(event.stressLevel);
+  }
+
+  if (event.type === 'greenhouseObservation') {
+    return isCriticalLevel(event.riskLevel);
+  }
+
+  if (event.type === 'greenhouseDisease') {
+    return true;
+  }
+
+  return false;
+}
+
 export function getOperationTimestamp(operation) {
   return operation?.createdAt || operation?.date || '';
 }
@@ -57,7 +123,7 @@ export function getOperationEffectiveStage(operation, card) {
   }
 
   if (['rooting', 'propagation'].includes(operation.type)) {
-    return 'Клонирование';
+    return stages[1];
   }
 
   if ([
@@ -66,7 +132,7 @@ export function getOperationEffectiveStage(operation, card) {
     'adaptationHumidityReduction',
     'adaptationCare',
   ].includes(operation.type)) {
-    return 'Адаптация';
+    return stages[2];
   }
 
   if ([
@@ -76,12 +142,12 @@ export function getOperationEffectiveStage(operation, card) {
     'greenhouseDisease',
     'transplant',
   ].includes(operation.type)) {
-    return 'Теплица';
+    return stages[3];
   }
 
   if (operation.type === 'statusChange') {
     if (operation.rootedCount || operation.propagationCount) {
-      return 'Клонирование';
+      return stages[1];
     }
   }
 
@@ -161,16 +227,22 @@ export function isImportantJournalEvent(event) {
   return [
     'contamination',
     'quarantine',
+    'quarantineReleased',
     'death',
     'discard',
     'stageChange',
-  ].includes(event.type) || (
-    event.type === 'adaptationStress' &&
-    ['Высокий', 'Критический'].includes(event.stressLevel)
-  );
+  ].includes(event.type) || matchesImportantRisk(event);
 }
 
-export function doesJournalEventMatchFilter(event, filter) {
+export function getJournalMainFilterLabel(filter) {
+  return MAIN_FILTER_LABELS[filter] || filter;
+}
+
+export function getJournalSubFilters(mainFilter) {
+  return STAGE_SUB_FILTERS[mainFilter] || STAGE_SUB_FILTERS.all;
+}
+
+export function doesJournalEventMatchMainFilter(event, filter) {
   if (filter === 'all') {
     return true;
   }
@@ -179,30 +251,65 @@ export function doesJournalEventMatchFilter(event, filter) {
     return isImportantJournalEvent(event);
   }
 
-  if (filter === 'losses') {
-    return ['death', 'discard'].includes(event.type);
+  if (!MAIN_FILTERS.has(filter)) {
+    return true;
   }
 
-  if (filter === 'sales') {
-    return event.type === 'sale';
+  return (event.cardStage || INTRO_STAGE) === filter;
+}
+
+export function doesJournalEventMatchSubFilter(event, subFilter, mainFilter = 'all') {
+  if (subFilter === 'all') {
+    return true;
   }
 
-  return event.type === filter;
+  const typeMatches = {
+    comment: event.type === 'comment',
+    photo: event.type === 'photo',
+    contamination: event.type === 'contamination',
+    quarantine: ['quarantine', 'quarantineReleased'].includes(event.type),
+    risks: matchesImportantRisk(event),
+    losses: ['death', 'discard'].includes(event.type),
+    disease: event.type === 'greenhouseDisease',
+    sales: event.type === 'sale',
+    rooting: event.type === 'rooting',
+    propagation: event.type === 'propagation',
+    transplant: event.type === 'transplant',
+    stageChange: event.type === 'stageChange',
+    observation: ['adaptationStress', 'greenhouseObservation'].includes(event.type),
+    environment: ['adaptationEnvironment', 'adaptationHumidityReduction', 'greenhouseEnvironment'].includes(event.type),
+    care: ['adaptationCare', 'greenhouseCare'].includes(event.type),
+  };
+
+  if (mainFilter === 'important') {
+    return Boolean(typeMatches[subFilter]);
+  }
+
+  return Boolean(typeMatches[subFilter]);
+}
+
+export function doesJournalEventMatchFilters(event, mainFilter, subFilter) {
+  return doesJournalEventMatchMainFilter(event, mainFilter) &&
+    doesJournalEventMatchSubFilter(event, subFilter, mainFilter);
+}
+
+export function doesJournalEventMatchFilter(event, filter) {
+  if (MAIN_FILTERS.has(filter)) {
+    return doesJournalEventMatchMainFilter(event, filter);
+  }
+
+  return doesJournalEventMatchSubFilter(event, filter, 'all');
 }
 
 export function getJournalFilterLabel(filter) {
   return {
-    important: 'Важные',
-    all: 'Все',
-    comment: 'Комментарии',
-    photo: 'Фото',
-    contamination: 'Контаминация',
-    quarantine: 'Карантин',
-    losses: 'Потери',
-    sales: 'Продажи',
-    rooting: 'Укоренение',
-    propagation: 'Размножение',
-    transplant: 'Пересадка',
-    stageChange: 'Переходы',
+    ...MAIN_FILTER_LABELS,
+    ...SUB_FILTER_LABELS,
+    [INTRO_STAGE]: INTRO_STAGE,
+    [stages[1]]: stages[1],
+    [stages[2]]: stages[2],
+    [stages[3]]: stages[3],
+    [stages[4]]: stages[4],
+    [stages[5]]: stages[5],
   }[filter] || filter;
 }
