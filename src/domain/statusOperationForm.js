@@ -7,6 +7,12 @@ export function buildStatusFormFromOperation(operation, countField) {
     reason: operation.reason || operation.quarantineReason || '',
     comment: getStatusFormComment(operation),
     photoNote: operation.photoNote || '',
+    photoUri: operation.photoUri || '',
+    photoUris: Array.isArray(operation.photoUris) && operation.photoUris.length > 0
+      ? operation.photoUris.filter(Boolean)
+      : operation.photoUri
+        ? [operation.photoUri]
+        : [],
     saleType: operation.saleType || '',
     recipient: operation.recipient || '',
     saleAmount: operation.saleAmount || '',

@@ -12,7 +12,15 @@ export function buildStatusOperation({
   editedOperation,
   userId,
   nowIso,
+  photoUri,
+  photoUris,
 }) {
+  const normalizedPhotoUris = Array.isArray(photoUris) && photoUris.length > 0
+    ? photoUris.filter(Boolean)
+    : photoUri
+      ? [photoUri]
+      : [];
+
   return {
     id: editingOperationId || `${Date.now()}`,
     type: introActionType || 'rooting',
@@ -29,6 +37,8 @@ export function buildStatusOperation({
       : {}),
     comment: statusForm.comment.trim(),
     photoNote: statusForm.photoNote.trim(),
+    ...(normalizedPhotoUris[0] ? { photoUri: normalizedPhotoUris[0] } : {}),
+    ...(normalizedPhotoUris.length ? { photoUris: normalizedPhotoUris } : {}),
     ...(['death', 'discard'].includes(introActionType)
       ? { reason: statusForm.reason.trim() }
       : {}),

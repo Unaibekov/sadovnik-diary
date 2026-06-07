@@ -126,6 +126,7 @@ export default function CulturePassportTab({
             </View>
           </>
         )}
+
       </View>
 
       <View style={[appStyles.surfacePanel, styles.passportPanel]}>

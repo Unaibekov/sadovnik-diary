@@ -15,6 +15,8 @@ export function buildCultureCardSaveResult({
   sourceMaterial,
   parentBatch,
   startPhotoNote,
+  startPhotoUri,
+  startPhotoUris,
   userId,
   nowIso,
 }) {
@@ -31,6 +33,8 @@ export function buildCultureCardSaveResult({
     sourceMaterial,
     parentBatch,
     startPhotoNote,
+    startPhotoUri,
+    startPhotoUris,
     userId,
     nowIso,
   });

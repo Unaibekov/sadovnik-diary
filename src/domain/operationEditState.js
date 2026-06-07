@@ -19,6 +19,12 @@ export function buildOperationEditState({
       introActionForm: {
         ...createEmptyIntroActionForm(),
         [introOperationFields[operation.type]]: operation[introOperationFields[operation.type]] || '',
+        photoUri: operation.photoUri || '',
+        photoUris: Array.isArray(operation.photoUris) && operation.photoUris.length > 0
+          ? operation.photoUris.filter(Boolean)
+          : operation.photoUri
+            ? [operation.photoUri]
+            : [],
       },
       isDateEntryExpanded: true,
       cultureCalendarTab: 'calendar',

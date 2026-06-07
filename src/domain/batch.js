@@ -66,6 +66,11 @@ export function normalizeCultureCard(card) {
   const operations = card.operations || [];
   const hasBatchCreatedOperation = operations.some((operation) => operation.type === 'batchCreated');
   const normalizedQrStatus = card.qrStatus || (card.qrPrinted ? 'printed' : card.code ? 'pending_print' : 'none');
+  const normalizedStartPhotoUris = Array.isArray(card.startPhotoUris)
+    ? card.startPhotoUris.filter(Boolean)
+    : card.startPhotoUri
+      ? [card.startPhotoUri]
+      : [];
   const normalizedCard = {
     ...card,
     batchStatus: card.batchStatus || (card.status === 'cancelled' ? 'cancelled' : 'active'),
@@ -74,6 +79,8 @@ export function normalizeCultureCard(card) {
     sourceMaterial: card.sourceMaterial || card.sourcePlantName || '',
     parentBatch: card.parentBatch || '',
     startPhotoNote: card.startPhotoNote || '',
+    startPhotoUri: normalizedStartPhotoUris[0] || '',
+    startPhotoUris: normalizedStartPhotoUris,
   };
   const normalizedOperations = [
     ...(!hasBatchCreatedOperation
@@ -131,8 +138,6 @@ export function getOperationSummaryItems(operation, card) {
 
   if (operation.type === 'stageChange') {
     return [
-      ['Откуда', operation.fromStage],
-      ['Куда', operation.toStage],
       ['Укоренено', operation.rootedCount ? `${operation.rootedCount} шт.` : ''],
       ['Процент укоренения', operation.rootingPercent !== undefined ? `${operation.rootingPercent}%` : ''],
       ['Остаток', operation.currentQuantity !== undefined ? formatCountWithTotal(operation.currentQuantity) : ''],

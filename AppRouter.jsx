@@ -176,6 +176,14 @@ export default function AppRouter({ actions, state }) {
     openTaskCard,
     openTasks,
     requestDeleteOperation,
+    handleAddCulturePhoto,
+    handleReplaceCulturePhoto,
+    handleRemoveCulturePhoto,
+    handlePickIntroActionPhoto,
+    handleReplaceIntroActionPhoto,
+    handleAddStatusPhoto,
+    handleRemoveStatusPhoto,
+    handleReplaceStatusPhoto,
     setBatchStatusFilter,
     setCardSearch,
     setCultureCalendarTab,
@@ -283,9 +291,6 @@ export default function AppRouter({ actions, state }) {
         }}
         onConfirmOperationDelete={confirmDeleteOperation}
         onConfirmStageMove={handleAddStageChange}
-        onOpenRecommendations={() =>
-          openSelectedCardRecommendations("cultureCalendar")
-        }
         onRequestStageMove={() => {
           setStageActionError("");
           setIsStageMoveConfirmVisible(true);
@@ -390,6 +395,8 @@ export default function AppRouter({ actions, state }) {
           setCurrentScreen("cultureCalendar");
         }}
         onChangeActionForm={updateIntroActionForm}
+        onPickActionPhoto={handlePickIntroActionPhoto}
+        onReplaceActionPhoto={handleReplaceIntroActionPhoto}
         onSave={async () => {
           const isSaved = await handleSaveIntroAction();
           if (isSaved) {
@@ -416,9 +423,9 @@ export default function AppRouter({ actions, state }) {
         isEditing={Boolean(state.editingOperationId)}
         onBack={closeStatusChangeForm}
         onChangeField={updateStatusForm}
-        onOpenRecommendations={() =>
-          openSelectedCardRecommendations("statusChangeForm")
-        }
+        onAddPhoto={handleAddStatusPhoto}
+        onRemovePhoto={handleRemoveStatusPhoto}
+        onReplacePhoto={handleReplaceStatusPhoto}
         onSave={handleSaveStatusChange}
         onSelectEventType={(value) => {
           setIntroActionType(value);
@@ -471,7 +478,6 @@ export default function AppRouter({ actions, state }) {
         onChangeSearch={setCardSearch}
         onCreateCulture={openCultureForm}
         onEditCulture={openEditCultureForm}
-        onOpenRecommendations={openStageRecommendations}
         onOpenCultureCalendar={openCultureCalendar}
         selectedStage={selectedStage}
         storageError={storageError}

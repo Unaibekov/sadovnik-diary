@@ -5,6 +5,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import styles from '../../styles';
 import BottomTabBar from '../components/BottomTabBar';
+import PhotoGallery from '../components/PhotoGallery';
 import SelectBottomSheet from '../components/SelectBottomSheet';
 import { FilterIcon } from '../components/icons';
 import { BATCH_STATUS_LABELS, INTRO_STAGE } from '../domain/constants';
@@ -142,6 +143,13 @@ export default function GlobalJournalScreen({
                       <View style={styles.globalJournalEventList}>
                         {events.map((event) => {
                           const summaryItems = getOperationSummaryItems(event);
+                          const photoUris = (
+                            Array.isArray(event.photoUris) && event.photoUris.length > 0
+                              ? event.photoUris
+                              : event.photoUri
+                                ? [event.photoUri]
+                                : []
+                          ).filter(Boolean);
 
                           return (
                             <View
@@ -164,6 +172,12 @@ export default function GlobalJournalScreen({
                                   {label}: {value}
                                 </Text>
                               ))}
+                              {photoUris.length > 0 ? (
+                                <PhotoGallery
+                                  thumbSize={72}
+                                  uris={photoUris}
+                                />
+                              ) : null}
                             </View>
                           );
                         })}

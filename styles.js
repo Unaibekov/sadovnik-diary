@@ -1019,13 +1019,13 @@ export default StyleSheet.create({
     backgroundColor: '#00000066',
     flex: 1,
     justifyContent: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: 16,
   },
   confirmModal: {
     backgroundColor: '#FFFFFF',
     borderRadius: 18,
     gap: 12,
-    padding: 18,
+    padding: 16,
     width: '100%',
   },
   confirmModalTitle: {
@@ -1061,14 +1061,16 @@ export default StyleSheet.create({
   },
   dateActionTitle: {
     color: '#17251C',
+    flex: 1,
     fontSize: 18,
     fontWeight: '800',
+    textAlign: 'left',
   },
   dateActionHeader: {
     alignItems: 'center',
     flexDirection: 'row',
     gap: 12,
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
   },
   blockedNotice: {
     alignItems: 'flex-start',
@@ -1082,20 +1084,6 @@ export default StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 12,
   },
-  blockedNoticeIcon: {
-    alignItems: 'center',
-    backgroundColor: '#B42318',
-    borderRadius: 13,
-    height: 26,
-    justifyContent: 'center',
-    width: 26,
-  },
-  blockedNoticeIconText: {
-    color: '#FFFFFF',
-    fontSize: 17,
-    fontWeight: '800',
-    lineHeight: 22,
-  },
   blockedNoticeText: {
     color: '#B42318',
     flex: 1,
@@ -1104,11 +1092,11 @@ export default StyleSheet.create({
     lineHeight: 20,
   },
   stageActionErrorNotice: {
-    alignItems: 'flex-start',
+    alignItems: 'center',
     backgroundColor: '#FFFFFF',
     borderColor: '#F1D6D2',
     borderRadius: 14,
-    borderWidth: 1,
+    borderWidth: 2,
     flexDirection: 'row',
     gap: 10,
     marginTop: 18,

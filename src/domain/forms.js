@@ -15,6 +15,8 @@ export function createEmptyCultureForm() {
     parentBatch: '',
     sterilityStatus: 'unchecked',
     startPhotoNote: '',
+    startPhotoUri: '',
+    startPhotoUris: [],
     batchStatus: '',
     qrStatus: 'none',
   };
@@ -31,6 +33,8 @@ export function createEmptyStatusForm() {
     reason: '',
     comment: '',
     photoNote: '',
+    photoUri: '',
+    photoUris: [],
     saleType: '',
     recipient: '',
     saleAmount: '',
@@ -68,6 +72,8 @@ export function createEmptyIntroActionForm() {
   return {
     comment: '',
     photoNote: '',
+    photoUri: '',
+    photoUris: [],
     contaminationNote: '',
     quarantineReason: '',
     deathCount: '',

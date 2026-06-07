@@ -40,7 +40,13 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow Sadovnik Diary to scan QR codes"
+          "cameraPermission": "Allow Sadovnik Diary to use the camera"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Sadovnik Diary to access your photos"
         }
       ],
       "expo-secure-store"

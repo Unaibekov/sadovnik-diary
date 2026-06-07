@@ -1,5 +1,7 @@
 ﻿import { useEffect, useState } from "react";
 import { Platform } from "react-native";
+import * as ImagePicker from "expo-image-picker";
+import * as FileSystem from "expo-file-system/legacy";
 import {
   SafeAreaProvider,
   initialWindowMetrics,
@@ -78,6 +80,7 @@ import {
 } from "./src/domain/cultureCardSave";
 import { validateCultureCardInput } from "./src/domain/cultureFormValidation";
 import { updateFormField } from "./src/domain/formState";
+import { isRenderablePhotoUri } from "./src/domain/photoUri";
 import {
   clearCultureCardsForTests,
   loadCultureCardsFromStorage,
@@ -891,10 +894,316 @@ function AppContent() {
     setStatusForm((currentForm) => updateFormField(currentForm, field, value));
   }
 
+  function getStatusPhotoUris(form = statusForm) {
+    if (Array.isArray(form.photoUris) && form.photoUris.length > 0) {
+      return form.photoUris.filter((uri) => isRenderablePhotoUri(uri));
+    }
+
+    return isRenderablePhotoUri(form.photoUri) ? [form.photoUri] : [];
+  }
+
+  function setStatusPhotoUris(nextUris) {
+    const normalizedUris = nextUris.filter((uri) => isRenderablePhotoUri(uri));
+    setStatusForm((currentForm) => ({
+      ...currentForm,
+      photoUris: normalizedUris,
+      photoUri: normalizedUris[0] || "",
+    }));
+  }
+
   function updateIntroActionForm(field, value) {
     setIntroActionForm((currentForm) =>
       updateFormField(currentForm, field, value),
     );
+  }
+
+  function getIntroActionPhotoUris(form = introActionForm) {
+    if (Array.isArray(form.photoUris) && form.photoUris.length > 0) {
+      return form.photoUris.filter((uri) => isRenderablePhotoUri(uri));
+    }
+
+    return isRenderablePhotoUri(form.photoUri) ? [form.photoUri] : [];
+  }
+
+  function setIntroActionPhotoUris(nextUris) {
+    const normalizedUris = nextUris.filter((uri) => isRenderablePhotoUri(uri));
+    setIntroActionForm((currentForm) => ({
+      ...currentForm,
+      photoUris: normalizedUris,
+      photoUri: normalizedUris[0] || "",
+    }));
+  }
+
+  function getCulturePhotoUris(form = cultureForm) {
+    if (Array.isArray(form.startPhotoUris) && form.startPhotoUris.length > 0) {
+      return form.startPhotoUris.filter((uri) => isRenderablePhotoUri(uri));
+    }
+
+    return isRenderablePhotoUri(form.startPhotoUri) ? [form.startPhotoUri] : [];
+  }
+
+  function setCulturePhotoUris(nextUris) {
+    const normalizedUris = nextUris.filter(Boolean);
+    setCultureForm((currentForm) => ({
+      ...currentForm,
+      startPhotoUris: normalizedUris,
+      startPhotoUri: normalizedUris[0] || "",
+    }));
+  }
+
+  function getPhotoFileExtension(asset) {
+    const fileName = asset?.fileName || "";
+    const extensionFromFileName = fileName.includes(".")
+      ? fileName.split(".").pop()
+      : "";
+
+    if (extensionFromFileName) {
+      return extensionFromFileName.toLowerCase();
+    }
+
+    const mimeType = asset?.mimeType || "";
+
+    if (mimeType === "image/png") return "png";
+    if (mimeType === "image/webp") return "webp";
+    if (mimeType === "image/heic" || mimeType === "image/heif") return "heic";
+
+    return "jpg";
+  }
+
+  function blobToDataUri(blob) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+
+      reader.onloadend = () => {
+        resolve(typeof reader.result === "string" ? reader.result : "");
+      };
+
+      reader.onerror = () => reject(new Error("Failed to read image blob"));
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  async function persistPickedPhotoAsset(asset) {
+    if (!asset?.uri) {
+      return { error: "Не удалось получить фото" };
+    }
+
+    if (Platform.OS === "web") {
+      try {
+        if (asset.base64) {
+          const mimeType = asset.mimeType || "image/jpeg";
+          return { uri: `data:${mimeType};base64,${asset.base64}` };
+        }
+
+        const response = await fetch(asset.uri);
+        const blob = await response.blob();
+        const dataUri = await blobToDataUri(blob);
+
+        return { uri: dataUri || asset.uri };
+      } catch {
+        return { uri: asset.uri };
+      }
+    }
+
+    if (!FileSystem.documentDirectory) {
+      return { uri: asset.uri };
+    }
+
+    const extension = getPhotoFileExtension(asset);
+    const fileName = `photo-${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
+    const fileUri = `${FileSystem.documentDirectory}${fileName}`;
+
+    try {
+      await FileSystem.copyAsync({
+        from: asset.uri,
+        to: fileUri,
+      });
+
+      return { uri: fileUri };
+    } catch {
+      return { uri: asset.uri };
+    }
+  }
+
+  async function pickPhotoWithCamera() {
+    const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+
+    if (!permissionResult.granted) {
+      return {
+        error: permissionResult.canAskAgain
+          ? "Нужно разрешение на доступ к камере"
+          : "Доступ к камере запрещен. Разрешите его в настройках телефона.",
+      };
+    }
+
+    try {
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: false,
+        base64: Platform.OS === "web",
+        quality: 0.85,
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      });
+
+      if (result.canceled || !result.assets?.length) {
+        return { canceled: true };
+      }
+
+      return persistPickedPhotoAsset(result.assets[0]);
+    } catch {
+      return {
+        error: "Не удалось открыть камеру",
+      };
+    }
+  }
+
+  async function handleAddCulturePhoto() {
+    if (!canEditCurrentIdentity) {
+      return;
+    }
+
+    const result = await pickPhotoWithCamera();
+
+    if (result.canceled) {
+      return;
+    }
+
+    if (result.error) {
+      setFormError(result.error);
+      return;
+    }
+
+    const nextUris = [...getCulturePhotoUris(), result.uri];
+    setCulturePhotoUris(nextUris);
+    setFormError("");
+  }
+
+  async function handleReplaceCulturePhoto(index) {
+    if (!canEditCurrentIdentity) {
+      return;
+    }
+
+    const result = await pickPhotoWithCamera();
+
+    if (result.canceled) {
+      return;
+    }
+
+    if (result.error) {
+      setFormError(result.error);
+      return;
+    }
+
+    const nextUris = getCulturePhotoUris().map((uri, currentIndex) =>
+      currentIndex === index ? result.uri : uri,
+    );
+    setCulturePhotoUris(nextUris);
+    setFormError("");
+  }
+
+  function handleRemoveCulturePhoto(index) {
+    if (!canEditCurrentIdentity) {
+      return;
+    }
+
+    if (typeof index !== "number") {
+      setCulturePhotoUris([]);
+      return;
+    }
+
+    const nextUris = getCulturePhotoUris().filter((_, currentIndex) => currentIndex !== index);
+    setCulturePhotoUris(nextUris);
+  }
+
+  async function handlePickIntroActionPhoto() {
+    const result = await pickPhotoWithCamera();
+
+    if (result.canceled) {
+      return;
+    }
+
+    if (result.error) {
+      setStageActionError(result.error);
+      return;
+    }
+
+    const nextUris = [...getIntroActionPhotoUris(), result.uri];
+    setIntroActionPhotoUris(nextUris);
+    setStageActionError("");
+  }
+
+  async function handleReplaceIntroActionPhoto(index) {
+    const result = await pickPhotoWithCamera();
+
+    if (result.canceled) {
+      return;
+    }
+
+    if (result.error) {
+      setStageActionError(result.error);
+      return;
+    }
+
+    const nextUris = getIntroActionPhotoUris().map((uri, currentIndex) =>
+      currentIndex === index ? result.uri : uri,
+    );
+    setIntroActionPhotoUris(nextUris);
+    setStageActionError("");
+  }
+
+  function handleRemoveIntroActionPhoto(index) {
+    if (typeof index !== "number") {
+      setIntroActionPhotoUris([]);
+      return;
+    }
+
+    const nextUris = getIntroActionPhotoUris().filter((_, currentIndex) => currentIndex !== index);
+    setIntroActionPhotoUris(nextUris);
+  }
+
+  async function handleAddStatusPhoto() {
+    const result = await pickPhotoWithCamera();
+
+    if (result.canceled) {
+      return;
+    }
+
+    if (result.error) {
+      setStatusFormError(result.error);
+      return;
+    }
+
+    setStatusPhotoUris([...getStatusPhotoUris(), result.uri]);
+    setStatusFormError("");
+  }
+
+  async function handleReplaceStatusPhoto(index) {
+    const result = await pickPhotoWithCamera();
+
+    if (result.canceled) {
+      return;
+    }
+
+    if (result.error) {
+      setStatusFormError(result.error);
+      return;
+    }
+
+    const nextUris = getStatusPhotoUris().map((uri, currentIndex) =>
+      currentIndex === index ? result.uri : uri,
+    );
+
+    setStatusPhotoUris(nextUris);
+    setStatusFormError("");
+  }
+
+  function handleRemoveStatusPhoto(index) {
+    if (typeof index !== "number") {
+      setStatusPhotoUris([]);
+      return;
+    }
+
+    const nextUris = getStatusPhotoUris().filter((_, currentIndex) => currentIndex !== index);
+    setStatusPhotoUris(nextUris);
   }
 
   function openCultureForm() {
@@ -1258,9 +1567,15 @@ function AppContent() {
       return;
     }
 
+    const sanitizedStatusForm = {
+      ...statusForm,
+      photoUri: isRenderablePhotoUri(statusForm.photoUri) ? statusForm.photoUri : "",
+      photoUris: getStatusPhotoUris(statusForm),
+    };
+
     const eventConfig = getStatusEventConfig(introActionType);
     const count = eventConfig.countField
-      ? statusForm[eventConfig.countField].trim()
+      ? sanitizedStatusForm[eventConfig.countField].trim()
       : "";
 
     const nowIso = new Date().toISOString();
@@ -1273,10 +1588,12 @@ function AppContent() {
       selectedCalendarDate,
       count,
       currentQuantity,
-      statusForm,
+      statusForm: sanitizedStatusForm,
       editedOperation,
       userId: currentUser.id,
       nowIso,
+      photoUri: sanitizedStatusForm.photoUri,
+      photoUris: sanitizedStatusForm.photoUris,
     });
     const nextCards = cultureCards.map((card) => {
       if (card.id !== selectedCard.id) {
@@ -1287,7 +1604,7 @@ function AppContent() {
         editingOperationId,
         introActionType,
         nextOperation,
-        statusForm,
+        statusForm: sanitizedStatusForm,
       });
     });
 
@@ -1335,9 +1652,15 @@ function AppContent() {
       return false;
     }
 
-    const value = introActionForm[actionConfig.field].trim();
+    const sanitizedIntroActionForm = {
+      ...introActionForm,
+      photoUris: getIntroActionPhotoUris(introActionForm),
+      photoUri: isRenderablePhotoUri(introActionForm.photoUri) ? introActionForm.photoUri : "",
+    };
+    const value = sanitizedIntroActionForm[actionConfig.field].trim();
+    const hasPhoto = sanitizedIntroActionForm.photoUris.length > 0;
 
-    if (!value) {
+    if (!value && !(introActionType === "photo" && hasPhoto)) {
       setStageActionError(actionConfig.error);
       return false;
     }
@@ -1347,7 +1670,7 @@ function AppContent() {
       cultureCards,
       editingOperationId,
       introActionType,
-      introActionForm,
+      introActionForm: sanitizedIntroActionForm,
       nowIso,
       selectedCard,
       selectedCalendarDate,
@@ -1375,6 +1698,8 @@ function AppContent() {
     const sourceMaterial = cultureForm.sourceMaterial.trim();
     const parentBatch = cultureForm.parentBatch.trim();
     const startPhotoNote = cultureForm.startPhotoNote.trim();
+    const startPhotoUris = getCulturePhotoUris(cultureForm);
+    const startPhotoUri = startPhotoUris[0] || "";
     const isDuplicateCode = isDuplicateCultureCode(
       cultureCards,
       code,
@@ -1421,6 +1746,8 @@ function AppContent() {
       sourceMaterial,
       parentBatch,
       startPhotoNote,
+      startPhotoUri,
+      startPhotoUris,
       userId: currentUser.id,
       nowIso,
     });
@@ -1541,6 +1868,15 @@ function AppContent() {
     handleSaveCultureCard,
     handleSaveIntroAction,
     handleSaveStatusChange,
+    handleAddCulturePhoto,
+    handleReplaceCulturePhoto,
+    handleRemoveCulturePhoto,
+    handlePickIntroActionPhoto,
+    handleReplaceIntroActionPhoto,
+    handleRemoveIntroActionPhoto,
+    handleAddStatusPhoto,
+    handleRemoveStatusPhoto,
+    handleReplaceStatusPhoto,
     handleScanPress,
     handleScheduleWateringReminder,
     handleShareData,
@@ -1587,6 +1923,15 @@ function AppContent() {
     updateCultureForm,
     updateIntroActionForm,
     updateStatusForm,
+    handleAddCulturePhoto,
+    handleReplaceCulturePhoto,
+    handleRemoveCulturePhoto,
+    handlePickIntroActionPhoto,
+    handleReplaceIntroActionPhoto,
+    handleRemoveIntroActionPhoto,
+    handleAddStatusPhoto,
+    handleRemoveStatusPhoto,
+    handleReplaceStatusPhoto,
     handleSelectCulture,
     handleSelectSpecies,
     handleSelectVariety,

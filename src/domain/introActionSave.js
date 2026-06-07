@@ -31,6 +31,8 @@ export function buildIntroActionSaveResult({
     selectedCalendarDate,
     selectedStage: selectedCard.stage || INTRO_STAGE,
     userId,
+    photoUri: introActionForm.photoUri || '',
+    photoUris: introActionForm.photoUris || [],
     value,
   });
 

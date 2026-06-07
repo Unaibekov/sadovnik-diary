@@ -42,6 +42,26 @@ export function formatDisplayDateTime(isoDateTime) {
   });
 }
 
+export function formatDisplayLongDate(isoDate) {
+  if (!isoDate) {
+    return '';
+  }
+
+  const date = new Date(`${isoDate}T00:00:00`);
+
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+
+  return date
+    .toLocaleDateString('ru-RU', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    })
+    .replace(/ г\.?$/, '');
+}
+
 export function formatDisplayTime(isoDateTime) {
   if (!isoDateTime) {
     return '';

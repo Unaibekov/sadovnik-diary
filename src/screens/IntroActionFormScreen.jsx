@@ -1,4 +1,4 @@
-// Экран формы стартового действия для культуры.
+﻿// Экран формы стартового действия для культуры.
 import { StatusBar } from 'expo-status-bar';
 import {
   KeyboardAvoidingView,
@@ -11,8 +11,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import styles from '../../styles';
+import PhotoGallery from '../components/PhotoGallery';
 import StageHeader from '../components/StageHeader';
 import { getCardCurrentQuantity, getCardDisplayName } from '../domain/batch';
+import { isRenderablePhotoUri } from '../domain/photoUri';
 
 const introActionCommands = [
   ['comment', 'Комментарий'],
@@ -28,12 +30,21 @@ export default function IntroActionFormScreen({
   isEditing,
   onBack,
   onChangeActionForm,
+  onPickActionPhoto,
+  onReplaceActionPhoto,
   onSave,
   onSelectActionType,
   selectedCard,
 }) {
   const selectedActionLabel =
     introActionCommands.find(([value]) => value === actionType)?.[1] || 'Запись';
+  const photoUris = (
+    Array.isArray(actionForm.photoUris) && actionForm.photoUris.length > 0
+      ? actionForm.photoUris
+      : actionForm.photoUri
+        ? [actionForm.photoUri]
+        : []
+  ).filter((uri) => isRenderablePhotoUri(uri));
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -48,10 +59,13 @@ export default function IntroActionFormScreen({
         style={styles.keyboardView}
       >
         <ScrollView
-          contentContainerStyle={styles.cultureFormScrollContent}
+          contentContainerStyle={[
+            styles.cultureFormScrollContent,
+            localStyles.scrollContentCompact,
+          ]}
           keyboardShouldPersistTaps="handled"
         >
-          <View style={styles.cardsScreen}>
+          <View style={[styles.cardsScreen, localStyles.cardsScreenCompact]}>
             <View style={styles.cardsHeader}>
               <Text style={styles.eventFormCardTitle}>
                 {getCardDisplayName(selectedCard)}
@@ -100,14 +114,24 @@ export default function IntroActionFormScreen({
                 />
               )}
               {actionType === 'photo' && (
-                <TextInput
-                  multiline
-                  onChangeText={(value) => onChangeActionForm('photoNote', value)}
-                  placeholder="Описание фото или ссылка"
-                  placeholderTextColor="#7C8A80"
-                  style={[styles.input, styles.multilineInput]}
-                  value={actionForm.photoNote}
-                />
+                <View style={localStyles.photoField}>
+                  <PhotoGallery
+                    addLabel="Добавить фото"
+                    addMoreLabel="Добавить еще фото"
+                    editable
+                    onAdd={onPickActionPhoto}
+                    onReplace={onReplaceActionPhoto}
+                    uris={photoUris}
+                  />
+                  <TextInput
+                    multiline
+                    onChangeText={(value) => onChangeActionForm('photoNote', value)}
+                    placeholder="Описание фото"
+                    placeholderTextColor="#7C8A80"
+                    style={[styles.input, styles.multilineInput]}
+                    value={actionForm.photoNote}
+                  />
+                </View>
               )}
               {actionType === 'contamination' && (
                 <TextInput
@@ -149,3 +173,19 @@ export default function IntroActionFormScreen({
     </SafeAreaView>
   );
 }
+
+const localStyles = {
+  cardsScreenCompact: {
+    flex: 0,
+    paddingHorizontal: 0,
+    paddingTop: 0,
+    paddingBottom: 0,
+  },
+  scrollContentCompact: {
+    paddingTop: 0,
+  },
+  photoField: {
+    gap: 12,
+  },
+};
+

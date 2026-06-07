@@ -15,6 +15,8 @@ export function buildCultureCardPayload({
   sourceMaterial,
   parentBatch,
   startPhotoNote,
+  startPhotoUri,
+  startPhotoUris,
   userId,
   nowIso,
 }) {
@@ -44,6 +46,8 @@ export function buildCultureCardPayload({
     parentBatch,
     sterilityStatus: cultureForm.sterilityStatus || 'unchecked',
     startPhotoNote,
+    startPhotoUri: startPhotoUris?.[0] || startPhotoUri || '',
+    startPhotoUris: Array.isArray(startPhotoUris) ? startPhotoUris.filter(Boolean) : startPhotoUri ? [startPhotoUri] : [],
     name: getCardDisplayName({ cultureName, speciesName, varietyName }),
     stage: selectedStage,
     qrPrinted: cultureForm.qrPrinted || false,

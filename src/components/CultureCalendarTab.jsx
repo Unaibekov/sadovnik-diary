@@ -1,17 +1,13 @@
 // Вкладка календаря для конкретной культуры.
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Image, Pressable, ScrollView, Text, View } from 'react-native';
 import styles from '../../styles';
-import { formatDisplayDate, formatDisplayTime } from '../domain/dates';
+import { formatDisplayLongDate, formatDisplayTime } from '../domain/dates';
 import { getOperationSummaryItems } from '../domain/batch';
+import { isRenderablePhotoUri } from '../domain/photoUri';
 import StageCalendar from './StageCalendar';
-import { EditIcon, TrashIcon } from './icons';
-
-const operationsWithSelfDescribingTitle = new Set([
-  'comment',
-  'photo',
-  'contamination',
-  'quarantine',
-]);
+import PhotoViewerModal from './PhotoViewerModal';
+import { EditIcon, InfoIcon } from './icons';
 
 export default function CultureCalendarTab({
   calendarDays,
@@ -30,14 +26,29 @@ export default function CultureCalendarTab({
   stageMoveBlockedMessage,
   stageMoveTarget,
 }) {
+  const [isViewerVisible, setIsViewerVisible] = useState(false);
+  const [viewerUris, setViewerUris] = useState([]);
+  const [viewerIndex, setViewerIndex] = useState(0);
+
+  function openPhotoViewer(uris, index = 0) {
+    setViewerUris(uris);
+    setViewerIndex(index);
+    setIsViewerVisible(true);
+  }
+
   return (
     <>
+      <PhotoViewerModal
+        initialIndex={viewerIndex}
+        onClose={() => setIsViewerVisible(false)}
+        uris={viewerUris}
+        visible={isViewerVisible}
+      />
+
       {!!stageMoveTarget && !!stageMoveBlockedMessage && (
-        <View style={styles.blockedNotice}>
-          <View style={styles.blockedNoticeIcon}>
-            <Text style={styles.blockedNoticeIconText}>!</Text>
-          </View>
-          <Text style={styles.blockedNoticeText}>{stageMoveBlockedMessage}</Text>
+        <View style={localStyles.moveBlockedNotice}>
+          <InfoIcon color="#EF4444" size={18} />
+          <Text style={localStyles.moveBlockedText}>{stageMoveBlockedMessage}</Text>
         </View>
       )}
 
@@ -61,7 +72,7 @@ export default function CultureCalendarTab({
           contentContainerStyle={styles.dateRecordsContent}
         >
           <View style={styles.dateActionHeader}>
-            <Text style={styles.dateActionTitle}>{formatDisplayDate(selectedDate)}</Text>
+            <Text style={styles.dateActionTitle}>{formatDisplayLongDate(selectedDate)}</Text>
           </View>
 
           {selectedDateOperations.length === 0 && (
@@ -70,49 +81,81 @@ export default function CultureCalendarTab({
 
           {selectedDateOperations.map((operation) => {
             const summaryItems = getOperationSummaryItems(operation, card);
-            const showSummaryLabels = !operationsWithSelfDescribingTitle.has(operation.type);
+            const photoUris = (
+              Array.isArray(operation.photoUris) && operation.photoUris.length > 0
+                ? operation.photoUris
+                : isRenderablePhotoUri(operation.photoUri)
+                  ? [operation.photoUri]
+                  : []
+            ).filter((uri) => isRenderablePhotoUri(uri));
+            const isTextOnlyOperation = ['comment', 'contamination', 'quarantine'].includes(operation.type);
+            const title = operation.title || 'Событие';
 
             return (
               <View key={operation.id} style={styles.statusSummary}>
-                <View style={styles.operationHeaderRow}>
-                  <Text style={styles.statusSummaryTitle}>
-                    {operation.title || 'Событие'}
-                    {operation.createdAt ? ` • ${formatDisplayTime(operation.createdAt)}` : ''}
-                  </Text>
-                  <View style={styles.operationActions}>
-                    {canEditOperation(operation) && (
-                      <Pressable
-                        accessibilityLabel="Редактировать запись"
-                        accessibilityRole="button"
-                        onPress={() => onEditOperation(operation)}
-                        style={({ pressed }) => [
-                          styles.operationActionButton,
-                          pressed && styles.linkButtonPressed,
-                        ]}
-                      >
-                        <EditIcon size={20} />
-                      </Pressable>
+                <View style={localStyles.itemRow}>
+                  <View style={localStyles.timeBadge}>
+                    <Text style={localStyles.timeText}>
+                      {operation.createdAt ? formatDisplayTime(operation.createdAt) : ''}
+                    </Text>
+                  </View>
+
+                  <View style={localStyles.contentColumn}>
+                    <View style={localStyles.contentHeaderRow}>
+                      <Text style={localStyles.titleText}>{title}</Text>
+                      <View style={localStyles.operationActions}>
+                        {canEditOperation(operation) && !['contamination', 'quarantine'].includes(operation.type) && (
+                          <Pressable
+                            accessibilityLabel="Редактировать запись"
+                            accessibilityRole="button"
+                            onPress={() => onEditOperation(operation)}
+                            style={({ pressed }) => [
+                              styles.operationActionButton,
+                              pressed && styles.linkButtonPressed,
+                            ]}
+                          >
+                            <EditIcon size={20} />
+                          </Pressable>
+                        )}
+                      </View>
+                    </View>
+
+                    {isTextOnlyOperation ? (
+                      <Text style={localStyles.commentText}>{summaryItems[0]?.[1] || ''}</Text>
+                    ) : (
+                      summaryItems.map(([label, value]) => (
+                        <View key={label} style={localStyles.fieldBlock}>
+                          <Text style={localStyles.fieldLabel}>{label}:</Text>
+                          <Text style={localStyles.fieldValue}>{value}</Text>
+                        </View>
+                      ))
                     )}
-                    {canDeleteOperation(operation) && (
-                      <Pressable
-                        accessibilityLabel="Удалить запись"
-                        accessibilityRole="button"
-                        onPress={() => onDeleteOperation(operation.id)}
-                        style={({ pressed }) => [
-                          styles.operationActionButton,
-                          pressed && styles.linkButtonPressed,
-                        ]}
+
+                    {photoUris.length > 0 ? (
+                      <ScrollView
+                        horizontal
+                        keyboardShouldPersistTaps="handled"
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={localStyles.photoThumbStrip}
                       >
-                        <TrashIcon size={20} />
-                      </Pressable>
-                    )}
+                        {photoUris.map((uri, index) => (
+                          <Pressable
+                            accessibilityLabel={`Открыть фото ${index + 1}`}
+                            accessibilityRole="button"
+                            key={`${uri}-${index}`}
+                            onPress={() => openPhotoViewer(photoUris, index)}
+                            style={({ pressed }) => [
+                              localStyles.photoThumb,
+                              pressed && styles.linkButtonPressed,
+                            ]}
+                          >
+                            <Image source={{ uri }} style={localStyles.photoThumbImage} />
+                          </Pressable>
+                        ))}
+                      </ScrollView>
+                    ) : null}
                   </View>
                 </View>
-                {summaryItems.map(([label, value]) => (
-                  <Text key={label} style={styles.statusSummaryText}>
-                    {showSummaryLabels ? `${label}: ${value}` : value}
-                  </Text>
-                ))}
               </View>
             );
           })}
@@ -121,12 +164,119 @@ export default function CultureCalendarTab({
 
       {!!stageActionError && (
         <View style={styles.stageActionErrorNotice}>
-          <View style={styles.blockedNoticeIcon}>
-            <Text style={styles.blockedNoticeIconText}>!</Text>
-          </View>
+          <InfoIcon color="#EF4444" size={18} />
           <Text style={styles.blockedNoticeText}>{stageActionError}</Text>
         </View>
       )}
     </>
   );
 }
+
+const localStyles = {
+  itemRow: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: 12,
+  },
+  moveBlockedNotice: {
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderColor: '#F1D6D2',
+    borderRadius: 14,
+    borderWidth: 2,
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 18,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  timeBadge: {
+    alignItems: 'center',
+    backgroundColor: '#E8F5EC',
+    borderRadius: 8,
+    justifyContent: 'center',
+    minHeight: 28,
+    minWidth: 60,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  timeText: {
+    color: '#15863F',
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 17,
+    textAlign: 'center',
+  },
+  moveBlockedText: {
+    color: '#B42318',
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '400',
+    lineHeight: 20,
+  },
+  contentColumn: {
+    flex: 1,
+    gap: 8,
+    minWidth: 0,
+  },
+  contentHeaderRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'flex-start',
+    position: 'relative',
+  },
+  operationActions: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 6,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+  },
+  titleText: {
+    color: '#1B3023',
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '800',
+    lineHeight: 22,
+    minWidth: 0,
+  },
+  commentText: {
+    color: '#5F7065',
+    fontSize: 14,
+    lineHeight: 19,
+    textAlign: 'left',
+  },
+  fieldBlock: {
+    gap: 2,
+  },
+  fieldLabel: {
+    color: '#7B857E',
+    fontSize: 14,
+    lineHeight: 19,
+  },
+  fieldValue: {
+    color: '#1B3023',
+    fontSize: 16,
+    fontWeight: '700',
+    lineHeight: 22,
+  },
+  photoThumb: {
+    backgroundColor: '#EEF2F0',
+    borderColor: '#DCE7DE',
+    borderRadius: 14,
+    borderWidth: 1,
+    height: 96,
+    overflow: 'hidden',
+    width: 96,
+  },
+  photoThumbImage: {
+    height: '100%',
+    width: '100%',
+  },
+  photoThumbStrip: {
+    gap: 8,
+    marginTop: 8,
+  },
+};

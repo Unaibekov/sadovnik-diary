@@ -1,9 +1,9 @@
-// Экран формы создания и редактирования культуры.
+﻿// Экран формы создания и редактирования культуры.
 import { StatusBar } from 'expo-status-bar';
 import {
+  Pressable,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   Text,
   TextInput,
@@ -405,21 +405,6 @@ export default function CultureFormScreen({
                     )}
                   </View>
 
-                  <View style={styles.field}>
-                    <Text style={styles.label}>Стартовое фото</Text>
-                    {showIdentityAsText ? (
-                      <Text style={styles.readonlyValue}>{cultureForm.startPhotoNote || 'Не добавлено'}</Text>
-                    ) : (
-                      <TextInput
-                        onChangeText={(value) => updateCultureForm('startPhotoNote', value)}
-                        placeholder="Описание фото или ссылка"
-                        placeholderTextColor="#7C8A80"
-                        style={styles.input}
-                        value={cultureForm.startPhotoNote}
-                      />
-                    )}
-                  </View>
-
                   {!isEditingCard && (
                     <View style={styles.field}>
                       <Pressable
@@ -477,3 +462,77 @@ export default function CultureFormScreen({
     </SafeAreaView>
   );
 }
+
+const localStyles = {
+  photoActionButton: {
+    flex: 1,
+  },
+  photoActionRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  photoCountText: {
+    color: '#7C8A80',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  photoField: {
+    gap: 12,
+  },
+  photoHeaderRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  photoReadonlyBlock: {
+    gap: 10,
+  },
+  photoThumb: {
+    height: 72,
+    width: 72,
+    borderRadius: 14,
+    overflow: 'hidden',
+    backgroundColor: '#EEF2F0',
+    borderColor: '#DCE7DE',
+    borderWidth: 1,
+  },
+  photoThumbImage: {
+    height: '100%',
+    width: '100%',
+  },
+  photoThumbPressable: {
+    height: '100%',
+    width: '100%',
+  },
+  photoThumbRemoveButton: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(217, 45, 32, 0.92)',
+    borderRadius: 10,
+    height: 20,
+    justifyContent: 'center',
+    position: 'absolute',
+    right: 4,
+    top: 4,
+    width: 20,
+  },
+  photoThumbRemoveButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '900',
+    lineHeight: 14,
+    marginTop: -1,
+  },
+  photoThumbStrip: {
+    gap: 8,
+  },
+  photoRemoveButton: {
+    borderColor: '#D92D20',
+    flexShrink: 0,
+    paddingHorizontal: 16,
+  },
+  photoRemoveButtonText: {
+    color: '#D92D20',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+};

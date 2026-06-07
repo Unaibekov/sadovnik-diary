@@ -1,14 +1,15 @@
-// Экран формы изменения статуса партии.
+﻿// Экран формы изменения статуса партии.
 import { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import styles from '../../styles';
+import PhotoGallery from '../components/PhotoGallery';
 import { formatDisplayDate } from '../domain/dates';
 import { getCardCurrentQuantity, getCardDisplayName } from '../domain/batch';
 import StageHeader from '../components/StageHeader';
 import SelectBottomSheet from '../components/SelectBottomSheet';
-import { ChevronDownIcon, LampChargeIcon } from '../components/icons';
+import { ChevronDownIcon } from '../components/icons';
 
 const countFieldByType = {
   rooting: 'rootedCount',
@@ -31,7 +32,9 @@ export default function StatusChangeFormScreen({
   isEditing,
   onBack,
   onChangeField,
-  onOpenRecommendations,
+  onAddPhoto,
+  onRemovePhoto,
+  onReplacePhoto,
   onSave,
   onSelectEventType,
   selectedCard,
@@ -126,19 +129,6 @@ export default function StatusChangeFormScreen({
       <StatusBar style="dark" />
       <StageHeader
         onBack={onBack}
-        action={onOpenRecommendations && (
-          <Pressable
-            accessibilityLabel="Рекомендации"
-            accessibilityRole="button"
-            onPress={onOpenRecommendations}
-            style={({ pressed }) => [
-              localStyles.recommendationsButton,
-              pressed && styles.linkButtonPressed,
-            ]}
-          >
-            <LampChargeIcon size={26} />
-          </Pressable>
-        )}
         title={isEditing ? 'Редактировать событие' : 'Добавить событие'}
       />
 
@@ -760,13 +750,27 @@ export default function StatusChangeFormScreen({
                 />
               </View>
 
-              <View style={styles.field}>
+              <View style={localStyles.photoField}>
                 <Text style={styles.label}>Фото</Text>
+                <PhotoGallery
+                  addLabel="Добавить фото"
+                  addMoreLabel="Добавить еще фото"
+                  editable
+                  onAdd={onAddPhoto}
+                  onRemove={onRemovePhoto}
+                  onReplace={onReplacePhoto}
+                  uris={Array.isArray(form.photoUris) && form.photoUris.length > 0
+                    ? form.photoUris
+                    : form.photoUri
+                      ? [form.photoUri]
+                      : []}
+                />
                 <TextInput
+                  multiline
                   onChangeText={(value) => onChangeField('photoNote', value)}
-                  placeholder="Описание фото или ссылка"
+                  placeholder="Описание фото"
                   placeholderTextColor="#7C8A80"
-                  style={styles.input}
+                  style={[styles.input, styles.multilineInput]}
                   value={form.photoNote}
                 />
               </View>
@@ -813,19 +817,8 @@ export default function StatusChangeFormScreen({
 
 
 const localStyles = StyleSheet.create({
-  recommendationsButton: {
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderColor: '#DCE7DE',
-    borderRadius: 999,
-    borderWidth: 1,
-    elevation: 2,
-    height: 44,
-    justifyContent: 'center',
-    shadowColor: '#101828',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.07,
-    shadowRadius: 8,
-    width: 44,
+  photoField: {
+    gap: 12,
   },
 });
+
