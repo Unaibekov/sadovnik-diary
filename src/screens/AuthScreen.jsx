@@ -82,15 +82,22 @@ function PinKey({
 export default function AuthScreen({
   authMode = 'credentials',
   authPinStep = 'unlock',
+  authStep = 'credentials',
   error,
   focusedField,
   isBiometricAvailable = false,
   isBiometricEnabled = false,
   isBiometricPromptVisible = false,
+  employeeFirstName = '',
+  employeeLastName = '',
   login,
   notice,
   onEnableBiometricPress,
   onFocusedFieldChange,
+  onBackToCredentialsPress = () => {},
+  onEmployeeContinuePress = () => {},
+  onEmployeeFirstNameChange = () => {},
+  onEmployeeLastNameChange = () => {},
   onLoginChange,
   onPasswordChange,
   onResetPermanentPassword,
@@ -110,20 +117,32 @@ export default function AuthScreen({
   const [isForgotPasswordVisible, setIsForgotPasswordVisible] = useState(false);
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const isPinMode = authMode !== 'credentials';
+  const isEmployeeStep = authStep === 'employee';
   const brandProgress = useRef(new Animated.Value(0)).current;
   const titleOpacity = useRef(new Animated.Value(0)).current;
   const panelHeight = useRef(new Animated.Value(0)).current;
   const panelOpacity = useRef(new Animated.Value(0)).current;
   const submitLoginRef = useRef(onSubmitLogin);
+  const submitEmployeeRef = useRef(onEmployeeContinuePress);
+  const employeeLastNameRef = useRef(null);
   const initializedRef = useRef(false);
 
   const loginPanelHeight = Math.max(Math.round(windowHeight * 0.46), 340);
+  const employeePanelHeight = Math.max(Math.round(windowHeight * 0.58), 460);
   const pinPanelHeight = Math.max(Math.round(windowHeight * 0.65), 440);
-  const targetPanelHeight = isPinMode ? pinPanelHeight : loginPanelHeight;
+  const targetPanelHeight = isPinMode
+    ? pinPanelHeight
+    : isEmployeeStep
+      ? employeePanelHeight
+      : loginPanelHeight;
 
   useEffect(() => {
     submitLoginRef.current = onSubmitLogin;
   }, [onSubmitLogin]);
+
+  useEffect(() => {
+    submitEmployeeRef.current = onEmployeeContinuePress;
+  }, [onEmployeeContinuePress]);
 
   useEffect(() => {
     const listenerId = brandProgress.addListener(({ value }) => {
@@ -188,6 +207,21 @@ export default function AuthScreen({
       return;
     }
 
+    if (isEmployeeStep) {
+      if (Platform.OS !== 'android') {
+        onEmployeeContinuePress();
+        return;
+      }
+
+      const subscription = Keyboard.addListener('keyboardDidHide', () => {
+        subscription.remove();
+        submitEmployeeRef.current();
+      });
+
+      Keyboard.dismiss();
+      return;
+    }
+
     if (Platform.OS !== 'android') {
       onSubmitLogin();
       return;
@@ -217,6 +251,89 @@ export default function AuthScreen({
     inputRange: [0, 1],
     outputRange: [24, 16],
   });
+
+  const renderEmployeeForm = () => (
+    <View style={authStyles.form}>
+      <View style={authStyles.employeeHeader}>
+        <Text style={authStyles.employeeTitle}>Введите свои данные</Text>
+        <Text style={authStyles.employeeSubtitle}>
+          Они будут использоваться в журнале операций и отчетах.
+        </Text>
+      </View>
+
+      <View style={authStyles.authInputsGroup}>
+        <View style={authStyles.field}>
+          <TextInput
+            autoCapitalize="words"
+            autoCorrect={false}
+            inputMode="text"
+            onBlur={() => onFocusedFieldChange('')}
+            onChangeText={onEmployeeFirstNameChange}
+            onFocus={() => onFocusedFieldChange('employeeFirstName')}
+            onSubmitEditing={() => employeeLastNameRef.current?.focus()}
+            placeholder="Имя"
+            placeholderTextColor="#9AA3AF"
+            returnKeyType="next"
+            style={[
+              authStyles.authInput,
+              focusedField === 'employeeFirstName' &&
+                authStyles.authInputFocused,
+            ]}
+            value={employeeFirstName}
+          />
+        </View>
+
+        <View style={authStyles.field}>
+          <TextInput
+            ref={employeeLastNameRef}
+            autoCapitalize="words"
+            autoCorrect={false}
+            inputMode="text"
+            onBlur={() => onFocusedFieldChange('')}
+            onChangeText={onEmployeeLastNameChange}
+            onFocus={() => onFocusedFieldChange('employeeLastName')}
+            onSubmitEditing={handleSubmitPress}
+            placeholder="Фамилия"
+            placeholderTextColor="#9AA3AF"
+            returnKeyType="done"
+            style={[
+              authStyles.authInput,
+              focusedField === 'employeeLastName' &&
+                authStyles.authInputFocused,
+            ]}
+            value={employeeLastName}
+          />
+        </View>
+      </View>
+
+      <View style={authStyles.authMessageSlot}>
+        {!!error && <Text style={authStyles.errorText}>{error}</Text>}
+        {!!notice && !error && <Text style={authStyles.noticeText}>{notice}</Text>}
+      </View>
+
+      <Pressable
+        accessibilityRole="button"
+        onPress={handleSubmitPress}
+        style={({ pressed }) => [
+          authStyles.authPrimaryButton,
+          pressed && authStyles.pressedButton,
+        ]}
+      >
+        <Text style={authStyles.authPrimaryButtonText}>Продолжить</Text>
+      </Pressable>
+
+      <Pressable
+        accessibilityRole="button"
+        onPress={onBackToCredentialsPress}
+        style={({ pressed }) => [
+          authStyles.forgotPasswordLink,
+          pressed && authStyles.forgotPasswordLinkPressed,
+        ]}
+      >
+        <Text style={authStyles.forgotPasswordLinkText}>Назад</Text>
+      </Pressable>
+    </View>
+  );
 
   const renderCredentialsForm = () => (
     <View style={authStyles.form}>
@@ -521,7 +638,11 @@ export default function AuthScreen({
                   },
                 ]}
               >
-                {isPinMode ? renderPinForm() : renderCredentialsForm()}
+                {isPinMode
+                  ? renderPinForm()
+                  : isEmployeeStep
+                    ? renderEmployeeForm()
+                    : renderCredentialsForm()}
               </Animated.View>
             </Animated.View>
           </View>
@@ -670,6 +791,22 @@ const authStyles = StyleSheet.create({
   form: {
     gap: 14,
   },
+  employeeHeader: {
+    gap: 6,
+  },
+  employeeTitle: {
+    color: '#101828',
+    fontSize: 24,
+    fontWeight: '900',
+    lineHeight: 30,
+    textAlign: 'center',
+  },
+  employeeSubtitle: {
+    color: '#667085',
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: 'center',
+  },
   authInputsGroup: {
     gap: 8,
   },
@@ -692,8 +829,10 @@ const authStyles = StyleSheet.create({
     borderWidth: 1,
     color: '#101828',
     fontSize: 16,
+    includeFontPadding: false,
     minHeight: 56,
     paddingHorizontal: 18,
+    textAlignVertical: 'center',
     boxShadow: '0px 4px 12px 0px rgba(16, 24, 40, 0.12)',
   },
   authInputWithIcon: {
@@ -714,8 +853,6 @@ const authStyles = StyleSheet.create({
   authInputFocused: {
     borderColor: '#15863F',
     borderWidth: 2,
-    paddingLeft: 49,
-    paddingHorizontal: 17,
   },
   errorText: {
     color: '#B42318',

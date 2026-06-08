@@ -15,7 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import styles from '../../styles';
 import BottomTabBar from '../components/BottomTabBar';
-import { ExitIcon } from '../components/icons';
+import { ArrowBackIcon, ExitIcon } from '../components/icons';
 
 const roleLabels = {
   admin: 'Администратор',
@@ -47,7 +47,9 @@ export default function MenuScreen({
   taskCount = 0,
 }) {
   const normalizedFirstName = firstName?.trim();
+  const normalizedLastName = lastName?.trim();
   const displayName = normalizedFirstName || 'Пользователь';
+  const displayLastName = normalizedLastName || '';
   const initials = (displayName?.[0] || 'S').toLocaleUpperCase('ru-RU');
   const [isPasswordSheetVisible, setIsPasswordSheetVisible] = useState(false);
   const [currentPasswordValue, setCurrentPasswordValue] = useState('');
@@ -59,14 +61,12 @@ export default function MenuScreen({
     ['Активные партии', String(activeCardsCount)],
     ['Задачи', taskCount > 0 ? String(taskCount) : 'Нет новых'],
   ];
-  const devMenuItems = __DEV__
-    ? [{
-      key: 'generateTestData',
-      onPress: onGenerateTestData,
-      subtitle: 'Добавить 40 карточек для тестирования MVP',
-      title: 'Заполнить тестовыми данными',
-    }]
-    : [];
+  const testMenuItems = [{
+    key: 'generateTestData',
+    onPress: onGenerateTestData,
+    subtitle: 'Добавить 40 карточек для тестирования MVP',
+    title: 'Заполнить тестовыми данными',
+  }];
   const menuItems = [
     {
       key: 'password',
@@ -104,7 +104,7 @@ export default function MenuScreen({
       subtitle: 'Вопросы и обратная связь',
       title: 'Поддержка',
     },
-    ...devMenuItems,
+    ...testMenuItems,
     {
       key: 'clearCards',
       onPress: onClearCards,
@@ -166,19 +166,21 @@ export default function MenuScreen({
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar style="dark" />
-      <ScrollView
-        contentContainerStyle={styles.menuScrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.menuScreen}>
+      <View style={styles.menuScreen}>
+        <View style={styles.menuPinnedTop}>
           <View style={styles.menuHeader}>
             <View style={styles.menuAvatar}>
               <Text style={styles.menuAvatarText}>{initials}</Text>
             </View>
             <View style={styles.menuUserTextBlock}>
-              <Text style={styles.menuUserName} numberOfLines={1}>
+              <Text style={styles.menuUserName} numberOfLines={2}>
                 {displayName}
               </Text>
+              {!!displayLastName && (
+                <Text style={styles.menuUserLastName} numberOfLines={1}>
+                  {displayLastName}
+                </Text>
+              )}
               <Text style={styles.menuUserRole}>
                 {roleLabels[role] || role}
               </Text>
@@ -204,7 +206,13 @@ export default function MenuScreen({
               </View>
             ))}
           </View>
+        </View>
 
+        <ScrollView
+          style={styles.menuScroll}
+          contentContainerStyle={styles.menuScrollContent}
+          showsVerticalScrollIndicator={false}
+        >
           <View style={styles.menuSection}>
             {menuItems.map((item) => (
               <Pressable
@@ -220,7 +228,9 @@ export default function MenuScreen({
                   <Text style={styles.menuItemTitle}>{item.title}</Text>
                   <Text style={styles.menuItemSubtitle}>{item.subtitle}</Text>
                 </View>
-                <Text style={styles.menuItemArrow}>{'>'}</Text>
+                <View style={styles.menuItemArrowIcon}>
+                  <ArrowBackIcon color="#9CA3AF" size={22} />
+                </View>
               </Pressable>
             ))}
           </View>
@@ -331,8 +341,8 @@ export default function MenuScreen({
               </View>
             </KeyboardAvoidingView>
           </Modal>
-        </View>
-      </ScrollView>
+        </ScrollView>
+      </View>
 
       <BottomTabBar
         activeTab="menu"

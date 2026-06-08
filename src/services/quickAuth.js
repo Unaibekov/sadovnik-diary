@@ -7,6 +7,7 @@ import { Platform } from 'react-native';
 const QUICK_AUTH_PIN_KEY = 'sadovnik.quick-auth.pin';
 const QUICK_AUTH_BIOMETRIC_KEY = 'sadovnik.quick-auth.biometric-enabled';
 const QUICK_AUTH_PASSWORD_KEY = 'sadovnik.quick-auth.password';
+const EMPLOYEE_PROFILE_KEY = 'sadovnik.employee-profile';
 
 async function readStoredValue(key) {
   if (Platform.OS !== 'web') {
@@ -114,6 +115,56 @@ export async function saveQuickAuthPassword(password) {
   }
 
   await writeStoredValue(QUICK_AUTH_PASSWORD_KEY, normalizedPassword);
+}
+
+export async function loadEmployeeProfile() {
+  const rawValue = await readStoredValue(EMPLOYEE_PROFILE_KEY);
+
+  if (!rawValue) {
+    return null;
+  }
+
+  try {
+    const parsedValue = JSON.parse(rawValue);
+
+    if (
+      !parsedValue ||
+      typeof parsedValue.firstName !== 'string' ||
+      typeof parsedValue.lastName !== 'string' ||
+      typeof parsedValue.displayName !== 'string' ||
+      typeof parsedValue.localUserId !== 'string'
+    ) {
+      return null;
+    }
+
+    return {
+      firstName: parsedValue.firstName,
+      lastName: parsedValue.lastName,
+      displayName: parsedValue.displayName,
+      localUserId: parsedValue.localUserId,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function saveEmployeeProfile(employeeProfile) {
+  if (
+    !employeeProfile ||
+    typeof employeeProfile.firstName !== 'string' ||
+    typeof employeeProfile.lastName !== 'string' ||
+    typeof employeeProfile.displayName !== 'string' ||
+    typeof employeeProfile.localUserId !== 'string'
+  ) {
+    await writeStoredValue(EMPLOYEE_PROFILE_KEY, null);
+    return;
+  }
+
+  await writeStoredValue(EMPLOYEE_PROFILE_KEY, JSON.stringify(employeeProfile));
+}
+
+export async function clearEmployeeProfile() {
+  await writeStoredValue(EMPLOYEE_PROFILE_KEY, null);
 }
 
 export async function getQuickAuthBiometricInfo() {

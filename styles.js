@@ -292,6 +292,12 @@ export default StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 24,
   },
+  menuScroll: {
+    flex: 1,
+  },
+  menuPinnedTop: {
+    marginBottom: 14,
+  },
   menuHeader: {
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
@@ -330,6 +336,13 @@ export default StyleSheet.create({
     fontWeight: '800',
     lineHeight: 27,
     marginTop: 1,
+  },
+  menuUserLastName: {
+    color: '#111827',
+    fontSize: 21,
+    fontWeight: '800',
+    lineHeight: 27,
+    marginTop: 0,
   },
   menuUserRole: {
     color: '#65756B',
@@ -412,11 +425,12 @@ export default StyleSheet.create({
     lineHeight: 18,
     marginTop: 2,
   },
-  menuItemArrow: {
-    color: '#9CA3AF',
-    fontSize: 28,
-    fontWeight: '500',
-    lineHeight: 30,
+  menuItemArrowIcon: {
+    alignItems: 'center',
+    height: 24,
+    justifyContent: 'center',
+    transform: [{ rotate: '180deg' }],
+    width: 24,
   },
   menuLogoutButton: {
     marginTop: 2,

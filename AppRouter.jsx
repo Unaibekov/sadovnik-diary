@@ -77,6 +77,7 @@ export default function AppRouter({ actions, state }) {
     journalFilter,
     journalSubFilter,
     authPassword,
+    currentEmployee,
     login,
     notice,
     openDropdown,
@@ -546,8 +547,8 @@ export default function AppRouter({ actions, state }) {
           activeCardsCount={activeCardsCount}
           bottomInset={bottomInset}
           currentPassword={authPassword}
-          firstName={login}
-          lastName=""
+          firstName={currentEmployee?.firstName || ""}
+          lastName={currentEmployee?.lastName || ""}
           notice={notice}
           onHomePress={() => setCurrentScreen("stages")}
           onJournalPress={() => {

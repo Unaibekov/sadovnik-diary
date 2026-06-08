@@ -96,9 +96,12 @@ import { shareQrCode } from "./src/services/shareQrCodeService";
 import { shareCultureCardsReport } from "./src/services/shareReportService";
 import {
   authenticateWithBiometrics,
+  loadEmployeeProfile,
   getQuickAuthBiometricInfo,
   loadQuickAuthState,
+  clearEmployeeProfile,
   saveBiometricEnabled,
+  saveEmployeeProfile,
   saveQuickAuthPin,
   saveQuickAuthPassword,
 } from "./src/services/quickAuth";
@@ -154,6 +157,43 @@ import AuthScreen from "./src/screens/AuthScreen";
 import AppRouter from "./AppRouter";
 import AppErrorBoundary from "./AppErrorBoundary";
 
+function normalizeEmployeeValue(value) {
+  return `${value || ""}`
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+}
+
+function buildEmployeeProfile(firstName, lastName) {
+  const normalizedFirstName = `${firstName || ""}`.trim();
+  const normalizedLastName = `${lastName || ""}`.trim();
+  const displayName = `${normalizedFirstName} ${normalizedLastName}`.trim();
+  const localUserId = `${normalizeEmployeeValue(normalizedFirstName)}-${normalizeEmployeeValue(normalizedLastName)}`
+    .replace(/[^a-z0-9а-яё-]+/giu, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+
+  return {
+    displayName,
+    firstName: normalizedFirstName,
+    lastName: normalizedLastName,
+    localUserId: localUserId || "employee",
+  };
+}
+
+function beginPinAuthFlow({
+  hasPin,
+  setAuthMode,
+  setAuthPinStep,
+  setQuickAuthPinInput,
+  setQuickAuthPinConfirm,
+}) {
+  setAuthMode(hasPin ? "pinUnlock" : "pinSetup");
+  setAuthPinStep(hasPin ? "unlock" : "setup");
+  setQuickAuthPinInput("");
+  setQuickAuthPinConfirm("");
+}
+
 function AppContent() {
   const safeAreaInsets = useSafeAreaInsets();
   const bottomInset = getBottomInset(safeAreaInsets);
@@ -163,6 +203,10 @@ function AppContent() {
   const [notice, setNotice] = useState("");
   const [focusedField, setFocusedField] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authStep, setAuthStep] = useState("credentials");
+  const [employeeFirstName, setEmployeeFirstName] = useState("");
+  const [employeeLastName, setEmployeeLastName] = useState("");
+  const [currentEmployee, setCurrentEmployee] = useState(null);
   const [quickAuthPin, setQuickAuthPin] = useState("");
   const [quickAuthPinInput, setQuickAuthPinInput] = useState("");
   const [quickAuthPinConfirm, setQuickAuthPinConfirm] = useState("");
@@ -283,9 +327,10 @@ function AppContent() {
 
     async function loadQuickAuthSettings() {
       try {
-        const [quickAuthState, biometricInfo] = await Promise.all([
+        const [quickAuthState, biometricInfo, employeeProfile] = await Promise.all([
           loadQuickAuthState(),
           getQuickAuthBiometricInfo(),
+          loadEmployeeProfile(),
         ]);
 
         if (!isActive) {
@@ -297,14 +342,24 @@ function AppContent() {
         setAuthPassword(quickAuthState.password || AUTH_TEST_PASSWORD);
         setIsBiometricAvailable(biometricInfo.available);
         setBiometricDescription(biometricInfo.description);
-        setAuthMode(quickAuthState.pinCode ? "pinUnlock" : "credentials");
-        setAuthPinStep(quickAuthState.pinCode ? "unlock" : "setup");
+        setAuthMode("credentials");
+        setAuthPinStep("setup");
         setQuickAuthPinInput("");
         setQuickAuthPinConfirm("");
+        setCurrentEmployee(employeeProfile);
+        setEmployeeFirstName(employeeProfile?.firstName || "");
+        setEmployeeLastName(employeeProfile?.lastName || "");
+        setAuthStep("credentials");
       } catch {
         if (isActive) {
           setIsBiometricAvailable(false);
           setBiometricDescription("");
+          setCurrentEmployee(null);
+          setEmployeeFirstName("");
+          setEmployeeLastName("");
+          setAuthMode("credentials");
+          setAuthPinStep("setup");
+          setAuthStep("credentials");
         }
       }
     }
@@ -355,7 +410,7 @@ function AppContent() {
     setSelectedCalendarDate("");
   }
 
-  function handleLogin() {
+  async function handleLogin() {
     const normalizedLogin = login.trim();
     const normalizedPassword = password.trim();
 
@@ -382,16 +437,28 @@ function AppContent() {
     setError("");
     setNotice("");
 
-    if (quickAuthPin) {
-      setAuthMode("pinUnlock");
-      setAuthPinStep("unlock");
-      setQuickAuthPinInput("");
+    const storedEmployee = currentEmployee || (await loadEmployeeProfile());
+
+    if (storedEmployee) {
+      setCurrentEmployee(storedEmployee);
+      setEmployeeFirstName(storedEmployee.firstName || "");
+      setEmployeeLastName(storedEmployee.lastName || "");
+      setAuthStep("credentials");
+      setFocusedField("");
+      beginPinAuthFlow({
+        hasPin: Boolean(quickAuthPin),
+        setAuthMode,
+        setAuthPinStep,
+        setQuickAuthPinInput,
+        setQuickAuthPinConfirm,
+      });
       return;
     }
 
-    setAuthMode("pinSetup");
-    setAuthPinStep("setup");
-    setQuickAuthPinInput("");
+    setAuthStep("employee");
+    setEmployeeFirstName("");
+    setEmployeeLastName("");
+    setFocusedField("employeeFirstName");
   }
 
 
@@ -605,11 +672,15 @@ function AppContent() {
       saveQuickAuthPassword(AUTH_TEST_PASSWORD),
       saveQuickAuthPin(""),
       saveBiometricEnabled(false),
+      clearEmployeeProfile(),
     ]);
 
     setAuthPassword(AUTH_TEST_PASSWORD);
     setLogin("");
     setPassword("");
+    setCurrentEmployee(null);
+    setEmployeeFirstName("");
+    setEmployeeLastName("");
     setFocusedField("");
     setQuickAuthPin("");
     setQuickAuthPinInput("");
@@ -618,6 +689,7 @@ function AppContent() {
     setIsBiometricPromptVisible(false);
     setAuthMode("credentials");
     setAuthPinStep("setup");
+    setAuthStep("credentials");
     setError("");
     setNotice("");
   }
@@ -632,8 +704,75 @@ function AppContent() {
     setAuthPinStep("setup");
   }
 
+  function handleBackToCredentials() {
+    setAuthStep("credentials");
+    setError("");
+    setNotice("");
+    setFocusedField("");
+  }
+
+  async function handleEmployeeContinue() {
+    const normalizedFirstName = employeeFirstName.trim();
+    const normalizedLastName = employeeLastName.trim();
+
+    if (!normalizedFirstName || !normalizedLastName) {
+      setError("Введите имя и фамилию");
+      setNotice("");
+      setFocusedField(!normalizedFirstName ? "employeeFirstName" : "employeeLastName");
+      return;
+    }
+
+    const employeeProfile = buildEmployeeProfile(
+      normalizedFirstName,
+      normalizedLastName,
+    );
+
+    try {
+      await saveEmployeeProfile(employeeProfile);
+    } catch {
+      setError("Не удалось сохранить данные сотрудника");
+      setNotice("");
+      return;
+    }
+
+    setCurrentEmployee(employeeProfile);
+    setEmployeeFirstName(employeeProfile.firstName);
+    setEmployeeLastName(employeeProfile.lastName);
+    setError("");
+    setNotice("");
+    setFocusedField("");
+    setAuthStep("credentials");
+    beginPinAuthFlow({
+      hasPin: Boolean(quickAuthPin),
+      setAuthMode,
+      setAuthPinStep,
+      setQuickAuthPinInput,
+      setQuickAuthPinConfirm,
+    });
+  }
+
   function handleLoginChange(value) {
     setLogin(value);
+    if (error) {
+      setError("");
+    }
+    if (notice) {
+      setNotice("");
+    }
+  }
+
+  function handleEmployeeFirstNameChange(value) {
+    setEmployeeFirstName(value);
+    if (error) {
+      setError("");
+    }
+    if (notice) {
+      setNotice("");
+    }
+  }
+
+  function handleEmployeeLastNameChange(value) {
+    setEmployeeLastName(value);
     if (error) {
       setError("");
     }
@@ -862,8 +1001,9 @@ function AppContent() {
     setError("");
     setNotice("");
     setFocusedField("");
-    setAuthMode(quickAuthPin ? "pinUnlock" : "credentials");
-    setAuthPinStep(quickAuthPin ? "unlock" : "setup");
+    setAuthStep("credentials");
+    setAuthMode("credentials");
+    setAuthPinStep("setup");
   }
 
   async function handleClearTestData() {
@@ -1841,6 +1981,7 @@ function AppContent() {
     recommendationEntries,
     recommendationStage,
     authPassword,
+    currentEmployee,
     selectedCard,
     selectedCardActionLocked,
     selectedCardAdaptationStats,
@@ -1967,16 +2108,23 @@ function AppContent() {
     <AuthScreen
       authMode={authMode}
       authPinStep={authPinStep}
+      authStep={authStep}
       biometricDescription={biometricDescription}
       error={error}
+      employeeFirstName={employeeFirstName}
+      employeeLastName={employeeLastName}
       focusedField={focusedField}
       isBiometricAvailable={isBiometricAvailable}
       isBiometricEnabled={isBiometricEnabled}
       isBiometricPromptVisible={isBiometricPromptVisible}
       login={login}
       notice={notice}
+      onBackToCredentialsPress={handleBackToCredentials}
       onEnableBiometricPress={handleEnableBiometricPress}
       onFocusedFieldChange={setFocusedField}
+      onEmployeeContinuePress={handleEmployeeContinue}
+      onEmployeeFirstNameChange={handleEmployeeFirstNameChange}
+      onEmployeeLastNameChange={handleEmployeeLastNameChange}
       onLoginChange={handleLoginChange}
       onPasswordChange={handlePasswordChange}
       onResetPermanentPassword={handleResetPermanentPassword}
