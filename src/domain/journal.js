@@ -33,20 +33,21 @@ const SUB_FILTER_LABELS = {
   propagation: 'Размножение',
   transplant: 'Пересадка',
   stageChange: 'Переходы',
+  movement: 'Перемещения',
   observation: 'Наблюдения',
   environment: 'Среда',
   care: 'Уход',
 };
 
 const STAGE_SUB_FILTERS = {
-  all: ['all', 'comment', 'photo', 'stageChange', 'sales'],
+  all: ['all', 'comment', 'photo', 'stageChange', 'movement', 'sales'],
   important: ['all', 'contamination', 'quarantine', 'risks', 'losses', 'disease'],
   [INTRO_STAGE]: ['all', 'comment', 'photo', 'contamination', 'quarantine', 'stageChange'],
-  [stages[1]]: ['all', 'rooting', 'propagation', 'losses', 'sales', 'quarantine', 'stageChange'],
-  [stages[2]]: ['all', 'observation', 'environment', 'care', 'quarantine', 'losses', 'sales', 'stageChange'],
-  [stages[3]]: ['all', 'observation', 'environment', 'care', 'disease', 'transplant', 'quarantine', 'losses', 'sales', 'stageChange'],
-  [stages[4]]: ['all', 'observation', 'care', 'losses', 'sales', 'stageChange'],
-  [stages[5]]: ['all', 'observation', 'care', 'losses', 'sales', 'stageChange'],
+  [stages[1]]: ['all', 'rooting', 'propagation', 'movement', 'losses', 'sales', 'quarantine', 'stageChange'],
+  [stages[2]]: ['all', 'observation', 'environment', 'care', 'movement', 'quarantine', 'losses', 'sales', 'stageChange'],
+  [stages[3]]: ['all', 'observation', 'environment', 'care', 'disease', 'transplant', 'movement', 'quarantine', 'losses', 'sales', 'stageChange'],
+  [stages[4]]: ['all', 'observation', 'care', 'movement', 'losses', 'sales', 'stageChange'],
+  [stages[5]]: ['all', 'observation', 'care', 'movement', 'losses', 'sales', 'stageChange'],
 };
 
 function isCriticalLevel(level) {
@@ -276,6 +277,7 @@ export function doesJournalEventMatchSubFilter(event, subFilter, mainFilter = 'a
     propagation: event.type === 'propagation',
     transplant: event.type === 'transplant',
     stageChange: event.type === 'stageChange',
+    movement: event.type === 'movement',
     observation: ['adaptationStress', 'greenhouseObservation'].includes(event.type),
     environment: ['adaptationEnvironment', 'adaptationHumidityReduction', 'greenhouseEnvironment'].includes(event.type),
     care: ['adaptationCare', 'greenhouseCare'].includes(event.type),

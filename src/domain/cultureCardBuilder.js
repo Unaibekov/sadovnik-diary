@@ -43,6 +43,7 @@ export function buildCultureCardPayload({
     code,
     quantity,
     sourceMaterial,
+    locationDescription: cultureForm.locationDescription?.trim() || '',
     parentBatch,
     sterilityStatus: cultureForm.sterilityStatus || 'unchecked',
     startPhotoNote,

@@ -2,9 +2,16 @@
 import { getResolvedBatchStatus } from './cardSelectors';
 
 export function buildDeletedOperationCard(card, operationId) {
+  const deletedOperation = (card.operations || []).find((operation) => operation.id === operationId);
+  const remainingOperations = (card.operations || []).filter((operation) => operation.id !== operationId);
   const nextCard = {
     ...card,
-    operations: (card.operations || []).filter((operation) => operation.id !== operationId),
+    operations: remainingOperations,
+    ...(deletedOperation?.type === 'movement'
+      ? {
+        locationDescription: remainingOperations.find((operation) => operation.type === 'movement')?.nextLocation || '',
+      }
+      : {}),
   };
 
   return {

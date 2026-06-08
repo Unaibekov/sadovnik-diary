@@ -1,6 +1,7 @@
 // Начальное состояние экрана редактирования операции.
 import { createEmptyIntroActionForm, createEmptyStatusForm } from './forms';
 import { INTRO_STAGE } from './constants';
+import { editableStatusOperationTypes } from './operationConfig';
 import { buildStatusFormFromOperation } from './statusOperationForm';
 
 export function buildOperationEditState({
@@ -32,7 +33,10 @@ export function buildOperationEditState({
     };
   }
 
-  if (statusEventCountFields[operation.type]) {
+  if (
+    statusEventCountFields[operation.type] !== undefined ||
+    editableStatusOperationTypes.includes(operation.type)
+  ) {
     const countField = statusEventCountFields[operation.type];
 
     return {

@@ -43,5 +43,9 @@ export function buildStatusFormFromOperation(operation, countField) {
     plantReaction: operation.plantReaction || '',
     placement: operation.placement || '',
     densityChange: operation.densityChange || '',
+    greenhouseName: operation.greenhouseName || '',
+    rackName: operation.rackName || '',
+    shelfName: operation.shelfName || '',
+    movementComment: operation.comment || '',
   };
 }

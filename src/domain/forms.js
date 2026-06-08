@@ -12,6 +12,7 @@ export function createEmptyCultureForm() {
     hasHormone: false,
     sourcePlantName: '',
     sourceMaterial: '',
+    locationDescription: '',
     parentBatch: '',
     sterilityStatus: 'unchecked',
     startPhotoNote: '',
@@ -65,6 +66,10 @@ export function createEmptyStatusForm() {
     plantReaction: '',
     placement: '',
     densityChange: '',
+    greenhouseName: '',
+    rackName: '',
+    shelfName: '',
+    movementComment: '',
   };
 }
 

@@ -64,6 +64,10 @@ const statusEventConfigs = {
     title: 'Болезни / вредители',
     countField: '',
   },
+  movement: {
+    title: 'Перемещение',
+    countField: '',
+  },
   transplant: {
     title: 'Пересадка',
     countField: 'transplantCount',

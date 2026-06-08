@@ -29,6 +29,7 @@ export function buildCultureCardsReportWorkbook(cards, helpers) {
       'Сорт',
       'Стадия',
       'Статус',
+      'Местоположение',
       'Количество',
       'Дата создания',
       'Событий в журнале',
@@ -43,6 +44,7 @@ export function buildCultureCardsReportWorkbook(cards, helpers) {
         card.varietyName,
         card.stage || INTRO_STAGE,
         BATCH_STATUS_LABELS[status] || status,
+        card.locationDescription || 'Не указано',
         getCardCurrentQuantity(card),
         card.createdAt ? formatDisplayDate(card.createdAt) : '',
         (card.operations || []).length,
@@ -64,6 +66,8 @@ export function buildCultureCardsReportWorkbook(cards, helpers) {
       'Текущее количество',
       'Остаток',
       'Детали',
+      'Старое место',
+      'Новое место',
       'Комментарий',
       'Фото / заметка',
       'Создано',
@@ -94,6 +98,8 @@ export function buildCultureCardsReportWorkbook(cards, helpers) {
                 getCardCurrentQuantity(card),
                 operation.currentQuantity ?? '',
                 summary,
+                operation.type === 'movement' ? operation.previousLocation || 'Не указано' : '',
+                operation.type === 'movement' ? operation.nextLocation || 'Не указано' : '',
                 operation.comment || operation.reason || operation.quarantineReason || '',
                 operation.photoNote || operation.contaminationNote || '',
                 operation.createdAt ? formatDisplayDateTime(operation.createdAt) : '',
@@ -109,8 +115,8 @@ export function buildCultureCardsReportWorkbook(cards, helpers) {
   const partiesSheet = XLSX.utils.aoa_to_sheet(partyRows);
   const journalSheet = XLSX.utils.aoa_to_sheet(journalRows);
 
-  setSheetColumnWidths(partiesSheet, [20, 18, 18, 18, 22, 14, 12, 16, 18]);
-  setSheetColumnWidths(journalSheet, [20, 18, 18, 18, 22, 14, 16, 24, 22, 14, 12, 60, 36, 36, 18]);
+  setSheetColumnWidths(partiesSheet, [20, 18, 18, 18, 22, 14, 28, 12, 16, 18]);
+  setSheetColumnWidths(journalSheet, [20, 18, 18, 18, 22, 14, 16, 24, 22, 14, 12, 60, 24, 24, 36, 36, 18]);
   XLSX.utils.book_append_sheet(workbook, partiesSheet, 'Партии');
   XLSX.utils.book_append_sheet(workbook, journalSheet, 'Журнал');
 

@@ -10,6 +10,7 @@ import { getCardCurrentQuantity, getCardDisplayName } from '../domain/batch';
 import StageHeader from '../components/StageHeader';
 import SelectBottomSheet from '../components/SelectBottomSheet';
 import { ChevronDownIcon } from '../components/icons';
+import { INTRO_STAGE } from '../domain/constants';
 
 const countFieldByType = {
   rooting: 'rootedCount',
@@ -45,11 +46,22 @@ export default function StatusChangeFormScreen({
   const [isRiskDropdownOpen, setIsRiskDropdownOpen] = useState(false);
   const [isStressDropdownOpen, setIsStressDropdownOpen] = useState(false);
   const [isStabilityDropdownOpen, setIsStabilityDropdownOpen] = useState(false);
-  const eventOptions = selectedCard.stage === 'Адаптация'
+  const isMovementEvent = eventType === 'movement';
+  const eventOptions = selectedCard.stage === INTRO_STAGE
+    ? [
+      ['rooting', 'Укоренение'],
+      ['death', 'Гибель'],
+      ['discard', 'Выбраковка'],
+      ['sale', 'Продажа'],
+      ['propagation', 'Размножение'],
+      ['quarantine', 'Карантин'],
+    ]
+    : selectedCard.stage === 'Адаптация'
     ? [
       ['adaptationStress', 'Наблюдение'],
       ['adaptationEnvironment', 'Среда'],
       ['adaptationCare', 'Уход'],
+      ['movement', 'Перемещение'],
       ['quarantine', 'Карантин'],
       ...((selectedCard.batchStatus || 'active') === 'quarantine'
         ? [['quarantineReleased', 'Снять карантин']]
@@ -64,8 +76,9 @@ export default function StatusChangeFormScreen({
         ['greenhouseCare', 'Уход'],
         ['greenhouseEnvironment', 'Среда'],
         ['greenhouseDisease', 'Болезни/вредители'],
-        ['transplant', 'Пересадка'],
-        ['quarantine', 'Карантин'],
+      ['transplant', 'Пересадка'],
+      ['movement', 'Перемещение'],
+      ['quarantine', 'Карантин'],
         ...((selectedCard.batchStatus || 'active') === 'quarantine'
           ? [['quarantineReleased', 'Снять карантин']]
           : []),
@@ -79,6 +92,7 @@ export default function StatusChangeFormScreen({
       ['discard', 'Выбраковка'],
       ['sale', 'Продажа'],
       ['propagation', 'Размножение'],
+      ['movement', 'Перемещение'],
       ['quarantine', 'Карантин'],
     ];
   const countField = countFieldByType[eventType || 'rooting'];
@@ -192,6 +206,7 @@ export default function StatusChangeFormScreen({
                 'greenhouseCare',
                 'greenhouseEnvironment',
                 'greenhouseDisease',
+                'movement',
                 'quarantine',
                 'quarantineReleased',
               ].includes(eventType) && (
@@ -664,6 +679,52 @@ export default function StatusChangeFormScreen({
                 </>
               )}
 
+              {isMovementEvent && (
+                <>
+                  <View style={styles.field}>
+                    <Text style={styles.label}>Теплица</Text>
+                    <TextInput
+                      onChangeText={(value) => onChangeField('greenhouseName', value)}
+                      placeholder="Например: 1"
+                      placeholderTextColor="#7C8A80"
+                      style={styles.input}
+                      value={form.greenhouseName}
+                    />
+                  </View>
+                  <View style={styles.field}>
+                    <Text style={styles.label}>Стеллаж</Text>
+                    <TextInput
+                      onChangeText={(value) => onChangeField('rackName', value)}
+                      placeholder="Например: B"
+                      placeholderTextColor="#7C8A80"
+                      style={styles.input}
+                      value={form.rackName}
+                    />
+                  </View>
+                  <View style={styles.field}>
+                    <Text style={styles.label}>Полка</Text>
+                    <TextInput
+                      onChangeText={(value) => onChangeField('shelfName', value)}
+                      placeholder="Например: 3"
+                      placeholderTextColor="#7C8A80"
+                      style={styles.input}
+                      value={form.shelfName}
+                    />
+                  </View>
+                  <View style={styles.field}>
+                    <Text style={styles.label}>Комментарий</Text>
+                    <TextInput
+                      multiline
+                      onChangeText={(value) => onChangeField('movementComment', value)}
+                      placeholder="Комментарий"
+                      placeholderTextColor="#7C8A80"
+                      style={[styles.input, styles.multilineInput]}
+                      value={form.movementComment}
+                    />
+                  </View>
+                </>
+              )}
+
               {['death', 'discard', 'quarantine', 'quarantineReleased'].includes(eventType) && (
                 <View style={styles.field}>
                   <Text style={styles.label}>
@@ -737,43 +798,47 @@ export default function StatusChangeFormScreen({
                 </View>
               )}
 
-              {/* Общие поля есть у всех событий. */}
-              <View style={styles.field}>
-                <Text style={styles.label}>Комментарий</Text>
-                <TextInput
-                  multiline
-                  onChangeText={(value) => onChangeField('comment', value)}
-                  placeholder="Комментарий"
-                  placeholderTextColor="#7C8A80"
-                  style={[styles.input, styles.multilineInput]}
-                  value={form.comment}
-                />
-              </View>
+              {!isMovementEvent && (
+                <>
+                  {/* Общие поля есть у всех событий. */}
+                  <View style={styles.field}>
+                    <Text style={styles.label}>Комментарий</Text>
+                    <TextInput
+                      multiline
+                      onChangeText={(value) => onChangeField('comment', value)}
+                      placeholder="Комментарий"
+                      placeholderTextColor="#7C8A80"
+                      style={[styles.input, styles.multilineInput]}
+                      value={form.comment}
+                    />
+                  </View>
 
-              <View style={localStyles.photoField}>
-                <Text style={styles.label}>Фото</Text>
-                <PhotoGallery
-                  addLabel="Добавить фото"
-                  addMoreLabel="Добавить еще фото"
-                  editable
-                  onAdd={onAddPhoto}
-                  onRemove={onRemovePhoto}
-                  onReplace={onReplacePhoto}
-                  uris={Array.isArray(form.photoUris) && form.photoUris.length > 0
-                    ? form.photoUris
-                    : form.photoUri
-                      ? [form.photoUri]
-                      : []}
-                />
-                <TextInput
-                  multiline
-                  onChangeText={(value) => onChangeField('photoNote', value)}
-                  placeholder="Описание фото"
-                  placeholderTextColor="#7C8A80"
-                  style={[styles.input, styles.multilineInput]}
-                  value={form.photoNote}
-                />
-              </View>
+                  <View style={localStyles.photoField}>
+                    <Text style={styles.label}>Фото</Text>
+                    <PhotoGallery
+                      addLabel="Добавить фото"
+                      addMoreLabel="Добавить еще фото"
+                      editable
+                      onAdd={onAddPhoto}
+                      onRemove={onRemovePhoto}
+                      onReplace={onReplacePhoto}
+                      uris={Array.isArray(form.photoUris) && form.photoUris.length > 0
+                        ? form.photoUris
+                        : form.photoUri
+                          ? [form.photoUri]
+                          : []}
+                    />
+                    <TextInput
+                      multiline
+                      onChangeText={(value) => onChangeField('photoNote', value)}
+                      placeholder="Описание фото"
+                      placeholderTextColor="#7C8A80"
+                      style={[styles.input, styles.multilineInput]}
+                      value={form.photoNote}
+                    />
+                  </View>
+                </>
+              )}
 
               {!!formError && <Text style={styles.errorText}>{formError}</Text>}
               {!!formNotice && <Text style={styles.noticeText}>{formNotice}</Text>}

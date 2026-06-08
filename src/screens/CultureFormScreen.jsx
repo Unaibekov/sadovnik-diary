@@ -405,6 +405,27 @@ export default function CultureFormScreen({
                     )}
                   </View>
 
+                  <View style={styles.field}>
+                    <Text style={styles.label}>Местоположение</Text>
+                    {showIdentityAsText ? (
+                      <Text style={styles.readonlyValue}>
+                        {cultureForm.locationDescription || 'Не указано'}
+                      </Text>
+                    ) : (
+                      <TextInput
+                        editable={canEditCurrentIdentity}
+                        onChangeText={(value) => updateCultureForm('locationDescription', value)}
+                        placeholder="Лаборатория, стеллаж 2"
+                        placeholderTextColor="#7C8A80"
+                        style={[
+                          styles.input,
+                          !canEditCurrentIdentity && styles.inputDisabled,
+                        ]}
+                        value={cultureForm.locationDescription}
+                      />
+                    )}
+                  </View>
+
                   {!isEditingCard && (
                     <View style={styles.field}>
                       <Pressable

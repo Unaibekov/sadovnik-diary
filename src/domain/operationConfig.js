@@ -33,6 +33,7 @@ export const editableStatusOperationTypes = [
   'greenhouseCare',
   'greenhouseEnvironment',
   'greenhouseDisease',
+  'movement',
   'transplant',
 ];
 

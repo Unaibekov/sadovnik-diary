@@ -101,6 +101,14 @@ export default function CulturePassportTab({
       </View>
 
       <View style={[appStyles.surfacePanel, styles.passportPanel]}>
+        <Text style={styles.passportSectionTitle}>Размещение</Text>
+        <View style={[styles.passportRow, styles.passportRowFirst]}>
+          <Text style={styles.passportLabel}>Местоположение</Text>
+          <Text style={styles.passportValue}>{card.locationDescription || 'Не указано'}</Text>
+        </View>
+      </View>
+
+      <View style={[appStyles.surfacePanel, styles.passportPanel]}>
         <Text style={styles.passportSectionTitle}>Культура</Text>
         <View style={[styles.passportRow, styles.passportRowFirst]}>
           <Text style={styles.passportLabel}>Культура</Text>

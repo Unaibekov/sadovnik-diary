@@ -20,6 +20,9 @@ export function buildUpdatedStatusCard(card, {
   const nextCard = {
     ...card,
     operations: nextOperations,
+    ...(introActionType === 'movement'
+      ? { locationDescription: nextOperation.nextLocation || '' }
+      : {}),
     ...getGreenhouseCareIntervalsPatch(card, introActionType, statusForm),
   };
   const nextQuantity = getCardCurrentQuantity(nextCard);

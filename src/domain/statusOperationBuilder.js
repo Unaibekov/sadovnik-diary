@@ -15,6 +15,27 @@ export function buildStatusOperation({
   photoUri,
   photoUris,
 }) {
+  const buildMovementLocation = () => {
+    const parts = [];
+    const greenhouseName = statusForm.greenhouseName.trim();
+    const rackName = statusForm.rackName.trim();
+    const shelfName = statusForm.shelfName.trim();
+
+    if (greenhouseName) {
+      parts.push(`Теплица ${greenhouseName}`);
+    }
+
+    if (rackName) {
+      parts.push(`Стеллаж ${rackName}`);
+    }
+
+    if (shelfName) {
+      parts.push(`Полка ${shelfName}`);
+    }
+
+    return parts.join(' · ');
+  };
+
   const normalizedPhotoUris = Array.isArray(photoUris) && photoUris.length > 0
     ? photoUris.filter(Boolean)
     : photoUri
@@ -35,7 +56,9 @@ export function buildStatusOperation({
     ...(introActionType === 'propagation'
       ? { currentQuantity: currentQuantity + Number(count) }
       : {}),
-    comment: statusForm.comment.trim(),
+    comment: introActionType === 'movement'
+      ? statusForm.movementComment.trim()
+      : statusForm.comment.trim(),
     photoNote: statusForm.photoNote.trim(),
     ...(normalizedPhotoUris[0] ? { photoUri: normalizedPhotoUris[0] } : {}),
     ...(normalizedPhotoUris.length ? { photoUris: normalizedPhotoUris } : {}),
@@ -133,6 +156,15 @@ export function buildStatusOperation({
         dosage: statusForm.dosage.trim(),
         applicationMethod: statusForm.applicationMethod.trim(),
         plantReaction: statusForm.plantReaction.trim(),
+      }
+      : {}),
+    ...(introActionType === 'movement'
+      ? {
+        previousLocation: editedOperation?.previousLocation || selectedCard.locationDescription || '',
+        nextLocation: buildMovementLocation(),
+        greenhouseName: statusForm.greenhouseName.trim(),
+        rackName: statusForm.rackName.trim(),
+        shelfName: statusForm.shelfName.trim(),
       }
       : {}),
     ...(introActionType === 'transplant'

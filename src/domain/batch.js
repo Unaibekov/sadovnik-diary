@@ -155,6 +155,13 @@ export function getOperationSummaryItems(operation, card) {
     return getStatusOperationItems(operation).map(([label, value]) => [label, `${value} шт.`]);
   }
 
+  if (operation.type === 'movement') {
+    return [
+      ['Местоположение', `${operation.previousLocation || 'Не указано'} → ${operation.nextLocation || 'Не указано'}`],
+      ['Комментарий', operation.comment],
+    ].filter(([, value]) => Boolean(value));
+  }
+
   if ([
     'rooting',
     'death',
@@ -169,6 +176,7 @@ export function getOperationSummaryItems(operation, card) {
     'greenhouseCare',
     'greenhouseEnvironment',
     'greenhouseDisease',
+    'movement',
     'transplant',
   ].includes(operation.type)) {
     if (operation.type === 'propagation') {
