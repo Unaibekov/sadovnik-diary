@@ -1,14 +1,5 @@
 import { StatusBar } from "expo-status-bar";
-import { useEffect, useLayoutEffect, useRef } from "react";
-import {
-  Animated,
-  Easing,
-  Platform,
-  Pressable,
-  ScrollView,
-  Text,
-  View,
-} from "react-native";
+import { Platform, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import styles from "./styles";
 import BottomTabBar from "./src/components/BottomTabBar";
@@ -113,33 +104,6 @@ export default function AppRouter({ actions, state }) {
     userRole,
     varietyOptions,
   } = state;
-
-  const screenTransition = useRef(new Animated.Value(1)).current;
-  const previousScreenRef = useRef(currentScreen);
-
-  useLayoutEffect(() => {
-    if (previousScreenRef.current === currentScreen) {
-      return;
-    }
-
-    previousScreenRef.current = currentScreen;
-    screenTransition.setValue(0);
-  }, [currentScreen, screenTransition]);
-
-  useEffect(() => {
-    const animation = Animated.timing(screenTransition, {
-      toValue: 1,
-      duration: 180,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
-    });
-
-    animation.start();
-
-    return () => {
-      animation.stop();
-    };
-  }, [currentScreen, screenTransition]);
 
   const {
     cancelDeleteOperation,
@@ -663,27 +627,11 @@ export default function AppRouter({ actions, state }) {
       );
     }
 
-    const shouldUseVerticalOffset = Platform.OS !== "android";
-    const translateY = shouldUseVerticalOffset
-      ? screenTransition.interpolate({
-          inputRange: [0, 1],
-          outputRange: [8, 0],
-        })
-      : 0;
-
     return (
       <>
-        <Animated.View
-          style={[
-            styles.screenTransitionContainer,
-            {
-              opacity: screenTransition,
-            },
-            shouldUseVerticalOffset ? { transform: [{ translateY }] } : null,
-          ]}
-        >
+        <View style={styles.screenTransitionContainer}>
           {screenNode}
-        </Animated.View>
+        </View>
 
         <PlantCatalogBottomSheet
           visible={isDirectoriesSheetVisible}
