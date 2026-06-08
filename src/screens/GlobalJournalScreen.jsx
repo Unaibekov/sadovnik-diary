@@ -82,9 +82,7 @@ export default function GlobalJournalScreen({
               ]}
             >
               <FilterIcon size={18} />
-              <Text numberOfLines={1} style={localStyles.filterPillText}>
-                {getJournalFilterLabel(journalFilter)}
-              </Text>
+              <Text numberOfLines={1} style={localStyles.filterPillText}>Фильтр</Text>
             </Pressable>
           </View>
         </View>
