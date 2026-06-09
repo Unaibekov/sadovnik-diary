@@ -10,6 +10,7 @@ export default function CultureCalendarScreen({
   activeTab,
   bottomInset,
   children,
+  headerAction,
   isOperationDeleteConfirmVisible,
   isStageMoveConfirmVisible,
   onAddEvent,
@@ -34,19 +35,30 @@ export default function CultureCalendarScreen({
       <View style={styles.calendarScreen}>
         <StageHeader
           onBack={onBack}
+          action={headerAction}
           subtitle={subtitle}
           title={title}
         />
         <CalendarTabs activeTab={activeTab} onChangeTab={onChangeTab} />
 
-        <ScrollView style={styles.calendarScroll} contentContainerStyle={styles.calendarContent}>
-          {children}
-        </ScrollView>
+        {activeTab === 'calendar' ? (
+          <View style={styles.calendarBody}>
+            {children}
+          </View>
+        ) : (
+          <ScrollView
+            bounces={false}
+            contentContainerStyle={styles.calendarBodyScrollContent}
+            showsVerticalScrollIndicator={false}
+          >
+            {children}
+          </ScrollView>
+        )}
 
         {showBottomActions && (
           <View style={[
             styles.calendarBottomActions,
-            { paddingBottom: Math.max(bottomInset + 12, 28) },
+            { paddingBottom: Math.max(bottomInset + 6, 16) },
           ]}>
             {!!stageMoveTarget && !stageMoveBlockedMessage && (
               <Pressable

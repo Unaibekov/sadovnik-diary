@@ -32,6 +32,12 @@ export function getCardDisplayName(card) {
   ].filter((value) => Boolean(value) && value !== EMPTY_CATALOG_VALUE).join(' ') || card.name || card.code;
 }
 
+export function getCardLocationDescription(card) {
+  const latestMovement = (card?.operations || []).find((operation) => operation.type === 'movement');
+
+  return latestMovement?.nextLocation || card?.locationDescription || '';
+}
+
 export function createBatchCreatedOperation(card, createdAtIso = new Date().toISOString()) {
   return {
     id: `batch-created-${card.id || Date.now()}`,
@@ -162,6 +168,15 @@ export function getOperationSummaryItems(operation, card) {
     ].filter(([, value]) => Boolean(value));
   }
 
+  if (operation.type === 'introLoss') {
+    return [
+      ['Остаток', operation.previousQuantity !== undefined && operation.currentQuantity !== undefined
+        ? `${operation.previousQuantity} → ${operation.currentQuantity}`
+        : ''],
+      ['Причина', operation.reason || operation.lossReason],
+    ].filter(([, value]) => Boolean(value));
+  }
+
   if ([
     'rooting',
     'death',
@@ -178,6 +193,7 @@ export function getOperationSummaryItems(operation, card) {
     'greenhouseDisease',
     'movement',
     'transplant',
+    'introLoss',
   ].includes(operation.type)) {
     if (operation.type === 'propagation') {
       return [
@@ -271,6 +287,10 @@ export function getCardCurrentQuantity(card) {
       return quantity + (Number(operation.count) || 0);
     }
 
+    if (operation.type === 'introLoss') {
+      return Math.max(quantity - (Number(operation.count) || 0), 0);
+    }
+
     return quantity;
   }, initialQuantity);
 }
@@ -301,7 +321,10 @@ export function getCloneStats(card) {
   const propagationCount = operations.reduce((sum, operation) => (
     sum + (operation.type === 'propagation' ? Number(operation.count) || 0 : 0)
   ), 0);
-  const lossCount = deathCount + discardCount;
+  const introLossCount = operations.reduce((sum, operation) => (
+    sum + (operation.type === 'introLoss' ? Number(operation.count) || 0 : 0)
+  ), 0);
+  const lossCount = deathCount + discardCount + introLossCount;
   const rootingPercent = initialQuantity > 0
     ? Math.min(Math.round((rootedCount / initialQuantity) * 100), 100)
     : 0;
@@ -352,6 +375,9 @@ export function getAdaptationStats(card) {
   const saleCount = operations.reduce((sum, operation) => (
     sum + (operation.type === 'sale' ? Number(operation.count) || 0 : 0)
   ), 0);
+  const introLossCount = operations.reduce((sum, operation) => (
+    sum + (operation.type === 'introLoss' ? Number(operation.count) || 0 : 0)
+  ), 0);
   const stressLevel = getLatestOperationValue(operations, ['adaptationStress'], 'stressLevel') || 'Не указан';
   const turgor = getLatestOperationValue(operations, ['adaptationStress', 'adaptationEnvironment', 'adaptationHumidityReduction'], 'turgor') || 'Не указан';
   const stability = getLatestOperationValue(operations, ['adaptationStress', 'adaptationEnvironment', 'adaptationHumidityReduction'], 'stability') || 'Не указана';
@@ -368,7 +394,7 @@ export function getAdaptationStats(card) {
     deathCount,
     discardCount,
     saleCount,
-    lossCount: deathCount + discardCount,
+    lossCount: deathCount + discardCount + introLossCount,
     stressLevel,
     turgor,
     stability,
@@ -419,7 +445,10 @@ export function getGreenhouseStats(card) {
     operation.type === 'greenhouseDisease' &&
     (operation.diseaseSeverity === 'Критическая' || operation.riskLevel === 'Критический')
   ));
-  const lossCount = deathCount + discardCount;
+  const introLossCount = operations.reduce((sum, operation) => (
+    sum + (operation.type === 'introLoss' ? Number(operation.count) || 0 : 0)
+  ), 0);
+  const lossCount = deathCount + discardCount + introLossCount;
   const lossPercent = initialQuantity > 0
     ? Math.round((lossCount / initialQuantity) * 100)
     : 0;

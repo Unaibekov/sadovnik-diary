@@ -1,13 +1,14 @@
 ﻿// Экран формы изменения статуса партии.
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import styles from '../../styles';
 import PhotoGallery from '../components/PhotoGallery';
 import { formatDisplayDate } from '../domain/dates';
 import { getCardCurrentQuantity, getCardDisplayName } from '../domain/batch';
 import StageHeader from '../components/StageHeader';
+import StatusFilterTabs from '../components/StatusFilterTabs';
 import SelectBottomSheet from '../components/SelectBottomSheet';
 import { ChevronDownIcon } from '../components/icons';
 import { INTRO_STAGE } from '../domain/constants';
@@ -16,6 +17,7 @@ const countFieldByType = {
   rooting: 'rootedCount',
   death: 'deathCount',
   discard: 'discardCount',
+  introLoss: 'lossCount',
   sale: 'saleCount',
   propagation: 'propagationCount',
   transplant: 'transplantCount',
@@ -46,7 +48,11 @@ export default function StatusChangeFormScreen({
   const [isRiskDropdownOpen, setIsRiskDropdownOpen] = useState(false);
   const [isStressDropdownOpen, setIsStressDropdownOpen] = useState(false);
   const [isStabilityDropdownOpen, setIsStabilityDropdownOpen] = useState(false);
+  const [isNoticeVisible, setIsNoticeVisible] = useState(false);
+  const [saveAttemptCount, setSaveAttemptCount] = useState(0);
+  const seenAlertRef = useRef('');
   const isMovementEvent = eventType === 'movement';
+  const alertMessage = formError || formNotice || '';
   const eventOptions = selectedCard.stage === INTRO_STAGE
     ? [
       ['rooting', 'Укоренение'],
@@ -54,6 +60,7 @@ export default function StatusChangeFormScreen({
       ['discard', 'Выбраковка'],
       ['sale', 'Продажа'],
       ['propagation', 'Размножение'],
+      ['movement', 'Перемещение'],
       ['quarantine', 'Карантин'],
     ]
     : selectedCard.stage === 'Адаптация'
@@ -66,8 +73,7 @@ export default function StatusChangeFormScreen({
       ...((selectedCard.batchStatus || 'active') === 'quarantine'
         ? [['quarantineReleased', 'Снять карантин']]
         : []),
-      ['death', 'Гибель'],
-      ['discard', 'Выбраковка'],
+      ['introLoss', 'Потери'],
       ['sale', 'Продажа'],
     ]
     : selectedCard.stage === 'Теплица'
@@ -82,14 +88,12 @@ export default function StatusChangeFormScreen({
         ...((selectedCard.batchStatus || 'active') === 'quarantine'
           ? [['quarantineReleased', 'Снять карантин']]
           : []),
-        ['death', 'Гибель'],
-        ['discard', 'Выбраковка'],
+        ['introLoss', 'Потери'],
         ['sale', 'Продажа'],
       ]
       : [
       ['rooting', 'Укоренение'],
-      ['death', 'Гибель'],
-      ['discard', 'Выбраковка'],
+      ['introLoss', 'Потери'],
       ['sale', 'Продажа'],
       ['propagation', 'Размножение'],
       ['movement', 'Перемещение'],
@@ -112,6 +116,26 @@ export default function StatusChangeFormScreen({
     setIsStressDropdownOpen(false);
     setIsStabilityDropdownOpen(false);
   }, [eventType]);
+
+  useEffect(() => {
+    if (!alertMessage) {
+      seenAlertRef.current = '';
+      setIsNoticeVisible(false);
+      return;
+    }
+
+    const alertKey = `${saveAttemptCount}:${alertMessage}`;
+
+    if (alertKey !== seenAlertRef.current) {
+      seenAlertRef.current = alertKey;
+      setIsNoticeVisible(true);
+    }
+  }, [alertMessage, saveAttemptCount]);
+
+  function handleSavePress() {
+    setSaveAttemptCount((current) => current + 1);
+    onSave();
+  }
 
   function selectCareType(value) {
     onChangeField('careType', value);
@@ -143,6 +167,7 @@ export default function StatusChangeFormScreen({
       <StatusBar style="dark" />
       <StageHeader
         onBack={onBack}
+        subtitle={<Text style={styles.stageHeaderSubtitle}>{selectedCard.stage || INTRO_STAGE}</Text>}
         title={isEditing ? 'Редактировать событие' : 'Добавить событие'}
       />
 
@@ -150,11 +175,8 @@ export default function StatusChangeFormScreen({
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
-        <ScrollView
-          contentContainerStyle={styles.cardsScrollContent}
-          keyboardShouldPersistTaps="handled"
-        >
-          <View style={styles.cardsScreen}>
+        <View style={localStyles.screen}>
+          <View style={localStyles.fixedHeader}>
             {/* Контекст события: к какой карточке и дате относится форма. */}
             <View style={styles.cardsHeader}>
               <Text style={styles.eventFormCardTitle}>
@@ -168,33 +190,29 @@ export default function StatusChangeFormScreen({
               </Text>
             </View>
 
-            <View style={[styles.surfacePanel, styles.formPanel]}>
+            {!isEditing && (
+              <View style={localStyles.actionTabsWrap}>
+                <StatusFilterTabs
+                  activeValue={eventType}
+                  items={eventOptions}
+                  onChange={onSelectEventType}
+                  showDots={false}
+                />
+              </View>
+            )}
+          </View>
+
+          <View style={localStyles.contentArea}>
+            <View style={[localStyles.whitePanel]}>
+              <ScrollView
+                bounces={false}
+                contentContainerStyle={localStyles.scrollContent}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+              >
               {/* Выбор типа события определяет набор полей ниже. */}
-              {isEditing ? (
+              {isEditing && (
                 <Text style={styles.editActionTitle}>{selectedEventLabel}</Text>
-              ) : (
-                <View style={styles.actionGrid}>
-                  {eventOptions.map(([value, label]) => (
-                    <Pressable
-                      accessibilityRole="button"
-                      key={value}
-                      onPress={() => onSelectEventType(value)}
-                      style={[
-                        styles.actionChip,
-                        eventType === value && styles.actionChipActive,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.actionChipText,
-                          eventType === value && styles.actionChipTextActive,
-                        ]}
-                      >
-                        {label}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
               )}
 
               {![
@@ -211,12 +229,14 @@ export default function StatusChangeFormScreen({
                 'quarantineReleased',
               ].includes(eventType) && (
                 <View style={styles.field}>
-                  <Text style={styles.label}>Количество, шт. *</Text>
+                  <Text style={styles.label}>
+                    {eventType === 'introLoss' ? 'Количество потерь *' : 'Количество, шт. *'}
+                  </Text>
                   <TextInput
                     inputMode="numeric"
                     keyboardType="numeric"
                     onChangeText={(value) => onChangeField(countField, value)}
-                    placeholder="0"
+                    placeholder={eventType === 'introLoss' ? '0' : '0'}
                     placeholderTextColor="#7C8A80"
                     style={styles.input}
                     value={form[countField]}
@@ -228,7 +248,6 @@ export default function StatusChangeFormScreen({
               {eventType === 'adaptationStress' && (
                 <>
                   <View style={styles.field}>
-                    <Text style={styles.label}>Уровень стресса</Text>
                     <Pressable
                       accessibilityRole="button"
                       onPress={() => setIsStressDropdownOpen((current) => !current)}
@@ -263,7 +282,6 @@ export default function StatusChangeFormScreen({
 
               {eventType === 'adaptationStress' && (
                 <View style={styles.field}>
-                  <Text style={styles.label}>Стабильность партии</Text>
                   <Pressable
                     accessibilityRole="button"
                     onPress={() => setIsStabilityDropdownOpen((current) => !current)}
@@ -378,7 +396,6 @@ export default function StatusChangeFormScreen({
 
               {eventType === 'adaptationCare' && (
                 <View style={styles.field}>
-                  <Text style={styles.label}>Тип ухода *</Text>
                   <Pressable
                     accessibilityRole="button"
                     onPress={() => setIsCareDropdownOpen((current) => !current)}
@@ -425,7 +442,6 @@ export default function StatusChangeFormScreen({
 
               {['greenhouseObservation', 'greenhouseDisease', 'greenhouseCare', 'greenhouseEnvironment'].includes(eventType) && (
                 <View style={styles.field}>
-                  <Text style={styles.label}>Уровень риска</Text>
                   <Pressable
                     accessibilityRole="button"
                     onPress={() => setIsRiskDropdownOpen((current) => !current)}
@@ -460,7 +476,6 @@ export default function StatusChangeFormScreen({
               {eventType === 'greenhouseObservation' && (
                 <>
                   <View style={styles.field}>
-                    <Text style={styles.label}>Уровень стресса</Text>
                     <Pressable
                       accessibilityRole="button"
                       onPress={() => setIsStressDropdownOpen((current) => !current)}
@@ -491,7 +506,6 @@ export default function StatusChangeFormScreen({
                     />
                   </View>
                   <View style={styles.field}>
-                    <Text style={styles.label}>Стабильность</Text>
                     <Pressable
                       accessibilityRole="button"
                       onPress={() => setIsStabilityDropdownOpen((current) => !current)}
@@ -527,8 +541,7 @@ export default function StatusChangeFormScreen({
               {eventType === 'greenhouseCare' && (
                 <>
                   <View style={styles.field}>
-                    <Text style={styles.label}>Тип ухода *</Text>
-                    <Pressable
+                  <Pressable
                       accessibilityRole="button"
                       onPress={() => setIsCareDropdownOpen((current) => !current)}
                       style={({ pressed }) => [
@@ -620,7 +633,6 @@ export default function StatusChangeFormScreen({
                     <TextInput onChangeText={(value) => onChangeField('pestName', value)} placeholder="Название вредителя" placeholderTextColor="#7C8A80" style={styles.input} value={form.pestName} />
                   </View>
                   <View style={styles.field}>
-                    <Text style={styles.label}>Степень поражения</Text>
                     <Pressable
                       accessibilityRole="button"
                       onPress={() => setIsDiseaseSeverityDropdownOpen((current) => !current)}
@@ -725,10 +737,12 @@ export default function StatusChangeFormScreen({
                 </>
               )}
 
-              {['death', 'discard', 'quarantine', 'quarantineReleased'].includes(eventType) && (
+              {['death', 'discard', 'introLoss', 'quarantine', 'quarantineReleased'].includes(eventType) && (
                 <View style={styles.field}>
                   <Text style={styles.label}>
-                    {eventType === 'quarantine'
+                    {eventType === 'introLoss'
+                      ? 'Причина потерь *'
+                      : eventType === 'quarantine'
                       ? 'Причина карантина *'
                       : eventType === 'quarantineReleased'
                         ? 'Причина снятия карантина *'
@@ -736,7 +750,9 @@ export default function StatusChangeFormScreen({
                   </Text>
                   <TextInput
                     onChangeText={(value) => onChangeField('reason', value)}
-                    placeholder={eventType === 'quarantine'
+                    placeholder={eventType === 'introLoss'
+                      ? 'Укажите причину потерь'
+                      : eventType === 'quarantine'
                       ? 'Укажите причину карантина'
                       : eventType === 'quarantineReleased'
                         ? 'Укажите основание для снятия карантина'
@@ -840,48 +856,104 @@ export default function StatusChangeFormScreen({
                 </>
               )}
 
-              {!!formError && <Text style={styles.errorText}>{formError}</Text>}
-              {!!formNotice && <Text style={styles.noticeText}>{formNotice}</Text>}
-
-              {!isEditing && (
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={onSave}
-                  style={({ pressed }) => [
-                    styles.secondaryOutlineButton,
-                    styles.transparentOutlineButton,
-                    pressed && styles.linkButtonPressed,
-                  ]}
-                >
-                  <Text style={styles.secondaryOutlineButtonText}>
-                    Сохранить и добавить ещё
-                  </Text>
-                </Pressable>
-              )}
-
+              </ScrollView>
             </View>
+          </View>
 
-            <View style={styles.cultureFormFooter}>
+          <View style={localStyles.footer}>
+            <Pressable
+              accessibilityRole="button"
+              onPress={handleSavePress}
+              style={({ pressed }) => [
+                styles.primaryButton,
+                pressed && styles.pressedButton,
+              ]}
+            >
+              <Text style={styles.primaryButtonText}>Сохранить</Text>
+            </Pressable>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+
+      <Modal
+        animationType="fade"
+        onRequestClose={() => setIsNoticeVisible(false)}
+        transparent
+        visible={isNoticeVisible}
+      >
+        <View style={styles.modalOverlay}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => setIsNoticeVisible(false)}
+            style={StyleSheet.absoluteFill}
+          />
+          <View style={styles.confirmModal}>
+            <Text style={styles.confirmModalTitle}>{formError ? 'Внимание' : 'Сообщение'}</Text>
+            <Text style={styles.confirmModalText}>{alertMessage}</Text>
+            <View style={styles.confirmModalActions}>
               <Pressable
                 accessibilityRole="button"
-                onPress={isEditing ? onSave : onBack}
+                onPress={() => setIsNoticeVisible(false)}
                 style={({ pressed }) => [
                   styles.primaryButton,
+                  styles.confirmModalButton,
                   pressed && styles.pressedButton,
                 ]}
               >
-                <Text style={styles.primaryButtonText}>{isEditing ? 'Сохранить правку' : 'Готово'}</Text>
+                <Text style={styles.primaryButtonText}>Закрыть</Text>
               </Pressable>
             </View>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
 
 
 const localStyles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+  },
+  fixedHeader: {
+    flexShrink: 0,
+  },
+  actionTabsWrap: {
+    marginBottom: 12,
+  },
+  contentArea: {
+    flex: 1,
+    minHeight: 0,
+  },
+  whitePanel: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#F0F2F4',
+    borderRadius: 22,
+    borderWidth: 1,
+    flex: 1,
+    overflow: 'hidden',
+    shadowColor: '#102015',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.04,
+    shadowRadius: 16,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    gap: 14,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 18,
+  },
+  footer: {
+    flexShrink: 0,
+    paddingTop: 16,
+    paddingBottom: 16,
+  },
+  scrollContentCompact: {
+    paddingTop: 0,
+  },
   photoField: {
     gap: 12,
   },

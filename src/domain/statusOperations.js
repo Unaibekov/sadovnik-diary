@@ -14,6 +14,11 @@ const statusEventConfigs = {
     countField: 'discardCount',
     requiresReason: true,
   },
+  introLoss: {
+    title: 'Потери',
+    countField: 'lossCount',
+    requiresReason: true,
+  },
   sale: {
     title: 'Продажа',
     countField: 'saleCount',
@@ -97,6 +102,18 @@ export function getIntroActionConfig(actionType) {
       type: 'contamination',
       title: '\u041a\u043e\u043d\u0442\u0430\u043c\u0438\u043d\u0430\u0446\u0438\u044f',
       error: '\u041e\u043f\u0438\u0448\u0438\u0442\u0435 \u043a\u043e\u043d\u0442\u0430\u043c\u0438\u043d\u0430\u0446\u0438\u044e',
+    },
+    introLoss: {
+      field: 'lossReason',
+      type: 'introLoss',
+      title: '\u041f\u043e\u0442\u0435\u0440\u0438',
+      error: '\u0423\u043a\u0430\u0436\u0438\u0442\u0435 \u043f\u0440\u0438\u0447\u0438\u043d\u0443 \u043f\u043e\u0442\u0435\u0440\u044c',
+    },
+    movement: {
+      field: 'movementComment',
+      type: 'movement',
+      title: '\u041f\u0435\u0440\u0435\u043c\u0435\u0449\u0435\u043d\u0438\u0435',
+      error: '\u0423\u043a\u0430\u0436\u0438\u0442\u0435 \u043f\u0430\u0440\u0430\u043c\u0435\u0442\u0440\u044b \u043f\u0435\u0440\u0435\u043c\u0435\u0449\u0435\u043d\u0438\u044f',
     },
     quarantine: {
       field: 'quarantineReason',

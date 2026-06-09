@@ -18,6 +18,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import styles from '../../styles';
 import {
   DeleteIcon,
   EyeOffIcon,
@@ -275,6 +276,7 @@ export default function AuthScreen({
             placeholderTextColor="#9AA3AF"
             returnKeyType="next"
             style={[
+              styles.input,
               authStyles.authInput,
               focusedField === 'employeeFirstName' &&
                 authStyles.authInputFocused,
@@ -297,6 +299,7 @@ export default function AuthScreen({
             placeholderTextColor="#9AA3AF"
             returnKeyType="done"
             style={[
+              styles.input,
               authStyles.authInput,
               focusedField === 'employeeLastName' &&
                 authStyles.authInputFocused,
@@ -354,6 +357,7 @@ export default function AuthScreen({
               placeholderTextColor="#9AA3AF"
               returnKeyType="next"
               style={[
+                styles.input,
                 authStyles.authInput,
                 authStyles.authInputWithIcon,
                 focusedField === 'login' && authStyles.authInputFocused,
@@ -393,6 +397,7 @@ export default function AuthScreen({
               returnKeyType="done"
               secureTextEntry={!isPasswordVisible}
               style={[
+                styles.input,
                 authStyles.authInput,
                 authStyles.authInputWithIcon,
                 authStyles.authInputWithRightIcon,
@@ -830,7 +835,7 @@ const authStyles = StyleSheet.create({
     color: '#101828',
     fontSize: 16,
     includeFontPadding: false,
-    minHeight: 56,
+    minHeight: 52,
     paddingHorizontal: 18,
     textAlignVertical: 'center',
     boxShadow: '0px 4px 12px 0px rgba(16, 24, 40, 0.12)',

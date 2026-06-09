@@ -15,6 +15,20 @@ export function buildOperationEditState({
   }
 
   if (selectedCardStage === INTRO_STAGE && introOperationFields[operation.type]) {
+    if (operation.type === 'introLoss') {
+      return {
+        introActionType: operation.type,
+        introActionForm: {
+          ...createEmptyIntroActionForm(),
+          lossCount: operation.count || '',
+          lossReason: operation.reason || operation.lossReason || '',
+        },
+        isDateEntryExpanded: true,
+        cultureCalendarTab: 'calendar',
+        currentScreen: 'introActionForm',
+      };
+    }
+
     return {
       introActionType: operation.type,
       introActionForm: {

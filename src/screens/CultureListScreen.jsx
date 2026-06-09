@@ -89,7 +89,7 @@ export default function CultureListScreen({
                 onChangeText={onChangeSearch}
                 placeholder="Поиск по названию"
                 placeholderTextColor="#9AA3AF"
-                style={localStyles.searchInput}
+                style={[styles.input, localStyles.searchInput]}
                 value={cardSearch}
               />
             </View>
@@ -329,9 +329,7 @@ export default function CultureListScreen({
 
             {!isCardsLoading && selectedStageCardsCount === 0 && (
               <View style={localStyles.emptyState}>
-                <View style={localStyles.emptyStateIconWrap}>
-                  <LogoElementIcon color="#15863F" size={74} />
-                </View>
+                <LogoElementIcon color="#15863F" size={74} />
                 <Text style={localStyles.emptyStateText}>
                   {isCultureIntroStage && 'Партии пока нет. \nНажмите «Создать партию», чтобы создать первую.'}
                   {isCloneStage && 'Карточек пока нет. Переведите растение из введения в культуру.'}
@@ -406,7 +404,6 @@ const localStyles = StyleSheet.create({
     color: '#111827',
     flex: 1,
     fontSize: 16,
-    height: 52,
     paddingHorizontal: 0,
     paddingVertical: 0,
   },
@@ -419,27 +416,10 @@ const localStyles = StyleSheet.create({
   },
   emptyState: {
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderColor: '#D7E0D8',
-    borderRadius: 18,
-    borderWidth: 1,
     gap: 16,
     justifyContent: 'center',
-    minHeight: 220,
     paddingHorizontal: 24,
     paddingVertical: 28,
-    shadowColor: '#102015',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.06,
-    shadowRadius: 16,
-  },
-  emptyStateIconWrap: {
-    alignItems: 'center',
-    backgroundColor: '#EAF6EE',
-    borderRadius: 999,
-    height: 104,
-    justifyContent: 'center',
-    width: 104,
   },
   emptyStateText: {
     color: '#15863F',

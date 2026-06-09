@@ -5,6 +5,7 @@ export const statusEventCountFields = {
   rooting: 'rootedCount',
   death: 'deathCount',
   discard: 'discardCount',
+  introLoss: 'lossCount',
   sale: 'saleCount',
   propagation: 'propagationCount',
   transplant: 'transplantCount',
@@ -14,6 +15,7 @@ export const introOperationFields = {
   comment: 'comment',
   photo: 'photoNote',
   contamination: 'contaminationNote',
+  introLoss: 'lossReason',
   quarantine: 'quarantineReason',
 };
 
@@ -21,6 +23,7 @@ export const editableStatusOperationTypes = [
   'rooting',
   'death',
   'discard',
+  'introLoss',
   'sale',
   'propagation',
   'quarantine',

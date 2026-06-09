@@ -37,7 +37,7 @@ export default function CultureCalendarTab({
   }
 
   return (
-    <>
+    <View style={localStyles.container}>
       <PhotoViewerModal
         initialIndex={viewerIndex}
         onClose={() => setIsViewerVisible(false)}
@@ -65,21 +65,21 @@ export default function CultureCalendarTab({
 
         <View style={styles.calendarRecordsDivider} />
 
+        <View style={styles.dateActionHeader}>
+          <Text style={styles.dateActionTitle}>{formatDisplayLongDate(selectedDate)}</Text>
+        </View>
+
         <ScrollView
           nestedScrollEnabled
           showsVerticalScrollIndicator={false}
-          style={styles.dateRecordsScroll}
+          style={localStyles.dateRecordsScroll}
           contentContainerStyle={styles.dateRecordsContent}
         >
-          <View style={styles.dateActionHeader}>
-            <Text style={styles.dateActionTitle}>{formatDisplayLongDate(selectedDate)}</Text>
-          </View>
-
           {selectedDateOperations.length === 0 && (
             <Text style={styles.journalEmpty}>Записей за эту дату нет</Text>
           )}
 
-          {selectedDateOperations.map((operation) => {
+          {selectedDateOperations.map((operation, index) => {
             const summaryItems = getOperationSummaryItems(operation, card);
             const photoUris = (
               Array.isArray(operation.photoUris) && operation.photoUris.length > 0
@@ -92,7 +92,13 @@ export default function CultureCalendarTab({
             const title = operation.title || 'Событие';
 
             return (
-              <View key={operation.id} style={styles.statusSummary}>
+              <View
+                key={operation.id}
+                style={[
+                  styles.statusSummary,
+                  index === 0 && styles.statusSummaryFirst,
+                ]}
+              >
                 <View style={localStyles.itemRow}>
                   <View style={localStyles.timeBadge}>
                     <Text style={localStyles.timeText}>
@@ -168,11 +174,20 @@ export default function CultureCalendarTab({
           <Text style={styles.blockedNoticeText}>{stageActionError}</Text>
         </View>
       )}
-    </>
+    </View>
   );
 }
 
 const localStyles = {
+  container: {
+    flex: 1,
+    minHeight: 0,
+  },
+  dateRecordsScroll: {
+    flex: 1,
+    minHeight: 0,
+    backgroundColor: '#FFFFFF',
+  },
   itemRow: {
     alignItems: 'flex-start',
     flexDirection: 'row',

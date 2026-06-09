@@ -90,15 +90,14 @@ export default function CultureFormScreen({
                     {formatDisplayDate(cultureForm.createdAt)}
                   </Text>
                 ) : Platform.OS === 'web' ? (
-                  <TextInput
-                    editable={canEditCurrentIdentity}
-                    onChangeText={(value) => {
-                      updateCultureForm('createdAt', parseDisplayDate(value));
-                    }}
-                    placeholder="дд.мм.гггг"
-                    placeholderTextColor="#7C8A80"
-                    style={[
-                      styles.input,
+                    <TextInput
+                      editable={canEditCurrentIdentity}
+                      onChangeText={(value) => {
+                        updateCultureForm('createdAt', parseDisplayDate(value));
+                      }}
+                      placeholderTextColor="#7C8A80"
+                      style={[
+                        styles.input,
                       !canEditCurrentIdentity && styles.inputDisabled,
                       isRequiredFieldMissing('createdAt') && styles.inputInvalid,
                     ]}
@@ -251,6 +250,140 @@ export default function CultureFormScreen({
               </View>
 
               <View style={styles.field}>
+                {showIdentityAsText ? (
+                  <Text style={styles.readonlyValue}>{cultureForm.sourceMaterial}</Text>
+                ) : (
+                  <>
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => setOpenDropdown(openDropdown === 'sourceMaterial' ? '' : 'sourceMaterial')}
+                      style={[
+                        styles.selectButton,
+                        isRequiredFieldMissing('sourceMaterial') && styles.inputInvalid,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.selectButtonText,
+                          !cultureForm.sourceMaterial && styles.selectPlaceholder,
+                        ]}
+                      >
+                        {cultureForm.sourceMaterial || 'Выберите источник материала'}
+                      </Text>
+                      <View style={styles.selectButtonArrow}>
+                        <ChevronDownIcon />
+                      </View>
+                    </Pressable>
+
+                    <SelectBottomSheet
+                      customInputLabel="Указать свое"
+                      customInputPlaceholder="Введите источник материала"
+                      customInputValue={
+                        sourceMaterialOptions.includes(cultureForm.sourceMaterial)
+                          ? ''
+                          : cultureForm.sourceMaterial
+                      }
+                      onChangeCustomInput={(value) => updateCultureForm('sourceMaterial', value)}
+                      onClose={() => setOpenDropdown('')}
+                      onSelect={(option) => {
+                        updateCultureForm('sourceMaterial', option);
+                        setOpenDropdown('');
+                      }}
+                      options={sourceMaterialOptions.filter((option) => option !== 'Другое')}
+                      title="Выберите источник материала"
+                      visible={openDropdown === 'sourceMaterial'}
+                    />
+                  </>
+                )}
+              </View>
+
+              {isCultureIntroStage && (
+                <View style={styles.field}>
+                  <Text style={styles.label}>Гормон *</Text>
+                  {showIdentityAsText ? (
+                    <Text style={styles.readonlyValue}>{cultureForm.hasHormone ? 'Есть' : 'Нет'}</Text>
+                  ) : (
+                    <View style={styles.toggleRow}>
+                      <Pressable
+                        accessibilityRole="button"
+                        onPress={() => updateCultureForm('hasHormone', true)}
+                        style={[
+                          styles.toggleButton,
+                          cultureForm.hasHormone && styles.toggleButtonActive,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.toggleButtonText,
+                            cultureForm.hasHormone && styles.toggleButtonTextActive,
+                          ]}
+                        >
+                          Есть
+                        </Text>
+                      </Pressable>
+
+                      <Pressable
+                        accessibilityRole="button"
+                        onPress={() => updateCultureForm('hasHormone', false)}
+                        style={[
+                          styles.toggleButton,
+                          !cultureForm.hasHormone && styles.toggleButtonActive,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.toggleButtonText,
+                            !cultureForm.hasHormone && styles.toggleButtonTextActive,
+                          ]}
+                        >
+                          Нет
+                        </Text>
+                      </Pressable>
+                    </View>
+                  )}
+                </View>
+              )}
+
+              <View style={styles.field}>
+                <Text style={styles.label}>Количество *</Text>
+                {isEditingCard ? (
+                  <Text style={styles.readonlyValue}>{cultureForm.quantity}</Text>
+                ) : (
+                    <TextInput
+                      inputMode="numeric"
+                      keyboardType="numeric"
+                      onChangeText={(value) => updateCultureForm('quantity', value)}
+                      placeholderTextColor="#7C8A80"
+                      style={[
+                        styles.input,
+                      isRequiredFieldMissing('quantity') && styles.inputInvalid,
+                    ]}
+                    value={cultureForm.quantity}
+                  />
+                )}
+              </View>
+
+              <View style={styles.field}>
+                <Text style={styles.label}>Местоположение</Text>
+                {showIdentityAsText ? (
+                  <Text style={styles.readonlyValue}>
+                    {cultureForm.locationDescription || 'Не указано'}
+                  </Text>
+                ) : (
+                  <TextInput
+                    editable={canEditCurrentIdentity}
+                    onChangeText={(value) => updateCultureForm('locationDescription', value)}
+                    placeholderTextColor="#7C8A80"
+                    style={[
+                      styles.input,
+                      !canEditCurrentIdentity && styles.inputDisabled,
+                    ]}
+                    value={cultureForm.locationDescription}
+                  />
+                )}
+              </View>
+
+              <View style={styles.field}>
                 <Text style={styles.label}>Код партии *</Text>
                 {showIdentityAsText ? (
                   <Text style={styles.readonlyValue}>{cultureForm.code}</Text>
@@ -260,7 +393,6 @@ export default function CultureFormScreen({
                       autoCapitalize="characters"
                       editable={canEditCurrentIdentity}
                       onChangeText={(value) => updateCultureForm('code', value)}
-                      placeholder={`${isCloneStage ? 'KL' : isAdaptationStage ? 'AD' : 'VK'}-YYYYMMDD-HHMMSS`}
                       placeholderTextColor="#7C8A80"
                       style={[
                         styles.input,
@@ -290,172 +422,34 @@ export default function CultureFormScreen({
                 )}
               </View>
 
-              <View style={styles.field}>
-                <Text style={styles.label}>Количество *</Text>
-                {isEditingCard ? (
-                  <Text style={styles.readonlyValue}>{cultureForm.quantity}</Text>
-                ) : (
-                  <TextInput
-                    inputMode="numeric"
-                    keyboardType="numeric"
-                    onChangeText={(value) => updateCultureForm('quantity', value)}
-                    placeholder="Введите количество"
-                    placeholderTextColor="#7C8A80"
-                    style={[
-                      styles.input,
-                      isRequiredFieldMissing('quantity') && styles.inputInvalid,
-                    ]}
-                    value={cultureForm.quantity}
-                  />
-                )}
-              </View>
-
-              {isCultureIntroStage && (
-                <>
-                  <View style={styles.field}>
-                    <Text style={styles.label}>Гормон *</Text>
-                    {showIdentityAsText ? (
-                      <Text style={styles.readonlyValue}>{cultureForm.hasHormone ? 'Есть' : 'Нет'}</Text>
-                    ) : (
-                      <View style={styles.toggleRow}>
-                        <Pressable
-                          accessibilityRole="button"
-                          onPress={() => updateCultureForm('hasHormone', true)}
-                          style={[
-                            styles.toggleButton,
-                            cultureForm.hasHormone && styles.toggleButtonActive,
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.toggleButtonText,
-                              cultureForm.hasHormone && styles.toggleButtonTextActive,
-                            ]}
-                          >
-                            Есть
-                          </Text>
-                        </Pressable>
-
-                        <Pressable
-                          accessibilityRole="button"
-                          onPress={() => updateCultureForm('hasHormone', false)}
-                          style={[
-                            styles.toggleButton,
-                            !cultureForm.hasHormone && styles.toggleButtonActive,
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.toggleButtonText,
-                              !cultureForm.hasHormone && styles.toggleButtonTextActive,
-                            ]}
-                          >
-                            Нет
-                          </Text>
-                        </Pressable>
-                      </View>
-                    )}
-                  </View>
-
-                  <View style={styles.field}>
-                    {showIdentityAsText ? (
-                      <Text style={styles.readonlyValue}>{cultureForm.sourceMaterial}</Text>
-                    ) : (
-                      <>
-                        <Pressable
-                          accessibilityRole="button"
-                          onPress={() => setOpenDropdown(openDropdown === 'sourceMaterial' ? '' : 'sourceMaterial')}
-                          style={[
-                            styles.selectButton,
-                            isRequiredFieldMissing('sourceMaterial') && styles.inputInvalid,
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.selectButtonText,
-                              !cultureForm.sourceMaterial && styles.selectPlaceholder,
-                            ]}
-                          >
-                            {cultureForm.sourceMaterial || 'Выберите источник материала'}
-                          </Text>
-                          <View style={styles.selectButtonArrow}>
-                            <ChevronDownIcon />
-                          </View>
-                        </Pressable>
-
-                        <SelectBottomSheet
-                          customInputLabel="Указать свое"
-                          customInputPlaceholder="Введите источник материала"
-                          customInputValue={
-                            sourceMaterialOptions.includes(cultureForm.sourceMaterial)
-                              ? ''
-                              : cultureForm.sourceMaterial
-                          }
-                          onChangeCustomInput={(value) => updateCultureForm('sourceMaterial', value)}
-                          onClose={() => setOpenDropdown('')}
-                          onSelect={(option) => {
-                            updateCultureForm('sourceMaterial', option);
-                            setOpenDropdown('');
-                          }}
-                          options={sourceMaterialOptions.filter((option) => option !== 'Другое')}
-                          title="Выберите источник материала"
-                          visible={openDropdown === 'sourceMaterial'}
-                        />
-                      </>
-                    )}
-                  </View>
-
-                  <View style={styles.field}>
-                    <Text style={styles.label}>Местоположение</Text>
-                    {showIdentityAsText ? (
-                      <Text style={styles.readonlyValue}>
-                        {cultureForm.locationDescription || 'Не указано'}
-                      </Text>
-                    ) : (
-                      <TextInput
-                        editable={canEditCurrentIdentity}
-                        onChangeText={(value) => updateCultureForm('locationDescription', value)}
-                        placeholder="Лаборатория, стеллаж 2"
-                        placeholderTextColor="#7C8A80"
-                        style={[
-                          styles.input,
-                          !canEditCurrentIdentity && styles.inputDisabled,
-                        ]}
-                        value={cultureForm.locationDescription}
-                      />
-                    )}
-                  </View>
-
-                  {!isEditingCard && (
-                    <View style={styles.field}>
-                      <Pressable
-                        accessibilityRole="button"
-                        onPress={() => setOpenDropdown(openDropdown === 'batchStatus' ? '' : 'batchStatus')}
-                        style={styles.selectButton}
-                      >
-                        <Text style={styles.selectButtonText}>
-                          {BATCH_STATUS_LABELS[cultureForm.batchStatus] || 'Выберите статус партии'}
-                        </Text>
-                        <View style={styles.selectButtonArrow}>
-                          <ChevronDownIcon />
-                        </View>
-                      </Pressable>
-
-                      <SelectBottomSheet
-                        getKey={([value]) => value}
-                        getLabel={([, label]) => label}
-                        onClose={() => setOpenDropdown('')}
-                        onSelect={([value]) => {
-                          updateCultureForm('batchStatus', value);
-                          setOpenDropdown('');
-                        }}
-                        options={cultureCreateBatchStatuses}
-                        title="Выберите статус партии"
-                        visible={openDropdown === 'batchStatus'}
-                      />
+              {!isEditingCard && (
+                <View style={styles.field}>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => setOpenDropdown(openDropdown === 'batchStatus' ? '' : 'batchStatus')}
+                    style={styles.selectButton}
+                  >
+                    <Text style={styles.selectButtonText}>
+                      {BATCH_STATUS_LABELS[cultureForm.batchStatus] || 'Выберите статус партии'}
+                    </Text>
+                    <View style={styles.selectButtonArrow}>
+                      <ChevronDownIcon />
                     </View>
-                  )}
-                </>
+                  </Pressable>
+
+                  <SelectBottomSheet
+                    getKey={([value]) => value}
+                    getLabel={([, label]) => label}
+                    onClose={() => setOpenDropdown('')}
+                    onSelect={([value]) => {
+                      updateCultureForm('batchStatus', value);
+                      setOpenDropdown('');
+                    }}
+                    options={cultureCreateBatchStatuses}
+                    title="Выберите статус партии"
+                    visible={openDropdown === 'batchStatus'}
+                  />
+                </View>
               )}
             </View>
 

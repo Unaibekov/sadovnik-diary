@@ -53,6 +53,15 @@ export function buildStatusOperation({
     ...(['death', 'discard', 'sale'].includes(introActionType)
       ? { currentQuantity: Math.max(currentQuantity - Number(count), 0) }
       : {}),
+    ...(introActionType === 'introLoss'
+      ? {
+        previousQuantity: editedOperation?.previousQuantity ?? currentQuantity,
+        currentQuantity: Math.max(
+          (Number(editedOperation?.previousQuantity ?? currentQuantity) || 0) - (Number(count) || 0),
+          0,
+        ),
+      }
+      : {}),
     ...(introActionType === 'propagation'
       ? { currentQuantity: currentQuantity + Number(count) }
       : {}),
@@ -64,6 +73,9 @@ export function buildStatusOperation({
     ...(normalizedPhotoUris.length ? { photoUris: normalizedPhotoUris } : {}),
     ...(['death', 'discard'].includes(introActionType)
       ? { reason: statusForm.reason.trim() }
+      : {}),
+    ...(introActionType === 'introLoss'
+      ? { reason: statusForm.reason.trim(), lossReason: statusForm.reason.trim() }
       : {}),
     ...(introActionType === 'quarantine'
       ? { quarantineReason: statusForm.reason.trim() }

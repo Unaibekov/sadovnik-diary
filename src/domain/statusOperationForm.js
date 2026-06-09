@@ -5,6 +5,7 @@ export function buildStatusFormFromOperation(operation, countField) {
   return {
     ...(countField ? { [countField]: operation.count || '' } : {}),
     reason: operation.reason || operation.quarantineReason || '',
+    lossReason: operation.lossReason || operation.reason || '',
     comment: getStatusFormComment(operation),
     photoNote: operation.photoNote || '',
     photoUri: operation.photoUri || '',
@@ -47,5 +48,6 @@ export function buildStatusFormFromOperation(operation, countField) {
     rackName: operation.rackName || '',
     shelfName: operation.shelfName || '',
     movementComment: operation.comment || '',
+    lossCount: operation.count || '',
   };
 }

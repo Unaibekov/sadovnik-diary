@@ -1,5 +1,6 @@
 import * as XLSX from 'xlsx';
 import { BATCH_STATUS_LABELS, INTRO_STAGE } from '../domain/constants';
+import { getCardLocationDescription } from '../domain/batch';
 import { formatDisplayDate, formatDisplayDateTime } from '../domain/dates';
 
 export function normalizeReportCell(value) {
@@ -44,7 +45,7 @@ export function buildCultureCardsReportWorkbook(cards, helpers) {
         card.varietyName,
         card.stage || INTRO_STAGE,
         BATCH_STATUS_LABELS[status] || status,
-        card.locationDescription || 'Не указано',
+        getCardLocationDescription(card) || 'Не указано',
         getCardCurrentQuantity(card),
         card.createdAt ? formatDisplayDate(card.createdAt) : '',
         (card.operations || []).length,

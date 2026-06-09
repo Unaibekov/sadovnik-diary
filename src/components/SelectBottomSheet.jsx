@@ -73,6 +73,20 @@ export default function SelectBottomSheet({
 
     isClosingRef.current = true;
 
+    let finished = false;
+    const finishClose = () => {
+      if (finished) {
+        return;
+      }
+
+      finished = true;
+      setIsMounted(false);
+      isClosingRef.current = false;
+      onClose();
+    };
+
+    const fallbackTimer = setTimeout(finishClose, ANIMATION_DURATION + 120);
+
     Animated.parallel([
       Animated.timing(translateY, {
         toValue: height,
@@ -85,9 +99,8 @@ export default function SelectBottomSheet({
         useNativeDriver: true,
       }),
     ]).start(() => {
-      setIsMounted(false);
-      isClosingRef.current = false;
-      onClose();
+      clearTimeout(fallbackTimer);
+      finishClose();
     });
   }, [backdropOpacity, height, onClose, translateY]);
 

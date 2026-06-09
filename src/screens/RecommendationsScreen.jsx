@@ -17,6 +17,7 @@ export default function RecommendationsScreen({
   const visibleEntries = mode === 'all'
     ? entries.filter((entry) => entry.items.length > 0)
     : entries;
+  const emptyStageLabel = stage || 'этой стадии';
 
   return (
     <SafeAreaView style={appStyles.safeArea}>
@@ -65,8 +66,8 @@ export default function RecommendationsScreen({
               <View style={appStyles.emptyState}>
                 <Text style={appStyles.emptyStateText}>
                   {mode === 'all'
-                    ? 'Для этого растения пока нет рекомендаций.'
-                    : 'Для этой стадии пока нет рекомендаций.'}
+                    ? 'Для этого растения пока нет рекомендаций по стадиям.'
+                    : `Для стадии «${emptyStageLabel}» пока нет рекомендаций.`}
                 </Text>
               </View>
             )}
@@ -77,7 +78,9 @@ export default function RecommendationsScreen({
 
                 {entry.items.length === 0 ? (
                   <Text style={styles.recommendationEmptyText}>
-                    В каталоге нет рекомендаций для этого растения.
+                    {'Для стадии «'}
+                    {mode === 'all' ? entry.title : emptyStageLabel}
+                    {'» в каталоге нет рекомендаций для этого растения.'}
                   </Text>
                 ) : (
                   <View style={styles.recommendationItemList}>
@@ -119,11 +122,11 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   recommendationItemLabel: {
-    color: '#15863F',
-    fontSize: 12,
-    fontWeight: '800',
-    lineHeight: 16,
-    textTransform: 'uppercase',
+    color: '#6B7280',
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 0.2,
+    lineHeight: 15,
   },
   recommendationItemList: {
     gap: 2,

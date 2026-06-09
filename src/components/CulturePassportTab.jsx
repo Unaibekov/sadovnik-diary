@@ -4,7 +4,7 @@ import appStyles from '../../styles';
 import { DownloadSquareIcon } from './icons';
 import { BATCH_STATUS_LABELS, INTRO_STAGE, QR_STATUS_LABELS } from '../domain/constants';
 import { formatDisplayDate } from '../domain/dates';
-import { getQrStatus } from '../domain/batch';
+import { getCardLocationDescription, getQrStatus } from '../domain/batch';
 
 export default function CulturePassportTab({
   adaptationStats,
@@ -104,7 +104,7 @@ export default function CulturePassportTab({
         <Text style={styles.passportSectionTitle}>Размещение</Text>
         <View style={[styles.passportRow, styles.passportRowFirst]}>
           <Text style={styles.passportLabel}>Местоположение</Text>
-          <Text style={styles.passportValue}>{card.locationDescription || 'Не указано'}</Text>
+          <Text style={styles.passportValue}>{getCardLocationDescription(card) || 'Не указано'}</Text>
         </View>
       </View>
 

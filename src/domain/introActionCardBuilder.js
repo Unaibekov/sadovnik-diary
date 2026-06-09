@@ -4,14 +4,19 @@ export function buildIntroActionUpdatedCard(card, {
   introActionType,
   nextOperation,
 }) {
+  const nextOperations = editingOperationId
+    ? (card.operations || []).map((operation) => (
+      operation.id === editingOperationId ? nextOperation : operation
+    ))
+    : [nextOperation, ...(card.operations || [])];
+
   return {
     ...card,
     batchStatus: introActionType === 'quarantine' ? 'quarantine' : card.batchStatus || 'active',
     sterilityStatus: introActionType === 'contamination' ? 'contaminated' : card.sterilityStatus || 'unchecked',
-    operations: editingOperationId
-      ? (card.operations || []).map((operation) => (
-        operation.id === editingOperationId ? nextOperation : operation
-      ))
-      : [nextOperation, ...(card.operations || [])],
+    ...(introActionType === 'movement'
+      ? { locationDescription: nextOperation.nextLocation || '' }
+      : {}),
+    operations: nextOperations,
   };
 }

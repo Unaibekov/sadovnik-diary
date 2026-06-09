@@ -3,7 +3,7 @@ import { Platform, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import styles from "./styles";
 import BottomTabBar from "./src/components/BottomTabBar";
-import { StageItemIcon } from "./src/components/icons";
+import { LampChargeIcon, StageItemIcon } from "./src/components/icons";
 import CultureCalendarTab from "./src/components/CultureCalendarTab";
 import CultureJournalTab from "./src/components/CultureJournalTab";
 import CulturePassportTab from "./src/components/CulturePassportTab";
@@ -226,10 +226,25 @@ export default function AppRouter({ actions, state }) {
     const selectedDate =
       selectedCalendarDate || selectedCard.createdAt || getTodayIsoDate();
 
+    const recommendationsAction = (
+      <Pressable
+        accessibilityLabel="Рекомендации"
+        accessibilityRole="button"
+        onPress={() => openSelectedCardRecommendations("cultureCalendar")}
+        style={({ pressed }) => [
+          styles.headerActionButton,
+          pressed && styles.linkButtonPressed,
+        ]}
+      >
+        <LampChargeIcon color="#15863F" size={22} />
+      </Pressable>
+    );
+
     return (
       <CultureCalendarScreen
         activeTab={cultureCalendarTab}
         bottomInset={bottomInset}
+        headerAction={recommendationsAction}
         isOperationDeleteConfirmVisible={Boolean(operationDeleteCandidateId)}
         isStageMoveConfirmVisible={isStageMoveConfirmVisible}
         onAddEvent={() => {
@@ -494,7 +509,7 @@ export default function AppRouter({ actions, state }) {
     } else if (currentScreen === "introActionForm" && selectedCard) {
       screenNode = renderIntroActionFormScreen();
     } else if (
-      (isCloneStage || isAdaptationStage || isGreenhouseStage) &&
+      (isCultureIntroStage || isCloneStage || isAdaptationStage || isGreenhouseStage) &&
       currentScreen === "statusChangeForm" &&
       selectedCard
     ) {

@@ -42,7 +42,7 @@ const SUB_FILTER_LABELS = {
 const STAGE_SUB_FILTERS = {
   all: ['all', 'comment', 'photo', 'stageChange', 'movement', 'sales'],
   important: ['all', 'contamination', 'quarantine', 'risks', 'losses', 'disease'],
-  [INTRO_STAGE]: ['all', 'comment', 'photo', 'contamination', 'quarantine', 'stageChange'],
+  [INTRO_STAGE]: ['all', 'comment', 'photo', 'contamination', 'quarantine', 'losses', 'stageChange'],
   [stages[1]]: ['all', 'rooting', 'propagation', 'movement', 'losses', 'sales', 'quarantine', 'stageChange'],
   [stages[2]]: ['all', 'observation', 'environment', 'care', 'movement', 'quarantine', 'losses', 'sales', 'stageChange'],
   [stages[3]]: ['all', 'observation', 'environment', 'care', 'disease', 'transplant', 'movement', 'quarantine', 'losses', 'sales', 'stageChange'],
@@ -119,7 +119,7 @@ export function getOperationEffectiveStage(operation, card) {
     return operation.toStage || card.stage || INTRO_STAGE;
   }
 
-  if (['batchCreated', 'qrGenerated', 'comment', 'photo', 'contamination'].includes(operation.type)) {
+  if (['batchCreated', 'qrGenerated', 'comment', 'photo', 'contamination', 'introLoss'].includes(operation.type)) {
     return INTRO_STAGE;
   }
 
@@ -231,6 +231,7 @@ export function isImportantJournalEvent(event) {
     'quarantineReleased',
     'death',
     'discard',
+    'introLoss',
     'stageChange',
   ].includes(event.type) || matchesImportantRisk(event);
 }
@@ -270,7 +271,7 @@ export function doesJournalEventMatchSubFilter(event, subFilter, mainFilter = 'a
     contamination: event.type === 'contamination',
     quarantine: ['quarantine', 'quarantineReleased'].includes(event.type),
     risks: matchesImportantRisk(event),
-    losses: ['death', 'discard'].includes(event.type),
+    losses: ['death', 'discard', 'introLoss'].includes(event.type),
     disease: event.type === 'greenhouseDisease',
     sales: event.type === 'sale',
     rooting: event.type === 'rooting',

@@ -96,9 +96,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 999,
     flex: 1,
-    minHeight: 42,
+    minHeight: 38,
     justifyContent: 'center',
     paddingHorizontal: 8,
+    paddingVertical: 2,
   },
   calendarTabActive: {
   },
@@ -115,9 +116,9 @@ const styles = StyleSheet.create({
   calendarTabIndicator: {
     backgroundColor: '#15863F',
     borderRadius: 999,
-    bottom: 4,
+    bottom: 3,
     left: 4,
     position: 'absolute',
-    top: 4,
+    top: 3,
   },
 });

@@ -2,16 +2,17 @@
 import { createEmptyStatusForm } from './forms';
 import { stages } from './constants';
 
-export function buildStatusChangeOpenState(selectedCard) {
+export function buildStatusChangeOpenState(selectedCard, initialEventType = '') {
   return {
     statusForm: createEmptyStatusForm(),
     editingOperationId: null,
     introActionType:
-      selectedCard.stage === stages[2]
+      initialEventType ||
+      (selectedCard.stage === stages[2]
         ? 'adaptationStress'
         : selectedCard.stage === stages[3]
           ? 'greenhouseObservation'
-          : 'rooting',
+          : 'rooting'),
     statusFormError: '',
     statusFormNotice: '',
     currentScreen: 'statusChangeForm',

@@ -94,6 +94,22 @@ export default StyleSheet.create({
     minHeight: 40,
     paddingHorizontal: 14,
   },
+  headerActionButton: {
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderColor: '#E4E9E5',
+    borderWidth: 1,
+    borderRadius: 999,
+    elevation: 2,
+    height: 42,
+    justifyContent: 'center',
+    marginRight: -4,
+    shadowColor: '#101828',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    width: 42,
+  },
   backButtonText: {
     color: '#2C4B39',
     fontSize: 14,
@@ -656,7 +672,7 @@ export default StyleSheet.create({
   },
   fixedCardsScrollContent: {
     paddingHorizontal: 16,
-    paddingTop: 6,
+    paddingTop: 0,
     paddingBottom: 32,
   },
   fixedCardsScrollContentWithActions: {
@@ -742,7 +758,7 @@ export default StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 12,
-    marginBottom: 18,
+    marginBottom: 12,
   },
   filterButton: {
     alignItems: 'center',
@@ -825,19 +841,23 @@ export default StyleSheet.create({
     flex: 1,
     position: 'relative',
   },
-  calendarScroll: {
+  calendarBody: {
     flex: 1,
-  },
-  calendarPinnedContent: {
-    backgroundColor: 'transparent',
+    minHeight: 0,
     paddingHorizontal: 18,
     paddingTop: 6,
-    paddingBottom: 8,
+    paddingBottom: 10,
   },
-  calendarContent: {
+  calendarBodyScrollContent: {
+    flexGrow: 1,
     paddingHorizontal: 18,
-    paddingTop: 9,
-    paddingBottom: 130,
+    paddingTop: 6,
+    paddingBottom: 10,
+  },
+  calendarPinnedContent: {
+    paddingHorizontal: 18,
+    paddingTop: 4,
+    paddingBottom: 4,
   },
   calendarStripPanel: {
     marginBottom: 30,
@@ -967,6 +987,8 @@ export default StyleSheet.create({
     padding: 16,
   },
   calendarRecordsPanel: {
+    flex: 1,
+    minHeight: 0,
     overflow: 'hidden',
     paddingHorizontal: 16,
     paddingTop: 0,
@@ -980,7 +1002,7 @@ export default StyleSheet.create({
     marginBottom: 14,
   },
   dateRecordsScroll: {
-    maxHeight: 360,
+    flex: 1,
   },
   dateRecordsContent: {
     gap: 12,
@@ -992,15 +1014,11 @@ export default StyleSheet.create({
   calendarBottomActions: {
     alignItems: 'center',
     backgroundColor: 'transparent',
-    bottom: 0,
     flexDirection: 'row',
     gap: 12,
-    left: 0,
-    paddingHorizontal: 24,
-    paddingTop: 12,
-    paddingBottom: 28,
-    position: 'absolute',
-    right: 0,
+    paddingHorizontal: 18,
+    paddingTop: 8,
+    paddingBottom: 0,
   },
   calendarStageMoveButton: {
     borderRadius: 999,
@@ -1085,6 +1103,7 @@ export default StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
     justifyContent: 'flex-start',
+    marginBottom: 14,
   },
   blockedNotice: {
     alignItems: 'flex-start',
@@ -1405,9 +1424,9 @@ export default StyleSheet.create({
   },
   actionGrid: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: 8,
     marginBottom: 10,
+    paddingRight: 4,
   },
   actionChip: {
     alignItems: 'center',
@@ -1997,7 +2016,7 @@ export default StyleSheet.create({
     borderWidth: 1,
     color: '#101828',
     fontSize: 16,
-    minHeight: 56,
+    minHeight: 52,
     paddingHorizontal: 18,
     shadowColor: '#101828',
     shadowOffset: { width: 0, height: 3 },
@@ -2036,11 +2055,11 @@ export default StyleSheet.create({
     borderWidth: 1,
     color: '#132017',
     fontSize: 16,
-    minHeight: 56,
+    minHeight: 52,
     paddingHorizontal: 16,
   },
   multilineInput: {
-    minHeight: 92,
+    minHeight: 156,
     paddingTop: 12,
     textAlignVertical: 'top',
   },

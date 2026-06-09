@@ -222,7 +222,7 @@ export default function PlantCatalogBottomSheet({ visible, onClose }) {
                 onChangeText={setSearchTerm}
                 placeholder="Поиск по каталогу"
                 placeholderTextColor="#9AA3AF"
-                style={localStyles.searchInput}
+                style={[styles.input, localStyles.searchInput]}
                 value={searchTerm}
               />
             </View>
@@ -444,6 +444,7 @@ const localStyles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     minWidth: 0,
-    padding: 0,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
   },
 });

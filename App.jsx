@@ -1429,12 +1429,12 @@ function AppContent() {
     setCurrentScreen(nextState.currentScreen);
   }
 
-  function openStatusChangeForm() {
+  function openStatusChangeForm(initialEventType = '') {
     if (!selectedCard || !selectedCalendarDate) {
       return;
     }
 
-    const nextState = buildStatusChangeOpenState(selectedCard);
+    const nextState = buildStatusChangeOpenState(selectedCard, initialEventType);
 
     setStatusForm(nextState.statusForm);
     setEditingOperationId(nextState.editingOperationId);
@@ -1784,19 +1784,11 @@ function AppContent() {
       }
     }
 
-    const wasEditingOperation = Boolean(editingOperationId);
-
     setStatusForm(createEmptyStatusForm());
     setEditingOperationId(null);
     setStatusFormError("");
-
-    if (wasEditingOperation) {
-      setStatusFormNotice("");
-      setCurrentScreen("cultureCalendar");
-      return;
-    }
-
-    setStatusFormNotice("Событие сохранено. Можно добавить следующее.");
+    setStatusFormNotice("");
+    setCurrentScreen("cultureCalendar");
   }
 
   async function handleSaveIntroAction() {
@@ -1817,24 +1809,45 @@ function AppContent() {
     };
     const value = sanitizedIntroActionForm[actionConfig.field].trim();
     const hasPhoto = sanitizedIntroActionForm.photoUris.length > 0;
+    const movementDetails = {
+      greenhouseName: sanitizedIntroActionForm.greenhouseName.trim(),
+      rackName: sanitizedIntroActionForm.rackName.trim(),
+      shelfName: sanitizedIntroActionForm.shelfName.trim(),
+    };
+    const hasMovementDetails = Boolean(
+      movementDetails.greenhouseName ||
+      movementDetails.rackName ||
+      movementDetails.shelfName ||
+      sanitizedIntroActionForm.movementComment.trim(),
+    );
 
-    if (!value && !(introActionType === "photo" && hasPhoto)) {
+    if (
+      (!value && !(introActionType === "photo" && hasPhoto)) &&
+      !(introActionType === "movement" && hasMovementDetails) &&
+      introActionType !== "introLoss"
+    ) {
       setStageActionError(actionConfig.error);
       return false;
     }
 
-    const { nextCards } = buildIntroActionSaveResult({
+    const { nextCards, error } = buildIntroActionSaveResult({
       actionConfig,
       cultureCards,
       editingOperationId,
       introActionType,
       introActionForm: sanitizedIntroActionForm,
+      movementDetails,
       nowIso,
       selectedCard,
       selectedCalendarDate,
       selectedCardOperations,
       userId: currentUser.id,
     });
+
+    if (error) {
+      setStageActionError(error);
+      return false;
+    }
 
     await saveCultureCards(nextCards);
     setIntroActionForm(createEmptyIntroActionForm());

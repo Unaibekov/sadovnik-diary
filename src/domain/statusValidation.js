@@ -16,7 +16,7 @@ export function getStatusBaseValidationError({
   }
 
   if (
-    ['rooting', 'death', 'discard', 'sale'].includes(introActionType) &&
+    ['rooting', 'death', 'discard', 'sale', 'introLoss'].includes(introActionType) &&
     Number(count) > currentQuantity
   ) {
     return 'count_gt_current';

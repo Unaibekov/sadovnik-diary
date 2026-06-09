@@ -18,6 +18,7 @@ export default function StatusFilterTabs({
   countValue = 'all',
   items,
   onChange,
+  showDots = true,
 }) {
   return (
     <ScrollView
@@ -29,7 +30,7 @@ export default function StatusFilterTabs({
       {items.map(([value, label]) => {
         const isActive = activeValue === value;
         const hasCount = value === countValue && typeof count === 'number';
-        const dotColor = !isActive ? statusDotColors[value] : '';
+        const dotColor = showDots && !isActive ? statusDotColors[value] : '';
 
         return (
           <Pressable
