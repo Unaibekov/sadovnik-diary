@@ -5,6 +5,8 @@ import { getStatusBaseValidationError } from './statusValidation';
 import { getAdaptationValidationError } from './statusStageValidation';
 import { getGreenhouseValidationError } from './statusGreenhouseValidation';
 
+export const STATUS_DATE_NOT_TODAY_MESSAGE = 'Производственные события можно фиксировать только на текущую дату';
+
 export function getStatusChangeValidationError({
   editingOperationId,
   introActionType,
@@ -66,7 +68,7 @@ export function getStatusChangeValidationError({
 export function getStatusChangeValidationMessage(validationError) {
   switch (validationError) {
     case 'date_not_today':
-      return 'Производственные события можно фиксировать только на текущую дату';
+      return STATUS_DATE_NOT_TODAY_MESSAGE;
     case 'invalid_count':
       return 'Укажите корректное количество';
     case 'count_gt_current':

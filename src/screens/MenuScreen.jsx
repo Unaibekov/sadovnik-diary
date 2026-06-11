@@ -41,7 +41,6 @@ export default function MenuScreen({
   onShareData,
   onScanPress,
   onTasksPress,
-  onOpenSupport,
   onOpenDirectories,
   role = 'operator',
   taskCount = 0,
@@ -97,12 +96,6 @@ export default function MenuScreen({
       onPress: onOpenDirectories,
       subtitle: 'Культуры, виды, сорта',
       title: 'Справочники',
-    },
-    {
-      key: 'support',
-      onPress: onOpenSupport,
-      subtitle: 'Вопросы и обратная связь',
-      title: 'Поддержка',
     },
     ...testMenuItems,
     {
@@ -434,3 +427,4 @@ const localStyles = StyleSheet.create({
     fontWeight: '800',
   },
 });
+

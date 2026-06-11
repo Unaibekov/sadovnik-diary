@@ -122,6 +122,7 @@ import { getStageMoveValidationError } from "./src/domain/stageMoveValidation";
 import {
   getStatusChangeValidationError,
   getStatusChangeValidationMessage,
+  STATUS_DATE_NOT_TODAY_MESSAGE,
 } from "./src/domain/statusChangeValidation";
 import { buildIntroActionSaveResult } from "./src/domain/introActionSave";
 import { buildTestDataResetState } from "./src/domain/testDataReset";
@@ -231,8 +232,10 @@ function AppContent() {
   const [introActionForm, setIntroActionForm] = useState(
     createEmptyIntroActionForm,
   );
+  const [introActionPhotoUrisByType, setIntroActionPhotoUrisByType] = useState({});
   const [introActionType, setIntroActionType] = useState("");
   const [stageActionError, setStageActionError] = useState("");
+  const [isDateActionErrorVisible, setIsDateActionErrorVisible] = useState(false);
   const [batchStatusFilter, setBatchStatusFilter] = useState("all");
   const [journalFilter, setJournalFilter] = useState("all");
   const [journalSubFilter, setJournalSubFilter] = useState("all");
@@ -392,14 +395,20 @@ function AppContent() {
   }
 
   async function saveCultureCards(nextCards) {
+    const cardsWithoutRecommendations = nextCards.map(
+      removeRecommendationFields,
+    );
+    const compactCards = await compactCultureCardsForStorage(
+      cardsWithoutRecommendations,
+    );
+
+    setCultureCards(compactCards);
+
     try {
-      const cardsWithoutRecommendations = nextCards.map(
-        removeRecommendationFields,
-      );
-      await saveCultureCardsToStorage(cardsWithoutRecommendations);
-      setCultureCards(cardsWithoutRecommendations);
+      await saveCultureCardsToStorage(compactCards);
       setStorageError("");
     } catch (saveError) {
+      console.error("saveCultureCardsToStorage failed", saveError);
       setStorageError("Не удалось сохранить локальные данные");
     }
   }
@@ -847,12 +856,6 @@ function AppContent() {
     setIsDirectoriesSheetVisible(false);
   }
 
-  function openSupport() {
-    resetSelectedCardContext();
-    setIsDirectoriesSheetVisible(false);
-    setCurrentScreen("support");
-  }
-
   async function handleScanPress() {
     if (Platform.OS === "web") {
       setNotice(getScanWebNotice());
@@ -1083,13 +1086,43 @@ function AppContent() {
     return isRenderablePhotoUri(form.photoUri) ? [form.photoUri] : [];
   }
 
-  function setIntroActionPhotoUris(nextUris) {
+  function setIntroActionPhotoUrisForType(actionType, nextUris) {
     const normalizedUris = nextUris.filter((uri) => isRenderablePhotoUri(uri));
+    const typeKey = actionType || "comment";
+
+    setIntroActionPhotoUrisByType((currentMap) => ({
+      ...currentMap,
+      [typeKey]: normalizedUris,
+    }));
+
+    if (actionType === introActionType) {
+      setIntroActionForm((currentForm) => ({
+        ...currentForm,
+        photoUris: normalizedUris,
+        photoUri: normalizedUris[0] || "",
+      }));
+    }
+  }
+
+  function selectIntroActionType(nextType) {
+    const currentType = introActionType || "comment";
+    const currentUris = getIntroActionPhotoUris(introActionForm);
+    const nextUris = introActionPhotoUrisByType[nextType] || [];
+
+    setIntroActionPhotoUrisByType((currentMap) => ({
+      ...currentMap,
+      [currentType]: currentUris,
+    }));
     setIntroActionForm((currentForm) => ({
       ...currentForm,
-      photoUris: normalizedUris,
-      photoUri: normalizedUris[0] || "",
+      photoUris: nextUris,
+      photoUri: nextUris[0] || "",
     }));
+    setIntroActionType(nextType);
+  }
+
+  function clearIntroActionPhotoDrafts() {
+    setIntroActionPhotoUrisByType({});
   }
 
   function getCulturePhotoUris(form = cultureForm) {
@@ -1139,6 +1172,101 @@ function AppContent() {
       reader.onerror = () => reject(new Error("Failed to read image blob"));
       reader.readAsDataURL(blob);
     });
+  }
+
+  async function compressWebPhotoUri(uri) {
+    if (Platform.OS !== "web" || !uri || typeof document === "undefined") {
+      return uri;
+    }
+
+    if (!uri.startsWith("data:") && !uri.startsWith("blob:")) {
+      return uri;
+    }
+
+    try {
+      const image = await new Promise((resolve, reject) => {
+        const nextImage = new Image();
+        nextImage.onload = () => resolve(nextImage);
+        nextImage.onerror = () => reject(new Error("Failed to load image"));
+        nextImage.src = uri;
+      });
+
+      const naturalWidth = image.naturalWidth || image.width || 1;
+      const naturalHeight = image.naturalHeight || image.height || 1;
+      const maxSide = 1280;
+      const scale = Math.min(1, maxSide / Math.max(naturalWidth, naturalHeight));
+      const width = Math.max(1, Math.round(naturalWidth * scale));
+      const height = Math.max(1, Math.round(naturalHeight * scale));
+      const canvas = document.createElement("canvas");
+      const context = canvas.getContext("2d");
+
+      if (!context) {
+        return uri;
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+      context.drawImage(image, 0, 0, width, height);
+
+      return canvas.toDataURL("image/jpeg", 0.72);
+    } catch {
+      return uri;
+    }
+  }
+
+  async function compactPhotoUrisForStorage(uris = []) {
+    if (!Array.isArray(uris) || uris.length === 0) {
+      return [];
+    }
+
+    const nextUris = await Promise.all(
+      uris.filter(Boolean).map((uri) => compressWebPhotoUri(uri)),
+    );
+
+    return nextUris.filter(Boolean);
+  }
+
+  async function compactOperationForStorage(operation) {
+    if (!operation) {
+      return operation;
+    }
+
+    const [photoUri, photoUris] = await Promise.all([
+      operation.photoUri ? compressWebPhotoUri(operation.photoUri) : Promise.resolve(""),
+      compactPhotoUrisForStorage(operation.photoUris),
+    ]);
+
+    return {
+      ...operation,
+      ...(photoUri ? { photoUri } : {}),
+      ...(photoUris.length > 0 ? { photoUris } : {}),
+    };
+  }
+
+  async function compactCultureCardsForStorage(cards) {
+    if (Platform.OS !== "web") {
+      return cards;
+    }
+
+    return Promise.all(
+      cards.map(async (card) => {
+        const [startPhotoUris, operations] = await Promise.all([
+          compactPhotoUrisForStorage(card.startPhotoUris),
+          Promise.all((card.operations || []).map(compactOperationForStorage)),
+        ]);
+
+        return {
+          ...card,
+          ...(startPhotoUris.length > 0
+            ? {
+              startPhotoUris,
+              startPhotoUri: startPhotoUris[0] || "",
+            }
+            : {}),
+          operations,
+        };
+      }),
+    );
   }
 
   async function persistPickedPhotoAsset(asset) {
@@ -1285,7 +1413,7 @@ function AppContent() {
     }
 
     const nextUris = [...getIntroActionPhotoUris(), result.uri];
-    setIntroActionPhotoUris(nextUris);
+    setIntroActionPhotoUrisForType(introActionType, nextUris);
     setStageActionError("");
   }
 
@@ -1304,18 +1432,18 @@ function AppContent() {
     const nextUris = getIntroActionPhotoUris().map((uri, currentIndex) =>
       currentIndex === index ? result.uri : uri,
     );
-    setIntroActionPhotoUris(nextUris);
+    setIntroActionPhotoUrisForType(introActionType, nextUris);
     setStageActionError("");
   }
 
   function handleRemoveIntroActionPhoto(index) {
     if (typeof index !== "number") {
-      setIntroActionPhotoUris([]);
+      setIntroActionPhotoUrisForType(introActionType, []);
       return;
     }
 
     const nextUris = getIntroActionPhotoUris().filter((_, currentIndex) => currentIndex !== index);
-    setIntroActionPhotoUris(nextUris);
+    setIntroActionPhotoUrisForType(introActionType, nextUris);
   }
 
   async function handleAddStatusPhoto() {
@@ -1398,6 +1526,7 @@ function AppContent() {
     setIntroActionType(nextState.introActionType);
     setIntroActionForm(nextState.introActionForm);
     setStageActionError(nextState.stageActionError);
+    setIsDateActionErrorVisible(false);
     setCalendarMonth(nextState.calendarMonth);
     setCurrentScreen(nextState.currentScreen);
   }
@@ -1426,7 +1555,13 @@ function AppContent() {
     setEditingOperationId(nextState.editingOperationId);
     setIsStageMoveConfirmVisible(nextState.isStageMoveConfirmVisible);
     setStageActionError(nextState.stageActionError);
+    setIsDateActionErrorVisible(false);
     setCurrentScreen(nextState.currentScreen);
+  }
+
+  function closeDateActionError() {
+    setIsDateActionErrorVisible(false);
+    setStageActionError("");
   }
 
   function openStatusChangeForm(initialEventType = '') {
@@ -1792,9 +1927,19 @@ function AppContent() {
   }
 
   async function handleSaveIntroAction() {
-    if (!selectedCard || !selectedCalendarDate || !introActionType) {
+    const introActionDate = selectedCalendarDate || getTodayIsoDate();
+
+    if (!selectedCard || !introActionType) {
       return false;
     }
+
+    if (introActionDate !== getTodayIsoDate()) {
+      setStageActionError(STATUS_DATE_NOT_TODAY_MESSAGE);
+      setIsDateActionErrorVisible(true);
+      return false;
+    }
+
+    setCalendarMonth(dateFromIso(introActionDate));
 
     const nowIso = new Date().toISOString();
     const actionConfig = getIntroActionConfig(introActionType);
@@ -1839,7 +1984,7 @@ function AppContent() {
       movementDetails,
       nowIso,
       selectedCard,
-      selectedCalendarDate,
+      selectedCalendarDate: introActionDate,
       selectedCardOperations,
       userId: currentUser.id,
     });
@@ -1981,6 +2126,7 @@ function AppContent() {
     isEditingCard,
     isGreenhouseStage,
     isStageMoveConfirmVisible,
+    isDateActionErrorVisible,
     isSupportedPlantingStage,
     journalFilter,
     journalSubFilter,
@@ -2038,7 +2184,6 @@ function AppContent() {
     handleLogout,
     openDirectories,
     closeDirectories,
-    openSupport,
     handleSaveCultureCard,
     handleSaveIntroAction,
     handleSaveStatusChange,
@@ -2068,10 +2213,12 @@ function AppContent() {
     openStatusChangeForm,
     openTaskCard,
     openTasks,
+    closeDateActionError,
     requestDeleteOperation,
     setBatchStatusFilter,
     setCardSearch,
     setCurrentScreen,
+    setCalendarMonth,
     setCultureCalendarTab,
     setEditingOperationId,
     setExpandedJournalCardIds,
@@ -2079,6 +2226,7 @@ function AppContent() {
     setIntroActionForm,
     setIntroActionType,
     setIsDateEntryExpanded,
+    setIsDateActionErrorVisible,
     setIsStageMoveConfirmVisible,
     setJournalFilter,
     setJournalSubFilter,
@@ -2110,6 +2258,8 @@ function AppContent() {
     handleSelectCulture,
     handleSelectSpecies,
     handleSelectVariety,
+    clearIntroActionPhotoDrafts,
+    selectIntroActionType,
     isRequiredFieldMissing,
   };
 

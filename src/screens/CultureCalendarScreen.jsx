@@ -1,15 +1,16 @@
-import { StatusBar } from 'expo-status-bar';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import styles from '../../styles';
-import StageHeader from '../components/StageHeader';
-import CalendarTabs from '../components/CalendarTabs';
-import { InfoIcon } from '../components/icons';
+import { StatusBar } from "expo-status-bar";
+import { Modal, Pressable, ScrollView, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import styles from "../../styles";
+import StageHeader from "../components/StageHeader";
+import CalendarTabs from "../components/CalendarTabs";
+import { InfoIcon } from "../components/icons";
 
 export default function CultureCalendarScreen({
   activeTab,
   bottomInset,
   children,
+  isDateActionErrorVisible,
   headerAction,
   isOperationDeleteConfirmVisible,
   isStageMoveConfirmVisible,
@@ -17,7 +18,9 @@ export default function CultureCalendarScreen({
   onBack,
   onCancelOperationDelete,
   onCancelStageMove,
+  onCloseDateActionError,
   onChangeTab,
+  onConfirmDateAction,
   onConfirmOperationDelete,
   onConfirmStageMove,
   onRequestStageMove,
@@ -41,11 +44,7 @@ export default function CultureCalendarScreen({
         />
         <CalendarTabs activeTab={activeTab} onChangeTab={onChangeTab} />
 
-        {activeTab === 'calendar' ? (
-          <View style={styles.calendarBody}>
-            {children}
-          </View>
-        ) : (
+        {activeTab === "passport" ? (
           <ScrollView
             bounces={false}
             contentContainerStyle={styles.calendarBodyScrollContent}
@@ -53,13 +52,17 @@ export default function CultureCalendarScreen({
           >
             {children}
           </ScrollView>
+        ) : (
+          <View style={styles.calendarBody}>{children}</View>
         )}
 
         {showBottomActions && (
-          <View style={[
-            styles.calendarBottomActions,
-            { paddingBottom: Math.max(bottomInset + 6, 16) },
-          ]}>
+          <View
+            style={[
+              styles.calendarBottomActions,
+              { paddingBottom: Math.max(bottomInset + 6, 16) },
+            ]}
+          >
             {!!stageMoveTarget && !stageMoveBlockedMessage && (
               <Pressable
                 accessibilityRole="button"
@@ -70,7 +73,12 @@ export default function CultureCalendarScreen({
                   pressed && styles.pressedButton,
                 ]}
               >
-                <Text style={[styles.primaryButtonText, styles.calendarStageMoveButtonText]}>
+                <Text
+                  style={[
+                    styles.primaryButtonText,
+                    styles.calendarStageMoveButtonText,
+                  ]}
+                >
                   {stageMoveButtonLabel}
                 </Text>
               </Pressable>
@@ -174,10 +182,47 @@ export default function CultureCalendarScreen({
             </View>
           </View>
         </Modal>
+
+        <Modal
+          animationType="fade"
+          transparent
+          visible={isDateActionErrorVisible}
+          onRequestClose={onCloseDateActionError}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.confirmModal}>
+              <Text style={styles.confirmModalTitle}>Внимание</Text>
+              <Text style={styles.confirmModalText}>
+                Выбрана не текущая дата. Перейти на сегодня и добавить запись?
+              </Text>
+              <View style={styles.confirmModalActions}>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={onCloseDateActionError}
+                  style={({ pressed }) => [
+                    styles.secondaryOutlineButton,
+                    styles.confirmModalButton,
+                    pressed && styles.linkButtonPressed,
+                  ]}
+                >
+                  <Text style={styles.secondaryOutlineButtonText}>Отмена</Text>
+                </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={onConfirmDateAction}
+                  style={({ pressed }) => [
+                    styles.primaryButton,
+                    styles.confirmModalButton,
+                    pressed && styles.pressedButton,
+                  ]}
+                >
+                  <Text style={styles.primaryButtonText}>Перейти</Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </Modal>
       </View>
     </SafeAreaView>
   );
 }
-
-const localStyles = StyleSheet.create({
-});

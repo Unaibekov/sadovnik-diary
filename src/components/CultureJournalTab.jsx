@@ -77,7 +77,7 @@ export default function CultureJournalTab({
   );
 
   return (
-    <View style={localStyles.journalContainer}>
+    <>
       <PhotoViewerModal
         initialIndex={viewerIndex}
         onClose={() => setIsViewerVisible(false)}
@@ -85,128 +85,142 @@ export default function CultureJournalTab({
         visible={isViewerVisible}
       />
 
-      {operations.length === 0 && <Text style={styles.journalEmpty}>РЎРѕР±С‹С‚РёР№ РїРѕРєР° РЅРµС‚</Text>}
+      <View style={[styles.surfacePanel, styles.calendarRecordsPanel]}>
+        <ScrollView
+          bounces={false}
+          contentContainerStyle={localStyles.journalScrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          style={localStyles.journalScroll}
+        >
+          {operations.length === 0 && <Text style={styles.journalEmpty}>РЎРѕР±С‹С‚РёР№ РїРѕРєР° РЅРµС‚</Text>}
 
-      {groupedOperations.map((group) => {
-        const groupDate = group.operations[0]?.date || group.operations[0]?.createdAt || '';
+          {groupedOperations.map((group) => {
+            const groupDate = group.operations[0]?.date || group.operations[0]?.createdAt || '';
+            const showGroupTitle = groupedOperations.length > 1;
 
-        return (
-          <View key={group.stage} style={localStyles.stageGroupCard}>
-            <Text style={localStyles.stageGroupTitle}>{group.stage}</Text>
-            {groupDate ? (
-              <Text style={localStyles.groupDate}>{formatDisplayLongDate(groupDate)}</Text>
-            ) : null}
+            return (
+              <View key={group.stage} style={localStyles.stageGroupCard}>
+                {showGroupTitle && (
+                  <Text style={localStyles.stageGroupTitle}>{group.stage}</Text>
+                )}
+                {groupDate ? (
+                  <Text style={localStyles.groupDate}>{formatDisplayLongDate(groupDate)}</Text>
+                ) : null}
 
-            <View style={localStyles.stageGroupBody}>
-              {group.operations.map((operation, index) => {
-                const summaryItems = getOperationSummaryItems(operation, card);
-                const photoUris = (
-                  Array.isArray(operation.photoUris) && operation.photoUris.length > 0
-                    ? operation.photoUris
-                    : isRenderablePhotoUri(operation.photoUri)
-                      ? [operation.photoUri]
-                      : []
-                ).filter((uri) => isRenderablePhotoUri(uri));
-                const isTextOnlyOperation = ['comment', 'contamination', 'quarantine'].includes(operation.type);
-                const actionTitle = operation.title || (operation.type === 'comment' ? 'Комментарий' : 'Событие');
+                <View style={localStyles.stageGroupBody}>
+                  {group.operations.map((operation, index) => {
+                    const summaryItems = getOperationSummaryItems(operation, card);
+                    const photoUris = (
+                      Array.isArray(operation.photoUris) && operation.photoUris.length > 0
+                        ? operation.photoUris
+                        : isRenderablePhotoUri(operation.photoUri)
+                          ? [operation.photoUri]
+                          : []
+                    ).filter((uri) => isRenderablePhotoUri(uri));
+                    const isTextOnlyOperation = ['comment', 'contamination', 'quarantine'].includes(operation.type);
+                    const actionTitle = operation.title || (operation.type === 'comment' ? 'Комментарий' : 'Событие');
 
-                return (
-                  <Fragment key={operation.id}>
-                    <View
-                      style={[
-                        styles.journalItem,
-                        ['contamination', 'quarantine'].includes(operation.type) && styles.journalItemWarning,
-                      ]}
-                    >
-                      <View style={localStyles.itemRow}>
-                        <View style={localStyles.timeBadge}>
-                          <Text style={localStyles.timeText}>
-                            {operation.createdAt ? formatDisplayTime(operation.createdAt) : ''}
-                          </Text>
-                        </View>
+                    return (
+                      <Fragment key={operation.id}>
+                        <View
+                          style={[
+                            styles.journalItem,
+                            ['contamination', 'quarantine'].includes(operation.type) && styles.journalItemWarning,
+                          ]}
+                        >
+                          <View style={localStyles.itemRow}>
+                            <View style={localStyles.timeBadge}>
+                              <Text style={localStyles.timeText}>
+                                {operation.createdAt ? formatDisplayTime(operation.createdAt) : ''}
+                              </Text>
+                            </View>
 
-                        <View style={localStyles.contentColumn}>
-                          <View style={localStyles.contentHeaderRow}>
-                            <Text style={localStyles.titleText}>{actionTitle}</Text>
-                            <View style={localStyles.operationActions}>
-                              {canEditOperation(operation) && !['contamination', 'quarantine'].includes(operation.type) && (
-                                <Pressable
-                                  accessibilityLabel="Редактировать запись"
-                                  accessibilityRole="button"
-                                  onPress={() => onEditOperation(operation)}
-                                  style={({ pressed }) => [
-                                    styles.operationActionButton,
-                                    pressed && styles.linkButtonPressed,
-                                  ]}
-                                >
-                                  <EditIcon size={20} />
-                                </Pressable>
+                            <View style={localStyles.contentColumn}>
+                              <View style={localStyles.contentHeaderRow}>
+                                <Text style={localStyles.titleText}>{actionTitle}</Text>
+                                <View style={localStyles.operationActions}>
+                                  {canEditOperation(operation) && !['contamination', 'quarantine'].includes(operation.type) && (
+                                    <Pressable
+                                      accessibilityLabel="Редактировать запись"
+                                      accessibilityRole="button"
+                                      onPress={() => onEditOperation(operation)}
+                                      style={({ pressed }) => [
+                                        styles.operationActionButton,
+                                        pressed && styles.linkButtonPressed,
+                                      ]}
+                                    >
+                                      <EditIcon size={20} />
+                                    </Pressable>
+                                  )}
+                                </View>
+                              </View>
+
+                              {isTextOnlyOperation ? (
+                                <Text style={localStyles.commentText}>{summaryItems[0]?.[1] || ''}</Text>
+                              ) : (
+                                summaryItems.map(([label, value]) => (
+                                  <View key={label} style={localStyles.fieldBlock}>
+                                    <Text style={localStyles.fieldLabel}>{label}:</Text>
+                                    <Text style={localStyles.fieldValue}>{value}</Text>
+                                  </View>
+                                ))
                               )}
+
+                              {photoUris.length > 0 ? (
+                                <ScrollView
+                                  horizontal
+                                  keyboardShouldPersistTaps="handled"
+                                  showsHorizontalScrollIndicator={false}
+                                  contentContainerStyle={localStyles.photoThumbStrip}
+                                >
+                                  {photoUris.map((uri, index) => (
+                                    <Pressable
+                                      accessibilityLabel={`Открыть фото ${index + 1}`}
+                                      accessibilityRole="button"
+                                      key={`${uri}-${index}`}
+                                      onPress={() => openPhotoViewer(photoUris, index)}
+                                      style={({ pressed }) => [
+                                        localStyles.photoThumb,
+                                        pressed && styles.linkButtonPressed,
+                                      ]}
+                                    >
+                                      <Image source={{ uri }} style={localStyles.photoThumbImage} />
+                                    </Pressable>
+                                  ))}
+                                </ScrollView>
+                              ) : null}
                             </View>
                           </View>
-
-                          {isTextOnlyOperation ? (
-                            <Text style={localStyles.commentText}>{summaryItems[0]?.[1] || ''}</Text>
-                          ) : (
-                            summaryItems.map(([label, value]) => (
-                              <View key={label} style={localStyles.fieldBlock}>
-                                <Text style={localStyles.fieldLabel}>{label}:</Text>
-                                <Text style={localStyles.fieldValue}>{value}</Text>
-                              </View>
-                            ))
-                          )}
-
-                          {photoUris.length > 0 ? (
-                            <ScrollView
-                              horizontal
-                              keyboardShouldPersistTaps="handled"
-                              showsHorizontalScrollIndicator={false}
-                              contentContainerStyle={localStyles.photoThumbStrip}
-                            >
-                              {photoUris.map((uri, index) => (
-                                <Pressable
-                                  accessibilityLabel={`Открыть фото ${index + 1}`}
-                                  accessibilityRole="button"
-                                  key={`${uri}-${index}`}
-                                  onPress={() => openPhotoViewer(photoUris, index)}
-                                  style={({ pressed }) => [
-                                    localStyles.photoThumb,
-                                    pressed && styles.linkButtonPressed,
-                                  ]}
-                                >
-                                  <Image source={{ uri }} style={localStyles.photoThumbImage} />
-                                </Pressable>
-                              ))}
-                            </ScrollView>
-                          ) : null}
                         </View>
-                      </View>
-                    </View>
-                    {index < group.operations.length - 1 && (
-                      <View style={styles.calendarRecordsDivider} />
-                    )}
-                  </Fragment>
-                );
-              })}
-            </View>
-          </View>
-        );
-      })}
-    </View>
+                        {index < group.operations.length - 1 && (
+                          <View style={styles.calendarRecordsDivider} />
+                        )}
+                      </Fragment>
+                    );
+                  })}
+                </View>
+              </View>
+            );
+          })}
+        </ScrollView>
+      </View>
+    </>
   );
 }
 
 const localStyles = StyleSheet.create({
-  journalContainer: {
+  journalScroll: {
+    flex: 1,
+    minHeight: 0,
+  },
+  journalScrollContent: {
     gap: 12,
+    paddingBottom: 2,
   },
   stageGroupCard: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#E6EDE7',
-    borderRadius: 18,
-    borderWidth: 1,
     gap: 10,
-    padding: 14,
+    marginBottom: 2,
   },
   stageGroupTitle: {
     color: '#15863F',

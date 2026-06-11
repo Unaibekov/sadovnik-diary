@@ -1,87 +1,10 @@
 import { createBatchCreatedOperation, normalizeCultureCard } from './batch.js';
+import plantsCatalog from '../../data/plantsCatalog.js';
 import { currentUser, INTRO_STAGE, SOURCE_MATERIAL_OPTIONS, stages } from './constants.js';
 import { isoFromDate } from './dates.js';
 import { buildStageChangeOperation, buildStageTransitionCard } from './stageTransition.js';
 
 const STAGE_ORDER = stages.slice(0, 4);
-
-const CULTURE_PROFILES = [
-  {
-    cultureName: 'Монстера',
-    speciesOptions: ['deliciosa', 'adansonii'],
-    varietyOptions: ['Thai Constellation', 'Variegata', 'Monkey Mask'],
-  },
-  {
-    cultureName: 'Филодендрон',
-    speciesOptions: ['billietiae', 'tatei', 'verrucosum'],
-    varietyOptions: ['Birkin', 'White Wizard', 'Black Cardinal', 'Selloum Gold Variegata', 'Sun Red'],
-  },
-  {
-    cultureName: 'Антуриум',
-    speciesOptions: ['crystallinum', 'clarinervium'],
-    varietyOptions: ['Dark Form', 'Forgetti', 'Warocqueanum'],
-  },
-  {
-    cultureName: 'Алоказия',
-    speciesOptions: ['azlanii', 'baginda', 'odora'],
-    varietyOptions: ['Dragon Scale', 'Batik', 'Regal Shields', 'Melo', 'Ninja Variegated'],
-  },
-  {
-    cultureName: 'Спатифиллум',
-    speciesOptions: ['wallisii', 'sensation'],
-    varietyOptions: ['Domino', 'Sweet Pablo', 'Cupido'],
-  },
-  {
-    cultureName: 'Орхидея',
-    speciesOptions: ['phalaenopsis', 'cattleya', 'dendrobium'],
-    varietyOptions: ['Phalaenopsis', 'Cattleya', 'Dendrobium'],
-  },
-  {
-    cultureName: 'Фикус',
-    speciesOptions: ['elastica', 'benghalensis'],
-    varietyOptions: ['Tineke', 'Robusta', 'Abidjan', 'Siveriana'],
-  },
-  {
-    cultureName: 'Аглаонема',
-    speciesOptions: ['commutatum', 'modestum'],
-    varietyOptions: ['Silver Bay', 'Maria', 'Red Emerald', 'Anyamanee'],
-  },
-  {
-    cultureName: 'Калатея',
-    speciesOptions: ['orbifolia', 'medallion'],
-    varietyOptions: ['White Fusion', 'Freddie', 'Beauty Star'],
-  },
-  {
-    cultureName: 'Сингониум',
-    speciesOptions: ['podophyllum'],
-    varietyOptions: ['Neon Robusta', 'Pink Allusion', 'Milk Confetti'],
-  },
-  {
-    cultureName: 'Хойя',
-    speciesOptions: ['carnosa', 'obovata'],
-    varietyOptions: ['Compacta', 'Kerrii', 'Pubicalyx'],
-  },
-  {
-    cultureName: 'Пеперомия',
-    speciesOptions: ['polybotrya', 'caperata'],
-    varietyOptions: ['Rosso', 'Watermelon', 'Hope'],
-  },
-  {
-    cultureName: 'Диффенбахия',
-    speciesOptions: ['seguine', 'amoena'],
-    varietyOptions: ['Camille', 'Tropic Snow', 'Reflector'],
-  },
-  {
-    cultureName: 'Драцена',
-    speciesOptions: ['fragrans', 'marginata'],
-    varietyOptions: ['Compacta', 'Lemon Lime', 'Janet Craig'],
-  },
-  {
-    cultureName: 'Замиокулькас',
-    speciesOptions: ['zamiifolia'],
-    varietyOptions: ['Raven', 'Zenzi', 'Zamicro'],
-  },
-];
 
 function randomInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -103,21 +26,23 @@ function toIsoDate(value) {
   return isoFromDate(value instanceof Date ? value : new Date(value));
 }
 
-function buildProfileForCulture(cultureName) {
-  const profile = CULTURE_PROFILES.find((item) => item.cultureName === cultureName);
+function buildProfileForCulture(seedIndex) {
+  const plant = plantsCatalog[seedIndex % plantsCatalog.length];
 
-  if (!profile) {
+  if (!plant) {
     return {
-      cultureName,
+      cultureName: '',
       speciesName: '',
       varietyName: '',
+      originalName: '',
     };
   }
 
   return {
-    cultureName: profile.cultureName,
-    speciesName: randomChoice(profile.speciesOptions),
-    varietyName: randomChoice(profile.varietyOptions),
+    cultureName: plant.cultureName || '',
+    speciesName: plant.speciesName || '',
+    varietyName: plant.varietyName || '',
+    originalName: plant.originalName || '',
   };
 }
 
@@ -229,7 +154,7 @@ export function buildDevelopmentTestCultureCards(existingCards, { now = new Date
         new Date(Math.max(createdAt.getTime(), updatedWindowStart.getTime())),
         now,
       );
-      const profile = buildProfileForCulture(CULTURE_PROFILES[(stageIndex * 10 + index) % CULTURE_PROFILES.length].cultureName);
+      const profile = buildProfileForCulture(stageIndex * 10 + index);
       const cardId = buildUniqueId({ existingIds, stage, index: stageIndex * 10 + index });
       const code = buildUniqueCode({
         createdAt,
@@ -264,6 +189,7 @@ export function buildDevelopmentTestCultureCards(existingCards, { now = new Date
         cultureName: profile.cultureName,
         speciesName: profile.speciesName,
         varietyName: profile.varietyName,
+        name: profile.originalName || '',
         code,
         quantity,
         sourceMaterial: randomChoice(SOURCE_MATERIAL_OPTIONS.slice(0, 4)),

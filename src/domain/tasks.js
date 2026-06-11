@@ -58,6 +58,7 @@ export function buildCareTasks(cards, getResolvedBatchStatus) {
         cardId: card.id,
         cardName: getCardDisplayName(card),
         code: card.code || '',
+        locationDescription: card.locationDescription || '',
         careType: schedule.careType,
         currentQuantity: getCardCurrentQuantity(card),
         daysOverdue,

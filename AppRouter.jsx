@@ -15,14 +15,13 @@ import IntroActionFormScreen from "./src/screens/IntroActionFormScreen";
 import MenuScreen from "./src/screens/MenuScreen";
 import PlantCatalogBottomSheet from "./src/components/PlantCatalogBottomSheet";
 import RecommendationsScreen from "./src/screens/RecommendationsScreen";
-import SupportScreen from "./src/screens/SupportScreen";
 import StatusChangeFormScreen from "./src/screens/StatusChangeFormScreen";
 import TasksScreen from "./src/screens/TasksScreen";
 import {
   createEmptyIntroActionForm,
   createEmptyStatusForm,
 } from "./src/domain/forms";
-import { getTodayIsoDate } from "./src/domain/dates";
+import { dateFromIso, getTodayIsoDate } from "./src/domain/dates";
 import { getCardDisplayName } from "./src/domain/batch";
 import {
   cultureCreateBatchStatuses,
@@ -32,6 +31,7 @@ import {
   stageHomeItems as stageHomeItemsConfig,
 } from "./src/domain/operationConfig";
 import { INTRO_STAGE, SOURCE_MATERIAL_OPTIONS } from "./src/domain/constants";
+import { STATUS_DATE_NOT_TODAY_MESSAGE } from "./src/domain/statusChangeValidation";
 
 export default function AppRouter({ actions, state }) {
   const {
@@ -63,6 +63,7 @@ export default function AppRouter({ actions, state }) {
     isCultureIntroStage,
     isEditingCard,
     isGreenhouseStage,
+    isDateActionErrorVisible,
     isStageMoveConfirmVisible,
     isSupportedPlantingStage,
     journalFilter,
@@ -130,7 +131,6 @@ export default function AppRouter({ actions, state }) {
     handleStagePress,
     openDirectories,
     closeDirectories,
-    openSupport,
     openCultureCalendar,
     openCultureForm,
     openEditCultureForm,
@@ -148,6 +148,7 @@ export default function AppRouter({ actions, state }) {
     handleRemoveCulturePhoto,
     handlePickIntroActionPhoto,
     handleReplaceIntroActionPhoto,
+    handleRemoveIntroActionPhoto,
     handleAddStatusPhoto,
     handleRemoveStatusPhoto,
     handleReplaceStatusPhoto,
@@ -155,12 +156,14 @@ export default function AppRouter({ actions, state }) {
     setCardSearch,
     setCultureCalendarTab,
     setCurrentScreen,
+    setCalendarMonth,
     setEditingOperationId,
     setExpandedJournalCardIds,
     setFormError,
     setIntroActionForm,
     setIntroActionType,
     setIsDateEntryExpanded,
+    setIsDateActionErrorVisible,
     setIsStageMoveConfirmVisible,
     setJournalFilter,
     setJournalSubFilter,
@@ -184,6 +187,9 @@ export default function AppRouter({ actions, state }) {
     handleSelectCulture,
     handleSelectSpecies,
     handleSelectVariety,
+    clearIntroActionPhotoDrafts,
+    selectIntroActionType,
+    closeDateActionError,
     isRequiredFieldMissing,
   } = actions;
 
@@ -240,28 +246,56 @@ export default function AppRouter({ actions, state }) {
       </Pressable>
     );
 
+    function openAddEventFlow(actionDateIso) {
+      const selectedStageForAction = selectedCard.stage || INTRO_STAGE;
+
+      if (actionDateIso) {
+        setSelectedCalendarDate(actionDateIso);
+        setCalendarMonth(dateFromIso(actionDateIso));
+      }
+
+      setStageActionError("");
+      setEditingOperationId(null);
+
+      if (selectedStageForAction === INTRO_STAGE) {
+        setIsDateEntryExpanded(false);
+        clearIntroActionPhotoDrafts();
+        setIntroActionType("comment");
+        setIntroActionForm(createEmptyIntroActionForm());
+        setCurrentScreen("introActionForm");
+        return;
+      }
+
+      openStatusChangeForm();
+    }
+
+    function handleAddEventPress() {
+      const todayIso = getTodayIsoDate();
+
+      if (selectedCalendarDate && selectedCalendarDate !== todayIso) {
+        setStageActionError(STATUS_DATE_NOT_TODAY_MESSAGE);
+        setIsDateActionErrorVisible(true);
+        return;
+      }
+
+      openAddEventFlow(selectedCalendarDate || todayIso);
+    }
+
+    function handleConfirmDateAction() {
+      const todayIso = getTodayIsoDate();
+      closeDateActionError();
+      openAddEventFlow(todayIso);
+    }
+
     return (
       <CultureCalendarScreen
         activeTab={cultureCalendarTab}
         bottomInset={bottomInset}
         headerAction={recommendationsAction}
+        isDateActionErrorVisible={isDateActionErrorVisible}
         isOperationDeleteConfirmVisible={Boolean(operationDeleteCandidateId)}
         isStageMoveConfirmVisible={isStageMoveConfirmVisible}
-        onAddEvent={() => {
-          setSelectedCalendarDate(selectedDate);
-          setStageActionError("");
-          setEditingOperationId(null);
-
-          if (selectedCard.stage === INTRO_STAGE) {
-            setIsDateEntryExpanded(false);
-            setIntroActionType("comment");
-            setIntroActionForm(createEmptyIntroActionForm());
-            setCurrentScreen("introActionForm");
-            return;
-          }
-
-          openStatusChangeForm();
-        }}
+        onAddEvent={handleAddEventPress}
         onBack={closeCultureCalendar}
         onCancelOperationDelete={cancelDeleteOperation}
         onCancelStageMove={() => setIsStageMoveConfirmVisible(false)}
@@ -271,6 +305,7 @@ export default function AppRouter({ actions, state }) {
           setIntroActionType("");
           setEditingOperationId(null);
           setStageActionError("");
+          closeDateActionError();
         }}
         onConfirmOperationDelete={confirmDeleteOperation}
         onConfirmStageMove={handleAddStageChange}
@@ -278,6 +313,8 @@ export default function AppRouter({ actions, state }) {
           setStageActionError("");
           setIsStageMoveConfirmVisible(true);
         }}
+        onCloseDateActionError={closeDateActionError}
+        onConfirmDateAction={handleConfirmDateAction}
         showBottomActions={
           cultureCalendarTab === "calendar" && !selectedCardActionLocked
         }
@@ -318,6 +355,7 @@ export default function AppRouter({ actions, state }) {
               setIntroActionForm(createEmptyIntroActionForm());
               setEditingOperationId(null);
               setStageActionError("");
+              closeDateActionError();
             }}
             operationDates={operationDates}
             selectedDate={selectedDate}
@@ -373,21 +411,25 @@ export default function AppRouter({ actions, state }) {
         onBack={() => {
           setIntroActionType("");
           setIntroActionForm(createEmptyIntroActionForm());
+          clearIntroActionPhotoDrafts();
           setEditingOperationId(null);
           setStageActionError("");
           setCurrentScreen("cultureCalendar");
         }}
         onChangeActionForm={updateIntroActionForm}
         onPickActionPhoto={handlePickIntroActionPhoto}
+        onRemoveActionPhoto={handleRemoveIntroActionPhoto}
         onReplaceActionPhoto={handleReplaceIntroActionPhoto}
         onSave={async () => {
           const isSaved = await handleSaveIntroAction();
           if (isSaved) {
+            clearIntroActionPhotoDrafts();
+            setCultureCalendarTab("calendar");
             setCurrentScreen("cultureCalendar");
           }
         }}
         onSelectActionType={(value) => {
-          setIntroActionType(value);
+          selectIntroActionType(value);
           setEditingOperationId(null);
           setStageActionError("");
         }}
@@ -537,7 +579,6 @@ export default function AppRouter({ actions, state }) {
           }}
           onLogout={handleLogout}
           onOpenDirectories={openDirectories}
-          onOpenSupport={openSupport}
           onClearCards={handleClearTestData}
           onGenerateTestData={handleGenerateTestData}
           onChangePermanentPassword={handleChangePermanentPassword}
@@ -559,32 +600,6 @@ export default function AppRouter({ actions, state }) {
           onScanPress={handleScanPress}
           onTaskPress={openTaskCard}
           tasks={careTasks}
-        />
-      );
-    } else if (currentScreen === "support") {
-      screenNode = (
-        <SupportScreen
-          activeCardsCount={activeCardsCount}
-          bottomInset={bottomInset}
-          currentScreenLabel="Поддержка"
-          login={login}
-          notice={notice}
-          onHomePress={() => setCurrentScreen("stages")}
-          onJournalPress={() => {
-            setJournalFilter("all");
-            setJournalSubFilter("all");
-            setCurrentScreen("globalJournal");
-          }}
-          onMenuPress={openMenu}
-          onOpenMenu={openMenu}
-          onOpenTasks={openTasks}
-          onScheduleWateringReminder={handleScheduleWateringReminder}
-          onShareData={handleShareData}
-          onScanPress={handleScanPress}
-          onTasksPress={openTasks}
-          role={userRole}
-          storageError={storageError}
-          taskCount={taskCount}
         />
       );
     } else {

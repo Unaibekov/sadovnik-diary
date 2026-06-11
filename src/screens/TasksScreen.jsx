@@ -11,8 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import appStyles from '../../styles';
 import BottomTabBar from '../components/BottomTabBar';
 import SelectBottomSheet from '../components/SelectBottomSheet';
-import { ArrowBackIcon, FilterIcon } from '../components/icons';
-import { formatDisplayDate } from '../domain/dates';
+import { FilterIcon, PlaceIcon } from '../components/icons';
 import { stages } from '../domain/constants';
 
 const TASK_STATUS_META = {
@@ -50,32 +49,6 @@ const TASK_STAGE_FILTERS = [
   { key: 'adaptation', label: 'Адаптация', stage: stages[2] },
   { key: 'greenhouse', label: 'Теплица', stage: stages[3] },
 ];
-
-const STAGE_SHORT_LABELS = TASK_STAGE_FILTERS.reduce((accumulator, filter) => {
-  if (filter.stage) {
-    accumulator[filter.stage] = filter.label;
-  }
-  return accumulator;
-}, {});
-
-function pluralize(count, one, few, many) {
-  const value = Math.abs(count) % 100;
-  const lastDigit = value % 10;
-
-  if (value > 10 && value < 20) {
-    return many;
-  }
-
-  if (lastDigit > 1 && lastDigit < 5) {
-    return few;
-  }
-
-  if (lastDigit === 1) {
-    return one;
-  }
-
-  return many;
-}
 
 function getTaskStatusKey(task) {
   if (task.isOverdue) {
@@ -150,19 +123,6 @@ function getTaskSummaryCards(tasks, taskStatusCounts) {
   ];
 }
 
-function getStageKeyForTask(stage) {
-  if (!stage) {
-    return 'all';
-  }
-
-  const matchedFilter = TASK_STAGE_FILTERS.find((filter) => filter.stage === stage);
-  return matchedFilter?.key || 'all';
-}
-
-function getStageLabel(stage) {
-  return STAGE_SHORT_LABELS[stage] || stage || 'Стадия';
-}
-
 function getTaskListTitle(stageFilterKey, count) {
   const stageFilter = TASK_STAGE_FILTERS.find((filter) => filter.key === stageFilterKey);
   const stageLabel = stageFilterKey === 'all' ? 'Все задачи' : (stageFilter?.label || 'Все задачи');
@@ -174,15 +134,20 @@ function getTaskListTitle(stageFilterKey, count) {
 }
 
 function getTaskRowMeta(task) {
-  if (task.isOverdue) {
-    return `${task.daysOverdue > 0 ? `${task.daysOverdue} дн. проср.` : 'Просрочено'}`;
+  if (!task.nextDate) {
+    return '';
   }
 
-  if (task.isDueToday) {
-    return 'Сегодня';
+  const nextDate = new Date(`${task.nextDate}T00:00:00`);
+  const today = new Date();
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const diffDays = Math.round((nextDate - todayStart) / (24 * 60 * 60 * 1000));
+
+  if (diffDays === 0) {
+    return '0 дн.';
   }
 
-  return formatDisplayDate(task.nextDate);
+  return `${diffDays > 0 ? '+' : ''}${diffDays} дн.`;
 }
 
 function groupTasksByCard(tasks) {
@@ -201,6 +166,7 @@ function groupTasksByCard(tasks) {
       cardId: task.cardId,
       cardName: task.cardName,
       code: task.code,
+      locationDescription: task.locationDescription || '',
       currentQuantity: task.currentQuantity,
       stage: task.stage,
       tasks: [task],
@@ -234,6 +200,7 @@ export default function TasksScreen({
   const [activeTaskStatusFilter, setActiveTaskStatusFilter] = useState(() => getDefaultTaskStatusFilter(tasks));
   const [activeTaskStageFilter, setActiveTaskStageFilter] = useState('all');
   const [isStageFilterSheetVisible, setIsStageFilterSheetVisible] = useState(false);
+  const [expandedCardIds, setExpandedCardIds] = useState([]);
   const hasManualStatusFilterRef = useRef(false);
 
   const taskStatusCounts = getTaskStatusCounts(tasks);
@@ -246,6 +213,14 @@ export default function TasksScreen({
       setActiveTaskStatusFilter(getDefaultTaskStatusFilter(tasks));
     }
   }, [taskStatusCounts.overdue, taskStatusCounts.today, tasks]);
+
+  const toggleTaskCard = (cardId) => {
+    setExpandedCardIds((currentExpandedCardIds) => (
+      currentExpandedCardIds.includes(cardId)
+        ? currentExpandedCardIds.filter((id) => id !== cardId)
+        : [...currentExpandedCardIds, cardId]
+    ));
+  };
 
   const filteredTasks = tasks.filter(
     (task) => (activeTaskStatusFilter === 'all' || getTaskStatusKey(task) === activeTaskStatusFilter)
@@ -353,12 +328,12 @@ export default function TasksScreen({
                     ? 'today'
                     : 'planned';
                 const statusMeta = TASK_STATUS_META[cardStatusKey];
-                const visibleTasks = group.tasks.slice(0, 3);
-                const remainingTasks = group.tasks.length - visibleTasks.length;
-
+                const isExpanded = expandedCardIds.includes(group.cardId);
                 return (
                   <View
                     key={group.cardId}
+                    onResponderRelease={() => toggleTaskCard(group.cardId)}
+                    onStartShouldSetResponder={() => true}
                     style={[
                       localStyles.taskCard,
                       cardStatusKey === 'overdue' && localStyles.taskCardOverdue,
@@ -370,28 +345,21 @@ export default function TasksScreen({
                       <View style={localStyles.taskCardHeader}>
                         <View style={localStyles.taskCardTitleBlock}>
                           <Text
-                            numberOfLines={2}
+                            numberOfLines={1}
+                            ellipsizeMode="tail"
                             style={localStyles.taskCardName}
                           >
                             {group.cardName}
                           </Text>
-                          <Text
-                            numberOfLines={2}
-                            style={[
-                              localStyles.taskCardMeta,
-                              cardStatusKey === 'overdue' && localStyles.taskCardMetaOverdue,
-                              cardStatusKey === 'today' && localStyles.taskCardMetaToday,
-                              cardStatusKey === 'planned' && localStyles.taskCardMetaPlanned,
-                            ]}
-                          >
-                            {[
-                              group.code ? `Код: ${group.code}` : '',
-                              getStageLabel(group.stage),
-                              `Остаток: ${group.currentQuantity} шт.`,
-                            ]
-                              .filter(Boolean)
-                              .join(' В· ')}
-                          </Text>
+                          <View style={localStyles.taskCardMetaRow}>
+                            <PlaceIcon size={12} />
+                            <Text
+                              numberOfLines={2}
+                              style={localStyles.taskCardMeta}
+                            >
+                              {group.locationDescription || 'Не указано'}
+                            </Text>
+                          </View>
                         </View>
 
                         <View
@@ -409,79 +377,82 @@ export default function TasksScreen({
                         </View>
                       </View>
 
-                      <View style={localStyles.taskRows}>
-                        {visibleTasks.map((task) => {
-                          const taskStatusKey = getTaskStatusKey(task);
-                          const taskMeta = TASK_STATUS_META[taskStatusKey];
+                      {isExpanded && (
+                        <>
+                          <View style={localStyles.taskRows}>
+                            {group.tasks.map((task) => {
+                              const taskStatusKey = getTaskStatusKey(task);
 
-                          return (
-                            <Pressable
-                              accessibilityRole="button"
-                              key={task.id}
-                              onPress={() => onTaskPress(task)}
-                              style={({ pressed }) => [
-                                localStyles.taskRow,
-                                pressed && localStyles.taskRowPressed,
-                              ]}
-                            >
-                              <View style={localStyles.taskRowTextBlock}>
-                                <Text
-                                  numberOfLines={1}
-                                  style={localStyles.taskRowTitle}
-                                >
-                                  {task.title}
-                                </Text>
-                                <Text
-                                  numberOfLines={1}
-                                  style={[
-                                    localStyles.taskRowMeta,
-                                    taskStatusKey === 'overdue' && {
-                                      color: TASK_STATUS_META.overdue.badgeText,
-                                    },
-                                    taskStatusKey === 'today' && {
-                                      color: TASK_STATUS_META.today.badgeText,
-                                    },
-                                    taskStatusKey === 'planned' && {
-                                      color: TASK_STATUS_META.planned.badgeText,
-                                    },
+                              return (
+                                <Pressable
+                                  accessibilityRole="button"
+                                  key={task.id}
+                                  onPress={(event) => {
+                                    event?.stopPropagation?.();
+                                    onTaskPress(task);
+                                  }}
+                                  style={({ pressed }) => [
+                                    localStyles.taskRow,
+                                    pressed && localStyles.taskRowPressed,
                                   ]}
                                 >
-                                  {getTaskRowMeta(task)}
-                                </Text>
-                              </View>
+                                  <View style={localStyles.taskRowTextBlock}>
+                                    <Text
+                                      numberOfLines={1}
+                                      style={localStyles.taskRowTitle}
+                                    >
+                                      {task.title}
+                                    </Text>
+                                    <Text
+                                      numberOfLines={1}
+                                      style={[
+                                        localStyles.taskRowMeta,
+                                        taskStatusKey === 'overdue' && localStyles.taskRowMetaOverdue,
+                                        taskStatusKey === 'today' && localStyles.taskRowMetaToday,
+                                        taskStatusKey === 'planned' && localStyles.taskRowMetaPlanned,
+                                      ]}
+                                    >
+                                      {getTaskRowMeta(task)}
+                                    </Text>
+                                  </View>
+                                </Pressable>
+                              );
+                            })}
+                          </View>
 
-                              <View
-                                style={[
-                                  localStyles.taskRowArrow,
-                                  { borderColor: taskMeta.badgeText },
-                                ]}
-                              >
-                                <ArrowBackIcon
-                                  color={taskMeta.badgeText}
-                                  size={14}
-                                />
-                              </View>
-                            </Pressable>
-                          );
-                        })}
+                          <Pressable
+                            accessibilityRole="button"
+                            onPress={(event) => {
+                              event?.stopPropagation?.();
+                              onTaskPress(group.tasks[0]);
+                            }}
+                            style={({ pressed }) => [
+                              appStyles.globalJournalOpenCardButton,
+                              pressed && appStyles.linkButtonPressed,
+                            ]}
+                          >
+                            <Text style={appStyles.globalJournalOpenCardButtonText}>
+                              Открыть карточку
+                            </Text>
+                          </Pressable>
 
-                        {remainingTasks > 0 && (
-                          <Text style={localStyles.taskMoreText}>
-                            {`+ еще ${remainingTasks} ${pluralize(remainingTasks, 'задача', 'задачи', 'задач')}`}
-                          </Text>
-                        )}
-                      </View>
-
-                      <Pressable
-                        accessibilityRole="button"
-                        onPress={() => onTaskPress(group.tasks[0])}
-                        style={({ pressed }) => [
-                          localStyles.openButton,
-                          pressed && localStyles.openButtonPressed,
-                        ]}
-                      >
-                        <Text style={localStyles.openButtonText}>Открыть</Text>
-                      </Pressable>
+                          <Pressable
+                            accessibilityRole="button"
+                            onPress={(event) => {
+                              event?.stopPropagation?.();
+                              toggleTaskCard(group.cardId);
+                            }}
+                            style={({ pressed }) => [
+                              appStyles.globalJournalCollapseLink,
+                              pressed && appStyles.linkButtonPressed,
+                            ]}
+                          >
+                            <Text style={appStyles.globalJournalCollapseLinkText}>
+                              Свернуть
+                            </Text>
+                          </Pressable>
+                        </>
+                      )}
                     </View>
                   </View>
                 );
@@ -706,16 +677,22 @@ const localStyles = StyleSheet.create({
     minWidth: 0,
   },
   taskCardName: {
-    color: '#111827',
-    fontSize: 18,
-    fontWeight: '900',
-    lineHeight: 24,
+    color: '#1B3023',
+    fontSize: 15,
+    fontWeight: '800',
+    lineHeight: 20,
   },
   taskCardMeta: {
     color: '#667085',
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 18,
+    flexShrink: 1,
+  },
+  taskCardMetaRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 6,
     marginTop: 4,
   },
   taskCardMetaOverdue: {
@@ -744,52 +721,48 @@ const localStyles = StyleSheet.create({
   taskRows: {
     borderTopColor: '#EEF2F0',
     borderTopWidth: 1,
-    gap: 8,
-    paddingTop: 10,
+    gap: 4,
+    paddingTop: 8,
   },
   taskRow: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: 10,
-    justifyContent: 'space-between',
-    minHeight: 36,
+    minHeight: 30,
   },
   taskRowPressed: {
     opacity: 0.88,
   },
   taskRowTextBlock: {
     flex: 1,
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 10,
     minWidth: 0,
+    justifyContent: 'space-between',
   },
   taskRowTitle: {
     color: '#111827',
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '800',
-    lineHeight: 18,
+    lineHeight: 16,
+    flex: 1,
+    minWidth: 0,
   },
   taskRowMeta: {
     color: '#667085',
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
-    lineHeight: 16,
-    marginTop: 2,
+    lineHeight: 14,
+    flexShrink: 0,
   },
-  taskRowArrow: {
-    alignItems: 'center',
-    borderColor: '#D0D5DD',
-    borderRadius: 999,
-    borderWidth: 1,
-    height: 22,
-    justifyContent: 'center',
-    transform: [{ rotate: '180deg' }],
-    width: 22,
+  taskRowMetaOverdue: {
+    color: '#B42318',
   },
-  taskMoreText: {
-    color: '#667085',
-    fontSize: 13,
-    fontWeight: '700',
-    lineHeight: 18,
-    marginTop: 2,
+  taskRowMetaToday: {
+    color: '#15863F',
+  },
+  taskRowMetaPlanned: {
+    color: '#64748B',
   },
   openButton: {
     alignItems: 'center',
