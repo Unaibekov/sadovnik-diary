@@ -31,7 +31,7 @@ const introActionCommands = [
   ['introLoss', 'Потери'],
 ];
 
-const problemTypeOptions = ['Контаминация', 'Карантин', 'Болезнь', 'Вредители', 'Стресс', 'Другое'];
+const problemTypeOptions = ['Контаминация', 'Карантин', 'Болезнь', 'Вредители', 'Другое'];
 const riskLevelOptions = ['Низкий', 'Средний', 'Высокий', 'Критический'];
 
 export default function IntroActionFormScreen({

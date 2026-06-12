@@ -25,8 +25,9 @@ const countFieldByType = {
 
 const adaptationCareOptions = ['Полив', 'Подкормка', 'Стимуляция', 'Профилактика', 'Лечение'];
 const greenhouseCareOptions = ['Полив', 'Подкормка', 'Профилактика', 'Лечение'];
-const problemTypeOptions = ['Контаминация', 'Карантин', 'Болезнь', 'Вредители', 'Стресс', 'Другое'];
+const problemTypeOptions = ['Контаминация', 'Карантин', 'Болезнь', 'Вредители', 'Другое'];
 const riskLevelOptions = ['Низкий', 'Средний', 'Высокий', 'Критический'];
+const turgorOptions = ['Нормальный', 'Снижен', 'Критически снижен'];
 
 // Экран добавления и редактирования производственного события по выбранной дате.
 export default function StatusChangeFormScreen({
@@ -51,6 +52,7 @@ export default function StatusChangeFormScreen({
   const [isRiskDropdownOpen, setIsRiskDropdownOpen] = useState(false);
   const [isStressDropdownOpen, setIsStressDropdownOpen] = useState(false);
   const [isStabilityDropdownOpen, setIsStabilityDropdownOpen] = useState(false);
+  const [isTurgorDropdownOpen, setIsTurgorDropdownOpen] = useState(false);
   const [isNoticeVisible, setIsNoticeVisible] = useState(false);
   const [saveAttemptCount, setSaveAttemptCount] = useState(0);
   const seenAlertRef = useRef('');
@@ -78,24 +80,20 @@ export default function StatusChangeFormScreen({
     : selectedCard.stage === 'Адаптация'
     ? [
       ['adaptationStress', 'Наблюдение'],
-      ['adaptationEnvironment', 'Среда'],
       ['adaptationCare', 'Уход'],
       ['movement', 'Перемещение'],
       ['problem', 'Проблема'],
-      ...((selectedCard.batchStatus || 'active') === 'quarantine'
-        ? [['quarantineReleased', 'Снять карантин']]
-        : []),
       ['introLoss', 'Потери'],
       ['sale', 'Продажа'],
     ]
     : selectedCard.stage === 'Теплица'
       ? [
-        ['greenhouseObservation', 'Наблюдение'],
-        ['greenhouseCare', 'Уход'],
-        ['greenhouseEnvironment', 'Среда'],
-        ['problem', 'Проблема'],
-      ['transplant', 'Пересадка'],
-      ['movement', 'Перемещение'],
+      ['greenhouseObservation', 'Наблюдение'],
+      ['greenhouseCare', 'Уход'],
+      ['greenhouseEnvironment', 'Среда'],
+      ['problem', 'Проблема'],
+        ['transplant', 'Пересадка'],
+        ['movement', 'Перемещение'],
         ...((selectedCard.batchStatus || 'active') === 'quarantine'
           ? [['quarantineReleased', 'Снять карантин']]
           : []),
@@ -116,6 +114,7 @@ export default function StatusChangeFormScreen({
       greenhouseDisease: 'Болезни/вредители',
       quarantine: 'Карантин',
       adaptationHumidityReduction: 'Снижение влажности',
+      adaptationEnvironment: 'Изменение среды',
     }[eventType] ||
     'Событие';
   const careOptions = eventType === 'greenhouseCare'
@@ -129,6 +128,7 @@ export default function StatusChangeFormScreen({
     setIsRiskDropdownOpen(false);
     setIsStressDropdownOpen(false);
     setIsStabilityDropdownOpen(false);
+    setIsTurgorDropdownOpen(false);
   }, [eventType]);
 
   useEffect(() => {
@@ -179,6 +179,11 @@ export default function StatusChangeFormScreen({
   function selectStability(value) {
     onChangeField('stability', value);
     setIsStabilityDropdownOpen(false);
+  }
+
+  function selectTurgor(value) {
+    onChangeField('turgor', value);
+    setIsTurgorDropdownOpen(false);
   }
 
   return (
@@ -272,7 +277,7 @@ export default function StatusChangeFormScreen({
                 </View>
               )}
 
-              {/* Наблюдение на адаптации: стресс и стабильность, детали в общем комментарии. */}
+              {/* Наблюдение на адаптации: стресс и тургор. */}
               {eventType === 'adaptationStress' && (
                 <>
                   <View style={styles.field}>
@@ -303,42 +308,39 @@ export default function StatusChangeFormScreen({
                       options={['Низкий', 'Средний', 'Высокий', 'Критический']}
                       title="Выберите уровень стресса"
                       visible={isStressDropdownOpen}
+                      />
+                    </View>
+                  <View style={styles.field}>
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => setIsTurgorDropdownOpen((current) => !current)}
+                      style={({ pressed }) => [
+                        styles.selectButton,
+                        pressed && styles.linkButtonPressed,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.selectButtonText,
+                          !form.turgor && styles.selectPlaceholder,
+                        ]}
+                      >
+                        {form.turgor || 'Выберите тургор'}
+                      </Text>
+                      <View style={styles.selectButtonArrow}>
+                        <ChevronDownIcon />
+                      </View>
+                    </Pressable>
+
+                    <SelectBottomSheet
+                      onClose={() => setIsTurgorDropdownOpen(false)}
+                      onSelect={selectTurgor}
+                      options={turgorOptions}
+                      title="Выберите тургор"
+                      visible={isTurgorDropdownOpen}
                     />
                   </View>
                 </>
-              )}
-
-              {eventType === 'adaptationStress' && (
-                <View style={styles.field}>
-                  <Pressable
-                    accessibilityRole="button"
-                    onPress={() => setIsStabilityDropdownOpen((current) => !current)}
-                    style={({ pressed }) => [
-                      styles.selectButton,
-                      pressed && styles.linkButtonPressed,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.selectButtonText,
-                        !form.stability && styles.selectPlaceholder,
-                      ]}
-                    >
-                      {form.stability || 'Выберите стабильность партии'}
-                    </Text>
-                    <View style={styles.selectButtonArrow}>
-                      <ChevronDownIcon />
-                    </View>
-                  </Pressable>
-
-                  <SelectBottomSheet
-                    onClose={() => setIsStabilityDropdownOpen(false)}
-                    onSelect={selectStability}
-                    options={['Стабильна', 'Нестабильна']}
-                    title="Выберите стабильность партии"
-                    visible={isStabilityDropdownOpen}
-                  />
-                </View>
               )}
 
               {/* Фактические параметры среды на адаптации. */}

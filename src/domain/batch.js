@@ -177,6 +177,25 @@ export function getOperationSummaryItems(operation, card) {
     ].filter(([, value]) => Boolean(value));
   }
 
+  if (operation.type === 'adaptationStress') {
+    const legacyAdaptationEnvironmentItems = [
+      ['Температура', operation.environmentTemperature],
+      ['Влажность воздуха', operation.environmentAirHumidity || operation.environmentHumidity],
+      ['Влажность субстрата', operation.substrateHumidity],
+      ['Освещение', operation.environmentLight],
+      ['Проветривание', operation.ventilation],
+    ].filter(([, value]) => Boolean(value));
+
+    return [
+      ['Уровень стресса', operation.stressLevel],
+      ['Стабильность', operation.stability],
+      ['Тургор', operation.turgor],
+      ['Комментарий', operation.comment],
+      ['Фото', operation.photoNote],
+      ...legacyAdaptationEnvironmentItems,
+    ].filter(([, value]) => Boolean(value));
+  }
+
   if ([
     'rooting',
     'death',

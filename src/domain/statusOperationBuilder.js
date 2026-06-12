@@ -41,6 +41,15 @@ export function buildStatusOperation({
     : photoUri
       ? [photoUri]
       : [];
+  const hasLegacyAdaptationStabilityValue = `${editedOperation?.stability || statusForm.stability || ''}`.trim();
+  const hasLegacyAdaptationEnvironmentValues = [
+    'environmentTemperature',
+    'environmentAirHumidity',
+    'environmentHumidity',
+    'substrateHumidity',
+    'environmentLight',
+    'ventilation',
+  ].some((field) => `${editedOperation?.[field] || statusForm[field] || ''}`.trim());
 
   return {
     id: editingOperationId || `${Date.now()}`,
@@ -96,7 +105,20 @@ export function buildStatusOperation({
     ...(introActionType === 'adaptationStress'
       ? {
         stressLevel: statusForm.stressLevel.trim(),
-        stability: statusForm.stability.trim(),
+        turgor: statusForm.turgor.trim(),
+        ...(hasLegacyAdaptationStabilityValue
+          ? { stability: editedOperation?.stability?.trim() || statusForm.stability.trim() }
+          : {}),
+        ...(hasLegacyAdaptationEnvironmentValues
+          ? {
+            environmentTemperature: editedOperation?.environmentTemperature?.trim() || statusForm.environmentTemperature.trim(),
+            environmentAirHumidity: editedOperation?.environmentAirHumidity?.trim() || statusForm.environmentAirHumidity.trim() || statusForm.environmentHumidity.trim(),
+            environmentHumidity: editedOperation?.environmentHumidity?.trim() || statusForm.environmentHumidity.trim(),
+            substrateHumidity: editedOperation?.substrateHumidity?.trim() || statusForm.substrateHumidity.trim(),
+            environmentLight: editedOperation?.environmentLight?.trim() || statusForm.environmentLight.trim(),
+            ventilation: editedOperation?.ventilation?.trim() || statusForm.ventilation.trim(),
+          }
+          : {}),
       }
       : {}),
     ...(introActionType === 'adaptationEnvironment'

@@ -29,9 +29,12 @@ export function findCatalogPlant(card, catalog) {
 export function normalizeRecommendationText(value) {
   if (Array.isArray(value)) {
     return value
-      .map((item) => [item.name, item.applicationRate, item.frequency].filter(Boolean).join(' В· '))
+      .map((item) => {
+        const details = [item.applicationRate, item.frequency].filter(Boolean).join(' ');
+        return [item.name, details].filter(Boolean).join(': ');
+      })
       .filter(Boolean)
-      .join('\n');
+      .join(';\n');
   }
 
   return value || '';

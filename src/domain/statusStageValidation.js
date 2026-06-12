@@ -2,8 +2,11 @@
 export function getAdaptationValidationError(introActionType, statusForm) {
   if (introActionType === 'adaptationStress' && ![
     statusForm.stressLevel,
-    statusForm.stability,
+    statusForm.turgor,
     statusForm.comment,
+    statusForm.photoNote,
+    statusForm.photoUri,
+    ...(Array.isArray(statusForm.photoUris) ? statusForm.photoUris : []),
   ].some((value) => value.trim())) {
     return 'adaptation_stress_missing';
   }

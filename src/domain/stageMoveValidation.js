@@ -59,9 +59,6 @@ export function getStageMoveValidationError({
       return 'Нельзя перевести партию с критическим стрессом';
     }
 
-    if (adaptationStats?.stability !== 'Стабильна') {
-      return 'Сначала зафиксируйте стабильность партии';
-    }
 
     if ((adaptationStats?.currentQuantity || 0) <= 0) {
       return 'Остаток партии должен быть больше 0';
