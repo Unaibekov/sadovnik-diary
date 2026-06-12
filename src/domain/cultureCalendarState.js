@@ -11,7 +11,7 @@ export function buildCultureCalendarOpenState(card) {
     selectedCalendarDate: initialDate,
     cultureCalendarTab: 'calendar',
     isDateEntryExpanded: false,
-    introActionType: '',
+    introActionType: 'problem',
     introActionForm: createEmptyIntroActionForm(),
     stageActionError: '',
     calendarMonth: dateFromIso(initialDate),

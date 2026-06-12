@@ -260,7 +260,7 @@ export default function AppRouter({ actions, state }) {
       if (selectedStageForAction === INTRO_STAGE) {
         setIsDateEntryExpanded(false);
         clearIntroActionPhotoDrafts();
-        setIntroActionType("comment");
+        setIntroActionType("problem");
         setIntroActionForm(createEmptyIntroActionForm());
         setCurrentScreen("introActionForm");
         return;

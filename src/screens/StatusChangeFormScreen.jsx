@@ -24,7 +24,7 @@ const countFieldByType = {
 };
 
 const adaptationCareOptions = ['Полив', 'Подкормка', 'Стимуляция', 'Профилактика', 'Лечение'];
-const greenhouseCareOptions = ['Полив', 'Подкормка', 'Профилактика', 'Лечение'];
+const greenhouseCareOptions = ['Полив', 'Подкормка', 'Стимуляция', 'Профилактика', 'Лечение'];
 const problemTypeOptions = ['Контаминация', 'Карантин', 'Болезнь', 'Вредители', 'Другое'];
 const riskLevelOptions = ['Низкий', 'Средний', 'Высокий', 'Критический'];
 const turgorOptions = ['Нормальный', 'Снижен', 'Критически снижен'];
@@ -61,57 +61,55 @@ export default function StatusChangeFormScreen({
   const eventOptions = selectedCard.stage === INTRO_STAGE
     ? [
       ['rooting', 'Укоренение'],
+      ['propagation', 'Размножение'],
+      ['movement', 'Перемещение'],
+      ['problem', 'Проблема'],
       ['death', 'Гибель'],
       ['discard', 'Выбраковка'],
       ['sale', 'Продажа'],
-      ['propagation', 'Размножение'],
-      ['movement', 'Перемещение'],
-      ['problem', 'Проблема'],
     ]
     : selectedCard.stage === 'Клонирование'
-    ? [
-      ['rooting', 'Укоренение'],
-      ['propagation', 'Размножение'],
-      ['movement', 'Перемещение'],
-      ['introLoss', 'Потери'],
-      ['sale', 'Продажа'],
-      ['problem', 'Проблема'],
-    ]
+      ? [
+        ['rooting', 'Укоренение'],
+        ['propagation', 'Размножение'],
+        ['problem', 'Проблема'],
+        ['movement', 'Перемещение'],
+        ['introLoss', 'Потери'],
+        ['sale', 'Продажа'],
+      ]
     : selectedCard.stage === 'Адаптация'
-    ? [
-      ['adaptationStress', 'Наблюдение'],
-      ['adaptationCare', 'Уход'],
-      ['movement', 'Перемещение'],
-      ['problem', 'Проблема'],
-      ['introLoss', 'Потери'],
-      ['sale', 'Продажа'],
-    ]
+      ? [
+        ['adaptationStress', 'Наблюдение'],
+        ['adaptationCare', 'Уход'],
+        ['problem', 'Проблема'],
+        ['movement', 'Перемещение'],
+        ['introLoss', 'Потери'],
+        ['sale', 'Продажа'],
+      ]
     : selectedCard.stage === 'Теплица'
       ? [
-      ['greenhouseObservation', 'Наблюдение'],
-      ['greenhouseCare', 'Уход'],
-      ['greenhouseEnvironment', 'Среда'],
-      ['problem', 'Проблема'],
+        ['greenhouseObservation', 'Наблюдение'],
+        ['greenhouseCare', 'Уход'],
+        ['problem', 'Проблема'],
         ['transplant', 'Пересадка'],
         ['movement', 'Перемещение'],
-        ...((selectedCard.batchStatus || 'active') === 'quarantine'
-          ? [['quarantineReleased', 'Снять карантин']]
-          : []),
         ['introLoss', 'Потери'],
         ['sale', 'Продажа'],
       ]
       : [
       ['rooting', 'Укоренение'],
-      ['introLoss', 'Потери'],
-      ['sale', 'Продажа'],
       ['propagation', 'Размножение'],
       ['movement', 'Перемещение'],
       ['problem', 'Проблема'],
+      ['introLoss', 'Потери'],
+      ['sale', 'Продажа'],
     ];
   const countField = countFieldByType[eventType || 'rooting'];
   const selectedEventLabel = eventOptions.find(([value]) => value === eventType)?.[1] ||
     {
       greenhouseDisease: 'Болезни/вредители',
+      greenhouseEnvironment: 'Среда',
+      quarantineReleased: 'Снять карантин',
       quarantine: 'Карантин',
       adaptationHumidityReduction: 'Снижение влажности',
       adaptationEnvironment: 'Изменение среды',
@@ -467,10 +465,40 @@ export default function StatusChangeFormScreen({
                     <Text style={styles.label}>Состояние</Text>
                     <TextInput multiline onChangeText={(value) => onChangeField('conditionDescription', value)} placeholder="Листья, тургор, прирост, общее состояние" placeholderTextColor="#7C8A80" style={[styles.input, styles.multilineInput]} value={form.conditionDescription} />
                   </View>
+                  <View style={styles.field}>
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => setIsStressDropdownOpen((current) => !current)}
+                      style={({ pressed }) => [
+                        styles.selectButton,
+                        pressed && styles.linkButtonPressed,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.selectButtonText,
+                          !form.stressLevel && styles.selectPlaceholder,
+                        ]}
+                      >
+                        {form.stressLevel || 'Выберите уровень стресса'}
+                      </Text>
+                      <View style={styles.selectButtonArrow}>
+                        <ChevronDownIcon />
+                      </View>
+                    </Pressable>
+
+                    <SelectBottomSheet
+                      onClose={() => setIsStressDropdownOpen(false)}
+                      onSelect={selectStressLevel}
+                      options={['Низкий', 'Средний', 'Высокий', 'Критический']}
+                      title="Выберите уровень стресса"
+                      visible={isStressDropdownOpen}
+                    />
+                  </View>
                 </>
               )}
 
-              {['greenhouseObservation', 'greenhouseDisease', 'greenhouseCare', 'greenhouseEnvironment'].includes(eventType) && (
+              {['greenhouseDisease', 'greenhouseEnvironment'].includes(eventType) && (
                 <View style={styles.field}>
                   <Pressable
                     accessibilityRole="button"
@@ -503,75 +531,10 @@ export default function StatusChangeFormScreen({
                 </View>
               )}
 
-              {eventType === 'greenhouseObservation' && (
-                <>
-                  <View style={styles.field}>
-                    <Pressable
-                      accessibilityRole="button"
-                      onPress={() => setIsStressDropdownOpen((current) => !current)}
-                      style={({ pressed }) => [
-                        styles.selectButton,
-                        pressed && styles.linkButtonPressed,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.selectButtonText,
-                          !form.stressLevel && styles.selectPlaceholder,
-                        ]}
-                      >
-                        {form.stressLevel || 'Выберите уровень стресса'}
-                      </Text>
-                      <View style={styles.selectButtonArrow}>
-                        <ChevronDownIcon />
-                      </View>
-                    </Pressable>
-
-                    <SelectBottomSheet
-                      onClose={() => setIsStressDropdownOpen(false)}
-                      onSelect={selectStressLevel}
-                      options={['Низкий', 'Средний', 'Высокий', 'Критический']}
-                      title="Выберите уровень стресса"
-                      visible={isStressDropdownOpen}
-                    />
-                  </View>
-                  <View style={styles.field}>
-                    <Pressable
-                      accessibilityRole="button"
-                      onPress={() => setIsStabilityDropdownOpen((current) => !current)}
-                      style={({ pressed }) => [
-                        styles.selectButton,
-                        pressed && styles.linkButtonPressed,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.selectButtonText,
-                          !form.stability && styles.selectPlaceholder,
-                        ]}
-                      >
-                        {form.stability || 'Выберите стабильность'}
-                      </Text>
-                      <View style={styles.selectButtonArrow}>
-                        <ChevronDownIcon />
-                      </View>
-                    </Pressable>
-
-                    <SelectBottomSheet
-                      onClose={() => setIsStabilityDropdownOpen(false)}
-                      onSelect={selectStability}
-                      options={['Стабильна', 'Нестабильна']}
-                      title="Выберите стабильность"
-                      visible={isStabilityDropdownOpen}
-                    />
-                  </View>
-                </>
-              )}
-
               {eventType === 'greenhouseCare' && (
                 <>
                   <View style={styles.field}>
-                  <Pressable
+                    <Pressable
                       accessibilityRole="button"
                       onPress={() => setIsCareDropdownOpen((current) => !current)}
                       style={({ pressed }) => [
@@ -599,26 +562,6 @@ export default function StatusChangeFormScreen({
                       title="Выберите тип ухода"
                       visible={isCareDropdownOpen}
                     />
-                  </View>
-                  <View style={styles.field}>
-                    <Text style={styles.label}>Интервал ухода, дней</Text>
-                    <TextInput inputMode="numeric" keyboardType="numeric" onChangeText={(value) => onChangeField('careIntervalDays', value)} placeholder="Например: 2" placeholderTextColor="#7C8A80" style={styles.input} value={form.careIntervalDays} />
-                  </View>
-                  <View style={styles.field}>
-                    <Text style={styles.label}>Объем / препарат / дозировка</Text>
-                    <TextInput onChangeText={(value) => onChangeField('waterVolume', value)} placeholder="Объем полива, если нужен" placeholderTextColor="#7C8A80" style={styles.input} value={form.waterVolume} />
-                  </View>
-                  <View style={styles.field}>
-                    <TextInput onChangeText={(value) => onChangeField('productName', value)} placeholder="Препарат" placeholderTextColor="#7C8A80" style={styles.input} value={form.productName} />
-                  </View>
-                  <View style={styles.field}>
-                    <TextInput onChangeText={(value) => onChangeField('dosage', value)} placeholder="Дозировка" placeholderTextColor="#7C8A80" style={styles.input} value={form.dosage} />
-                  </View>
-                  <View style={styles.field}>
-                    <TextInput onChangeText={(value) => onChangeField('applicationMethod', value)} placeholder="Способ внесения" placeholderTextColor="#7C8A80" style={styles.input} value={form.applicationMethod} />
-                  </View>
-                  <View style={styles.field}>
-                    <TextInput onChangeText={(value) => onChangeField('plantReaction', value)} placeholder="Реакция растений" placeholderTextColor="#7C8A80" style={styles.input} value={form.plantReaction} />
                   </View>
                 </>
               )}
@@ -938,7 +881,7 @@ export default function StatusChangeFormScreen({
                 </View>
               )}
 
-              {!isMovementEvent && eventType !== 'problem' && (
+              {!isMovementEvent && eventType !== 'problem' && eventType !== 'greenhouseObservation' && (
                 <>
                   {/* Общие поля есть у всех событий. */}
                   <View style={styles.field}>
@@ -952,7 +895,11 @@ export default function StatusChangeFormScreen({
                       value={form.comment}
                     />
                   </View>
+                </>
+              )}
 
+              {!isMovementEvent && eventType !== 'problem' && (
+                <>
                   <View style={localStyles.photoField}>
                     <PhotoGallery
                       addLabel="Добавить фото"

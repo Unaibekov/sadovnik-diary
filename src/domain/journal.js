@@ -41,14 +41,14 @@ const SUB_FILTER_LABELS = {
 };
 
 const STAGE_SUB_FILTERS = {
-  all: ['all', 'comment', 'photo', 'stageChange', 'movement', 'sales'],
-  important: ['all', 'contamination', 'quarantine', 'problems', 'risks', 'losses', 'disease'],
-  [INTRO_STAGE]: ['all', 'comment', 'photo', 'contamination', 'quarantine', 'losses', 'stageChange'],
-  [stages[1]]: ['all', 'rooting', 'propagation', 'movement', 'losses', 'sales', 'quarantine', 'stageChange'],
-  [stages[2]]: ['all', 'observation', 'environment', 'care', 'movement', 'quarantine', 'losses', 'sales', 'stageChange'],
-  [stages[3]]: ['all', 'observation', 'environment', 'care', 'disease', 'transplant', 'movement', 'quarantine', 'losses', 'sales', 'stageChange'],
-  [stages[4]]: ['all', 'observation', 'care', 'movement', 'losses', 'sales', 'stageChange'],
-  [stages[5]]: ['all', 'observation', 'care', 'movement', 'losses', 'sales', 'stageChange'],
+  all: ['all', 'observation', 'care', 'problems', 'movement', 'transplant', 'rooting', 'propagation', 'losses', 'sales'],
+  important: ['all', 'problems', 'losses'],
+  [INTRO_STAGE]: ['all', 'problems', 'movement', 'losses', 'sales'],
+  [stages[1]]: ['all', 'rooting', 'propagation', 'problems', 'movement', 'losses', 'sales'],
+  [stages[2]]: ['all', 'observation', 'care', 'problems', 'movement', 'losses', 'sales'],
+  [stages[3]]: ['all', 'observation', 'care', 'problems', 'transplant', 'movement', 'losses', 'sales'],
+  [stages[4]]: ['all', 'observation', 'care', 'problems', 'movement', 'losses', 'sales'],
+  [stages[5]]: ['all', 'observation', 'care', 'problems', 'movement', 'losses', 'sales'],
 };
 
 function isCriticalLevel(level) {
@@ -61,7 +61,7 @@ function matchesImportantRisk(event) {
   }
 
   if (event.type === 'greenhouseObservation') {
-    return isCriticalLevel(event.riskLevel);
+    return isCriticalLevel(event.stressLevel || event.riskLevel);
   }
 
   if (event.type === 'greenhouseDisease') {
@@ -272,7 +272,7 @@ export function doesJournalEventMatchSubFilter(event, subFilter, mainFilter = 'a
     photo: event.type === 'photo',
     contamination: event.type === 'contamination',
     quarantine: ['quarantine', 'quarantineReleased'].includes(event.type),
-    problems: event.type === 'problem',
+    problems: ['problem', 'contamination', 'quarantine', 'quarantineReleased', 'greenhouseDisease'].includes(event.type),
     risks: matchesImportantRisk(event),
     losses: ['death', 'discard', 'introLoss'].includes(event.type),
     disease: event.type === 'greenhouseDisease',

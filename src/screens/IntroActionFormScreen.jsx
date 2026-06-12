@@ -25,9 +25,8 @@ import { getCardCurrentQuantity, getCardDisplayName } from '../domain/batch';
 import { isRenderablePhotoUri } from '../domain/photoUri';
 
 const introActionCommands = [
-  ['comment', 'Комментарий'],
-  ['movement', 'Перемещение'],
   ['problem', 'Проблема'],
+  ['movement', 'Перемещение'],
   ['introLoss', 'Потери'],
 ];
 
@@ -62,8 +61,6 @@ export default function IntroActionFormScreen({
     }[actionType] ||
     'Запись';
   const isPhotoAction = actionType === 'photo';
-  const commentValue = isPhotoAction ? actionForm.photoNote : actionForm.comment;
-  const commentField = isPhotoAction ? 'photoNote' : 'comment';
   const photoUris = (
     Array.isArray(actionForm.photoUris) && actionForm.photoUris.length > 0
       ? actionForm.photoUris
@@ -165,15 +162,15 @@ export default function IntroActionFormScreen({
                   <Text style={styles.editActionTitle}>{selectedActionLabel}</Text>
                 )}
 
-                {(actionType === 'comment' || isPhotoAction) && (
+                {isPhotoAction && (
                   <View style={localStyles.commentField}>
                     <TextInput
                       multiline
-                      onChangeText={(value) => onChangeActionForm(commentField, value)}
+                      onChangeText={(value) => onChangeActionForm('photoNote', value)}
                       placeholder="Комментарий"
                       placeholderTextColor="#7C8A80"
                       style={[styles.input, styles.multilineInput]}
-                      value={commentValue}
+                      value={actionForm.photoNote}
                     />
                   </View>
                 )}

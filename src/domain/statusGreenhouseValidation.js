@@ -3,9 +3,11 @@ export function getGreenhouseValidationError(introActionType, statusForm) {
   if (introActionType === 'greenhouseObservation' && ![
     statusForm.growthRate,
     statusForm.stressLevel,
-    statusForm.stability,
-    statusForm.riskLevel,
     statusForm.conditionDescription,
+    statusForm.comment,
+    statusForm.photoNote,
+    statusForm.photoUri,
+    ...(Array.isArray(statusForm.photoUris) ? statusForm.photoUris : []),
   ].some((value) => value.trim())) {
     return 'greenhouse_observation_missing';
   }
