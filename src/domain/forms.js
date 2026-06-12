@@ -72,6 +72,8 @@ export function createEmptyStatusForm() {
     rackName: '',
     shelfName: '',
     movementComment: '',
+    problemType: '',
+    problemDescription: '',
   };
 }
 
@@ -91,5 +93,8 @@ export function createEmptyIntroActionForm() {
     quarantineReason: '',
     deathCount: '',
     deathReason: '',
+    problemType: '',
+    riskLevel: '',
+    problemDescription: '',
   };
 }

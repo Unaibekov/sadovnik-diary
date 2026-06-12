@@ -57,8 +57,8 @@ const styles = StyleSheet.create({
   metaValue: {
     color: '#6B7280',
     flexShrink: 1,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '400',
-    lineHeight: 14,
+    lineHeight: 16,
   },
 });

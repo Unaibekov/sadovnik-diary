@@ -1,5 +1,31 @@
 // Селекторы для группировки карточек по журналу культур.
+import { getAdaptationStats, getCloneStats, getGreenhouseStats, getIntroStats } from './batch';
 import { INTRO_STAGE } from './constants';
+
+function hasCriticalProblemVisual(card, {
+  isAdaptationStage,
+  isCloneStage,
+  isCultureIntroStage,
+  isGreenhouseStage,
+}) {
+  if (isCultureIntroStage) {
+    return getIntroStats(card).riskStatus === 'Критический';
+  }
+
+  if (isCloneStage) {
+    return getCloneStats(card).riskStatus === 'Критический';
+  }
+
+  if (isAdaptationStage) {
+    return getAdaptationStats(card).riskStatus === 'Критический';
+  }
+
+  if (isGreenhouseStage) {
+    return getGreenhouseStats(card).riskStatus === 'Критический';
+  }
+
+  return false;
+}
 
 export function buildGroupedGlobalJournalCards(
   cultureCards,
@@ -44,6 +70,14 @@ export function filterCultureCards(cultureCards, options) {
     const query = cardSearch.trim().toLowerCase();
     const cardStage = card.stage || INTRO_STAGE;
     const batchStatus = getResolvedBatchStatus(card);
+    const isProblemStatus = batchStatus === 'problem' || batchStatus === 'quarantine' || card.sterilityStatus === 'contaminated';
+    const isProblemFilter = batchStatusFilter === 'problem' || batchStatusFilter === 'quarantine';
+    const isCriticalProblemVisual = hasCriticalProblemVisual(card, {
+      isAdaptationStage,
+      isCloneStage,
+      isCultureIntroStage,
+      isGreenhouseStage,
+    });
 
     if (card.status === 'cancelled' || (card.status === 'archived' && batchStatus === 'sold')) {
       return false;
@@ -56,7 +90,9 @@ export function filterCultureCards(cultureCards, options) {
     if (
       (isCultureIntroStage || isCloneStage || isAdaptationStage || isGreenhouseStage) &&
       batchStatusFilter !== 'all' &&
-      batchStatus !== batchStatusFilter
+      !((isProblemFilter)
+        ? (isProblemStatus || isCriticalProblemVisual)
+        : batchStatus === batchStatusFilter)
     ) {
       return false;
     }

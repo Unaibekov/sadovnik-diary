@@ -49,5 +49,7 @@ export function buildStatusFormFromOperation(operation, countField) {
     shelfName: operation.shelfName || '',
     movementComment: operation.comment || '',
     lossCount: operation.count || '',
+    problemType: operation.problemType || '',
+    problemDescription: operation.problemDescription || '',
   };
 }

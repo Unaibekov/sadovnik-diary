@@ -250,6 +250,16 @@ export function getOperationSummaryItems(operation, card) {
     return [['Фото', operation.photoNote]].filter(([, value]) => Boolean(value));
   }
 
+  if (operation.type === 'problem') {
+    return [
+      ['Тип проблемы', operation.problemType],
+      ['Уровень риска', operation.riskLevel],
+      ['Описание проблемы', operation.problemDescription],
+      ['Комментарий', operation.comment],
+      ['Фото', operation.photoNote],
+    ].filter(([, value]) => Boolean(value));
+  }
+
   if (operation.type === 'contamination') {
     return [['Описание', operation.contaminationNote]].filter(([, value]) => Boolean(value));
   }
@@ -347,6 +357,36 @@ export function getCloneStats(card) {
     discardCount,
     saleCount,
     propagationCount,
+    lossCount,
+    lossPercent,
+    riskStatus,
+  };
+}
+
+export function getIntroStats(card) {
+  const operations = card?.operations || [];
+  const initialQuantity = Number(card?.quantity) || 0;
+  const deathCount = operations.reduce((sum, operation) => (
+    sum + (operation.type === 'death' ? Number(operation.count) || 0 : 0)
+  ), 0);
+  const discardCount = operations.reduce((sum, operation) => (
+    sum + (operation.type === 'discard' ? Number(operation.count) || 0 : 0)
+  ), 0);
+  const introLossCount = operations.reduce((sum, operation) => (
+    sum + (operation.type === 'introLoss' ? Number(operation.count) || 0 : 0)
+  ), 0);
+  const lossCount = deathCount + discardCount + introLossCount;
+  const lossPercent = initialQuantity > 0
+    ? Math.round((lossCount / initialQuantity) * 100)
+    : 0;
+  const riskStatus = lossPercent >= 30
+    ? 'Критический'
+    : lossPercent >= 15
+      ? 'Повышенный'
+      : 'Нормальный';
+
+  return {
+    initialQuantity,
     lossCount,
     lossPercent,
     riskStatus,

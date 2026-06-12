@@ -69,6 +69,10 @@ const statusEventConfigs = {
     title: 'Болезни / вредители',
     countField: '',
   },
+  problem: {
+    title: 'Проблема',
+    countField: '',
+  },
   movement: {
     title: 'Перемещение',
     countField: '',
@@ -120,6 +124,12 @@ export function getIntroActionConfig(actionType) {
       type: 'quarantine',
       title: '\u041f\u0435\u0440\u0435\u0432\u043e\u0434 \u0432 \u043a\u0430\u0440\u0430\u043d\u0442\u0438\u043d',
       error: '\u0423\u043a\u0430\u0436\u0438\u0442\u0435 \u043f\u0440\u0438\u0447\u0438\u043d\u0443 \u043a\u0430\u0440\u0430\u043d\u0442\u0438\u043d\u0430',
+    },
+    problem: {
+      field: 'problemDescription',
+      type: 'problem',
+      title: '\u041f\u0440\u043e\u0431\u043b\u0435\u043c\u0430',
+      error: '\u0423\u043a\u0430\u0436\u0438\u0442\u0435 \u0445\u043e\u0442\u044f \u0431\u044b \u043e\u0434\u0438\u043d \u043f\u0430\u0440\u0430\u043c\u0435\u0442\u0440 \u043f\u0440\u043e\u0431\u043b\u0435\u043c\u044b',
     },
   };
 

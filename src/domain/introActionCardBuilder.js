@@ -1,4 +1,6 @@
 // Преобразование карточки после ввода стартового действия.
+import { getProblemBatchStatus } from './statusProblemValidation';
+
 export function buildIntroActionUpdatedCard(card, {
   editingOperationId,
   introActionType,
@@ -9,11 +11,23 @@ export function buildIntroActionUpdatedCard(card, {
       operation.id === editingOperationId ? nextOperation : operation
     ))
     : [nextOperation, ...(card.operations || [])];
+  const hasContamination = nextOperations.some((operation) => (
+    operation.type === 'contamination' ||
+    (operation.type === 'problem' && operation.problemType === 'Контаминация')
+  ));
+  const currentBatchStatus = card.batchStatus || 'active';
+  const problemBatchStatus = getProblemBatchStatus(nextOperation.problemType, nextOperation.riskLevel);
 
   return {
     ...card,
-    batchStatus: introActionType === 'quarantine' ? 'quarantine' : card.batchStatus || 'active',
-    sterilityStatus: introActionType === 'contamination' ? 'contaminated' : card.sterilityStatus || 'unchecked',
+    batchStatus: currentBatchStatus === 'quarantine'
+      ? 'quarantine'
+      : introActionType === 'quarantine' || problemBatchStatus === 'quarantine'
+        ? 'quarantine'
+        : problemBatchStatus === 'problem'
+          ? 'problem'
+          : currentBatchStatus,
+    sterilityStatus: hasContamination ? 'contaminated' : 'unchecked',
     ...(introActionType === 'movement'
       ? { locationDescription: nextOperation.nextLocation || '' }
       : {}),

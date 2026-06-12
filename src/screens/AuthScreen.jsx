@@ -883,8 +883,8 @@ const authStyles = StyleSheet.create({
   },
   authPrimaryButtonText: {
     color: '#FFFFFF',
-    fontSize: 17,
-    fontWeight: '800',
+    fontSize: 16,
+    fontWeight: '700',
   },
   forgotPasswordLink: {
     alignSelf: 'center',
@@ -1009,8 +1009,8 @@ const authStyles = StyleSheet.create({
   },
   primaryActionText: {
     color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '800',
+    fontSize: 16,
+    fontWeight: '700',
   },
   secondaryAction: {
     alignItems: 'center',
@@ -1025,8 +1025,8 @@ const authStyles = StyleSheet.create({
   },
   secondaryActionText: {
     color: '#15863F',
-    fontSize: 15,
-    fontWeight: '800',
+    fontSize: 16,
+    fontWeight: '700',
   },
   biometricButton: {
     alignItems: 'center',
@@ -1042,8 +1042,8 @@ const authStyles = StyleSheet.create({
   },
   biometricButtonText: {
     color: '#15863F',
-    fontSize: 15,
-    fontWeight: '800',
+    fontSize: 16,
+    fontWeight: '700',
   },
   resetLink: {
     alignSelf: 'center',
@@ -1116,12 +1116,12 @@ const authStyles = StyleSheet.create({
   },
   confirmModalSecondaryText: {
     color: '#344054',
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '700',
   },
   confirmModalPrimaryText: {
     color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '800',
+    fontSize: 16,
+    fontWeight: '700',
   },
 });

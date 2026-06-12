@@ -3,6 +3,10 @@ import { getCardCurrentQuantity } from './batch';
 import { getResolvedBatchStatus } from './cardSelectors';
 import { getFallbackBatchStatus } from './statusCardStatusResolver';
 import { getGreenhouseCareIntervalsPatch } from './statusCardMutations';
+import {
+  getProblemBatchStatus,
+  getProblemBatchStatusFromOperations,
+} from './statusProblemValidation';
 
 export function buildUpdatedStatusCard(card, {
   editingOperationId,
@@ -16,6 +20,12 @@ export function buildUpdatedStatusCard(card, {
       operation.id === editingOperationId ? nextOperation : operation
     ))
     : [nextOperation, ...currentOperations];
+  const hasContamination = nextOperations.some((operation) => (
+    operation.type === 'contamination' ||
+    (operation.type === 'problem' && operation.problemType === 'Контаминация')
+  ));
+  const problemBatchStatus = getProblemBatchStatus(nextOperation.problemType, nextOperation.riskLevel);
+  const problemBatchStatusFromOperations = getProblemBatchStatusFromOperations(nextOperations);
 
   const nextCard = {
     ...card,
@@ -24,6 +34,12 @@ export function buildUpdatedStatusCard(card, {
       ? { locationDescription: nextOperation.nextLocation || '' }
       : {}),
     ...getGreenhouseCareIntervalsPatch(card, introActionType, statusForm),
+    ...(introActionType === 'problem' && problemBatchStatus === 'quarantine'
+      ? { batchStatus: 'quarantine' }
+      : {}),
+    ...(introActionType === 'problem' && problemBatchStatus === 'problem'
+      ? { sterilityStatus: 'contaminated' }
+      : {}),
   };
   const nextQuantity = getCardCurrentQuantity(nextCard);
   const fallbackBatchStatus = getFallbackBatchStatus(
@@ -32,9 +48,17 @@ export function buildUpdatedStatusCard(card, {
     nextQuantity,
     statusForm,
   );
+  const nextBatchStatus = introActionType === 'problem'
+    ? problemBatchStatusFromOperations || (
+      ['problem', 'quarantine'].includes(card.batchStatus || '')
+        ? 'active'
+        : fallbackBatchStatus
+    )
+    : fallbackBatchStatus;
   const nextCardWithStatus = {
     ...nextCard,
-    batchStatus: fallbackBatchStatus,
+    batchStatus: nextBatchStatus,
+    sterilityStatus: hasContamination ? 'contaminated' : 'unchecked',
   };
 
   return {

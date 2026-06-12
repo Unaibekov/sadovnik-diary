@@ -31,12 +31,12 @@ export function buildCultureFormOptions(plantsCatalog, cultureForm) {
   };
 }
 
-export function getPlantCardStatusDotStyle(batchStatus, sterilityStatus) {
+export function getPlantCardStatusDotStyle(batchStatus, sterilityStatus, isProblemVisual = false) {
   if (batchStatus === 'draft') {
     return styles.plantCardStatusDotDraft;
   }
 
-  if (sterilityStatus === 'contaminated' || ['quarantine', 'problem'].includes(batchStatus)) {
+  if (isProblemVisual || sterilityStatus === 'contaminated' || ['quarantine', 'problem'].includes(batchStatus)) {
     return styles.plantCardStatusDotProblem;
   }
 

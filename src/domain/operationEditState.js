@@ -14,6 +14,29 @@ export function buildOperationEditState({
     return null;
   }
 
+  if (selectedCardStage === INTRO_STAGE && operation.type === 'problem') {
+    return {
+      introActionType: operation.type,
+      introActionForm: {
+        ...createEmptyIntroActionForm(),
+        problemType: operation.problemType || '',
+        riskLevel: operation.riskLevel || '',
+        problemDescription: operation.problemDescription || '',
+        comment: operation.comment || '',
+        photoNote: operation.photoNote || '',
+        photoUri: operation.photoUri || '',
+        photoUris: Array.isArray(operation.photoUris) && operation.photoUris.length > 0
+          ? operation.photoUris.filter(Boolean)
+          : operation.photoUri
+            ? [operation.photoUri]
+            : [],
+      },
+      isDateEntryExpanded: true,
+      cultureCalendarTab: 'calendar',
+      currentScreen: 'introActionForm',
+    };
+  }
+
   if (selectedCardStage === INTRO_STAGE && introOperationFields[operation.type]) {
     if (operation.type === 'introLoss') {
       return {

@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import styles from '../../styles';
 import StageHeader from '../components/StageHeader';
 import CultureCardInfo from '../components/CultureCardInfo';
-import { CalendarIcon, InfoIcon, LeaveIcon, LogoElementIcon, TimeIcon } from '../components/icons';
+import { InfoIcon, LeaveIcon, LogoElementIcon, TimeIcon } from '../components/icons';
 import StatusFilterTabs from '../components/StatusFilterTabs';
 import {
   getAdaptationStats,
@@ -14,10 +14,10 @@ import {
   getCloneStats,
   getDaysInCurrentStage,
   getGreenhouseStats,
+  getIntroStats,
   getQrStatus,
 } from '../domain/batch';
 import { BATCH_STATUS_LABELS } from '../domain/constants';
-import { formatDisplayDate } from '../domain/dates';
 
 export default function CultureListScreen({
   allVisibleStageCardsCount,
@@ -43,19 +43,21 @@ export default function CultureListScreen({
   storageError,
 }) {
   const showStatusFilters = isCultureIntroStage || isCloneStage || isAdaptationStage || isGreenhouseStage;
+  const visibleBatchStatusFilter = batchStatusFilter === 'quarantine'
+    ? 'problem'
+    : batchStatusFilter;
   const statusFilterItems = isCloneStage || isAdaptationStage || isGreenhouseStage
     ? [
       ['all', 'Все'],
       ['active', 'Активная'],
       ['partial', 'Частично реализована'],
-      ['quarantine', 'Карантин'],
-      ['problem', 'Проблемная'],
+      ['problem', 'Проблема'],
     ]
     : [
       ['all', 'Все'],
       ['active', 'Активная'],
       ['draft', 'Черновик'],
-      ['quarantine', 'Карантин'],
+      ['problem', 'Проблема'],
     ];
   const formatDaysInStage = (days) => {
     const value = Math.max(days, 1);
@@ -97,7 +99,7 @@ export default function CultureListScreen({
 
           {showStatusFilters && (
             <StatusFilterTabs
-              activeValue={batchStatusFilter}
+              activeValue={visibleBatchStatusFilter}
               count={allVisibleStageCardsCount}
               items={statusFilterItems}
               onChange={onChangeBatchStatusFilter}
@@ -128,17 +130,20 @@ export default function CultureListScreen({
 
             {!isCardsLoading && cards.map((card) => {
               const batchStatus = getResolvedBatchStatus(card);
+              const introStats = getIntroStats(card);
               const cloneStats = getCloneStats(card);
               const adaptationStats = getAdaptationStats(card);
               const greenhouseStats = getGreenhouseStats(card);
               const cardDaysInStage = getDaysInCurrentStage(card);
               const isContaminated = card.sterilityStatus === 'contaminated';
+              const isCriticalLossRisk = (
+                (isCultureIntroStage && introStats.riskStatus === 'Критический') ||
+                (isCloneStage && cloneStats.riskStatus === 'Критический') ||
+                (isAdaptationStage && adaptationStats.riskStatus === 'Критический') ||
+                (isGreenhouseStage && greenhouseStats.riskStatus === 'Критический')
+              );
+              const isProblemStatus = batchStatus === 'problem' || batchStatus === 'quarantine' || isContaminated || isCriticalLossRisk;
               const introMeta = [
-                {
-                  key: 'date',
-                  icon: <CalendarIcon color="#15863F" size={16} />,
-                  value: card.createdAt ? formatDisplayDate(card.createdAt) : '-',
-                },
                 {
                   key: 'quantity',
                   icon: <LeaveIcon color="#15863F" size={16} />,
@@ -151,13 +156,6 @@ export default function CultureListScreen({
                 },
               ];
               const stageMeta = [
-                {
-                  key: 'date',
-                  icon: <CalendarIcon color="#15863F" size={16} />,
-                  value: (card.stageChangedAt || card.createdAt)
-                    ? formatDisplayDate(card.stageChangedAt || card.createdAt)
-                    : '-',
-                },
                 {
                   key: 'quantity',
                   icon: <LeaveIcon color="#15863F" size={16} />,
@@ -172,23 +170,15 @@ export default function CultureListScreen({
                 },
               ];
               const introStatuses = [
-                ...(batchStatus === 'quarantine'
+                ...(isProblemStatus
                   ? [{
-                    key: 'quarantine',
+                    key: 'problem',
                     icon: <InfoIcon color="#D92D20" size={14} />,
-                    text: 'Карантин',
+                    text: 'Проблема',
                     textStyle: { color: '#D92D20' },
                   }]
                   : []),
-                ...(isContaminated
-                  ? [{
-                    key: 'contaminated',
-                    icon: <InfoIcon color="#D92D20" size={14} />,
-                    text: 'Контаминация',
-                    textStyle: { color: '#D92D20' },
-                  }]
-                  : []),
-                ...(cardDaysInStage >= 14 && !isContaminated && batchStatus !== 'quarantine'
+                ...(cardDaysInStage >= 14 && !isContaminated && batchStatus !== 'quarantine' && !isProblemStatus
                   ? [{
                     key: 'stage-ready',
                     icon: <TimeIcon color="#F59E0B" size={14} />,
@@ -198,7 +188,8 @@ export default function CultureListScreen({
                 ...(cardDaysInStage < 14 &&
                   getQrStatus(card) === 'pending_print' &&
                   !isContaminated &&
-                  batchStatus !== 'quarantine'
+                  batchStatus !== 'quarantine' &&
+                  !isProblemStatus
                   ? [{
                     key: 'qr-pending',
                     icon: <InfoIcon color="#9AA3AF" size={14} />,
@@ -207,19 +198,11 @@ export default function CultureListScreen({
                   : []),
               ];
               const stageStatuses = [
-                ...(batchStatus === 'quarantine'
+                ...(isProblemStatus
                   ? [{
-                    key: 'quarantine',
+                    key: 'problem',
                     icon: <InfoIcon color="#D92D20" size={14} />,
-                    text: 'Карантин',
-                    textStyle: { color: '#D92D20' },
-                  }]
-                  : []),
-                ...(isContaminated
-                  ? [{
-                    key: 'contaminated',
-                    icon: <InfoIcon color="#D92D20" size={14} />,
-                    text: 'Контаминация',
+                    text: 'Проблема',
                     textStyle: { color: '#D92D20' },
                   }]
                   : []),
@@ -276,17 +259,18 @@ export default function CultureListScreen({
                       <View style={[styles.plantCardStatusDotInline, styles.plantCardStatusDotPartial]} />
                     </View>
                   ) : (
-                    <View
-                      accessibilityLabel={
+                        <View
+                          accessibilityLabel={
                         BATCH_STATUS_LABELS[batchStatus] ||
+                        (isCriticalLossRisk ? 'Проблема' : '') ||
                         batchStatus ||
                         'Активная'
                       }
-                      style={[
-                        styles.plantCardStatusDot,
-                        getPlantCardStatusDotStyle(batchStatus, card.sterilityStatus),
-                      ]}
-                    />
+                          style={[
+                            styles.plantCardStatusDot,
+                        getPlantCardStatusDotStyle(batchStatus, card.sterilityStatus, isCriticalLossRisk),
+                          ]}
+                        />
                   )}
 
                   <View>

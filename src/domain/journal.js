@@ -25,6 +25,7 @@ const SUB_FILTER_LABELS = {
   photo: 'Фото',
   contamination: 'Контаминация',
   quarantine: 'Карантин',
+  problems: 'Проблемы',
   risks: 'Риски',
   losses: 'Потери',
   disease: 'Болезни',
@@ -41,7 +42,7 @@ const SUB_FILTER_LABELS = {
 
 const STAGE_SUB_FILTERS = {
   all: ['all', 'comment', 'photo', 'stageChange', 'movement', 'sales'],
-  important: ['all', 'contamination', 'quarantine', 'risks', 'losses', 'disease'],
+  important: ['all', 'contamination', 'quarantine', 'problems', 'risks', 'losses', 'disease'],
   [INTRO_STAGE]: ['all', 'comment', 'photo', 'contamination', 'quarantine', 'losses', 'stageChange'],
   [stages[1]]: ['all', 'rooting', 'propagation', 'movement', 'losses', 'sales', 'quarantine', 'stageChange'],
   [stages[2]]: ['all', 'observation', 'environment', 'care', 'movement', 'quarantine', 'losses', 'sales', 'stageChange'],
@@ -229,6 +230,7 @@ export function isImportantJournalEvent(event) {
     'contamination',
     'quarantine',
     'quarantineReleased',
+    'problem',
     'death',
     'discard',
     'introLoss',
@@ -270,6 +272,7 @@ export function doesJournalEventMatchSubFilter(event, subFilter, mainFilter = 'a
     photo: event.type === 'photo',
     contamination: event.type === 'contamination',
     quarantine: ['quarantine', 'quarantineReleased'].includes(event.type),
+    problems: event.type === 'problem',
     risks: matchesImportantRisk(event),
     losses: ['death', 'discard', 'introLoss'].includes(event.type),
     disease: event.type === 'greenhouseDisease',

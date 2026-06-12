@@ -1954,6 +1954,15 @@ function AppContent() {
     };
     const value = sanitizedIntroActionForm[actionConfig.field].trim();
     const hasPhoto = sanitizedIntroActionForm.photoUris.length > 0;
+    const hasProblemDetails = [
+      sanitizedIntroActionForm.problemType,
+      sanitizedIntroActionForm.riskLevel,
+      sanitizedIntroActionForm.problemDescription,
+      sanitizedIntroActionForm.comment,
+      sanitizedIntroActionForm.photoNote,
+      sanitizedIntroActionForm.photoUri,
+      ...sanitizedIntroActionForm.photoUris,
+    ].some((item) => `${item || ''}`.trim());
     const movementDetails = {
       greenhouseName: sanitizedIntroActionForm.greenhouseName.trim(),
       rackName: sanitizedIntroActionForm.rackName.trim(),
@@ -1969,6 +1978,7 @@ function AppContent() {
     if (
       (!value && !(introActionType === "photo" && hasPhoto)) &&
       !(introActionType === "movement" && hasMovementDetails) &&
+      !(introActionType === "problem" && hasProblemDetails) &&
       introActionType !== "introLoss"
     ) {
       setStageActionError(actionConfig.error);

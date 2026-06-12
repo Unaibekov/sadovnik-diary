@@ -170,6 +170,15 @@ export function buildStatusOperation({
         plantReaction: statusForm.plantReaction.trim(),
       }
       : {}),
+    ...(introActionType === 'problem'
+      ? {
+        problemType: statusForm.problemType.trim(),
+        riskLevel: statusForm.riskLevel.trim(),
+        problemDescription: statusForm.problemDescription.trim(),
+        comment: statusForm.comment.trim(),
+        photoNote: statusForm.photoNote.trim(),
+      }
+      : {}),
     ...(introActionType === 'movement'
       ? {
         previousLocation: editedOperation?.previousLocation || selectedCard.locationDescription || '',

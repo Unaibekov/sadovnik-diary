@@ -4,6 +4,7 @@ import { getStatusEventConfig } from './statusOperations';
 import { getStatusBaseValidationError } from './statusValidation';
 import { getAdaptationValidationError } from './statusStageValidation';
 import { getGreenhouseValidationError } from './statusGreenhouseValidation';
+import { getProblemValidationError } from './statusProblemValidation';
 
 export const STATUS_DATE_NOT_TODAY_MESSAGE = 'Производственные события можно фиксировать только на текущую дату';
 
@@ -62,6 +63,15 @@ export function getStatusChangeValidationError({
     return greenhouseValidationError;
   }
 
+  const problemValidationError = getProblemValidationError(
+    introActionType,
+    statusForm,
+  );
+
+  if (problemValidationError) {
+    return problemValidationError;
+  }
+
   return '';
 }
 
@@ -95,6 +105,8 @@ export function getStatusChangeValidationMessage(validationError) {
       return 'Укажите хотя бы один параметр среды';
     case 'greenhouse_disease_missing':
       return 'Укажите болезнь, вредителя или уровень риска';
+    case 'problem_missing':
+      return 'Укажите хотя бы один параметр проблемы';
     default:
       return '';
   }

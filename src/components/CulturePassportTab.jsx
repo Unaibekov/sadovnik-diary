@@ -168,8 +168,8 @@ const styles = StyleSheet.create({
   },
   passportLabel: {
     color: '#66756B',
-    fontSize: 15,
-    lineHeight: 20,
+    fontSize: 14,
+    lineHeight: 19,
   },
   passportRow: {
     borderTopColor: '#E6EDE7',
@@ -195,17 +195,16 @@ const styles = StyleSheet.create({
   },
   passportSectionTitle: {
     color: '#15863F',
-    fontSize: 13,
+    fontSize: 16,
     fontWeight: '800',
-    lineHeight: 18,
+    lineHeight: 21,
     marginBottom: 2,
-    textTransform: 'uppercase',
   },
   passportValue: {
     color: '#1B3023',
-    fontSize: 15,
-    fontWeight: '700',
-    lineHeight: 20,
+    fontSize: 16,
+    fontWeight: '500',
+    lineHeight: 22,
   },
   passportQrAction: {
     alignItems: 'center',

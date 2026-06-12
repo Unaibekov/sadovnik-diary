@@ -26,7 +26,7 @@ export const BATCH_STATUS_LABELS = {
   draft: 'Черновик',
   quarantine: 'Карантин',
   partial: 'Частично реализована',
-  problem: 'Проблемная',
+  problem: 'Проблема',
   sold: 'Реализована',
   archived: 'Архивная',
 };

@@ -10,7 +10,7 @@ import { getCardCurrentQuantity, getCardDisplayName } from '../domain/batch';
 import StageHeader from '../components/StageHeader';
 import StatusFilterTabs from '../components/StatusFilterTabs';
 import SelectBottomSheet from '../components/SelectBottomSheet';
-import { ChevronDownIcon } from '../components/icons';
+import { CalendarIcon, ChevronDownIcon, LeaveIcon } from '../components/icons';
 import { INTRO_STAGE } from '../domain/constants';
 
 const countFieldByType = {
@@ -25,6 +25,8 @@ const countFieldByType = {
 
 const adaptationCareOptions = ['Полив', 'Подкормка', 'Стимуляция', 'Профилактика', 'Лечение'];
 const greenhouseCareOptions = ['Полив', 'Подкормка', 'Профилактика', 'Лечение'];
+const problemTypeOptions = ['Контаминация', 'Карантин', 'Болезнь', 'Вредители', 'Стресс', 'Другое'];
+const riskLevelOptions = ['Низкий', 'Средний', 'Высокий', 'Критический'];
 
 // Экран добавления и редактирования производственного события по выбранной дате.
 export default function StatusChangeFormScreen({
@@ -45,6 +47,7 @@ export default function StatusChangeFormScreen({
 }) {
   const [isCareDropdownOpen, setIsCareDropdownOpen] = useState(false);
   const [isDiseaseSeverityDropdownOpen, setIsDiseaseSeverityDropdownOpen] = useState(false);
+  const [isProblemTypeDropdownOpen, setIsProblemTypeDropdownOpen] = useState(false);
   const [isRiskDropdownOpen, setIsRiskDropdownOpen] = useState(false);
   const [isStressDropdownOpen, setIsStressDropdownOpen] = useState(false);
   const [isStabilityDropdownOpen, setIsStabilityDropdownOpen] = useState(false);
@@ -61,7 +64,16 @@ export default function StatusChangeFormScreen({
       ['sale', 'Продажа'],
       ['propagation', 'Размножение'],
       ['movement', 'Перемещение'],
-      ['quarantine', 'Карантин'],
+      ['problem', 'Проблема'],
+    ]
+    : selectedCard.stage === 'Клонирование'
+    ? [
+      ['rooting', 'Укоренение'],
+      ['propagation', 'Размножение'],
+      ['movement', 'Перемещение'],
+      ['introLoss', 'Потери'],
+      ['sale', 'Продажа'],
+      ['problem', 'Проблема'],
     ]
     : selectedCard.stage === 'Адаптация'
     ? [
@@ -69,7 +81,7 @@ export default function StatusChangeFormScreen({
       ['adaptationEnvironment', 'Среда'],
       ['adaptationCare', 'Уход'],
       ['movement', 'Перемещение'],
-      ['quarantine', 'Карантин'],
+      ['problem', 'Проблема'],
       ...((selectedCard.batchStatus || 'active') === 'quarantine'
         ? [['quarantineReleased', 'Снять карантин']]
         : []),
@@ -81,10 +93,9 @@ export default function StatusChangeFormScreen({
         ['greenhouseObservation', 'Наблюдение'],
         ['greenhouseCare', 'Уход'],
         ['greenhouseEnvironment', 'Среда'],
-        ['greenhouseDisease', 'Болезни/вредители'],
+        ['problem', 'Проблема'],
       ['transplant', 'Пересадка'],
       ['movement', 'Перемещение'],
-      ['quarantine', 'Карантин'],
         ...((selectedCard.batchStatus || 'active') === 'quarantine'
           ? [['quarantineReleased', 'Снять карантин']]
           : []),
@@ -97,11 +108,13 @@ export default function StatusChangeFormScreen({
       ['sale', 'Продажа'],
       ['propagation', 'Размножение'],
       ['movement', 'Перемещение'],
-      ['quarantine', 'Карантин'],
+      ['problem', 'Проблема'],
     ];
   const countField = countFieldByType[eventType || 'rooting'];
   const selectedEventLabel = eventOptions.find(([value]) => value === eventType)?.[1] ||
     {
+      greenhouseDisease: 'Болезни/вредители',
+      quarantine: 'Карантин',
       adaptationHumidityReduction: 'Снижение влажности',
     }[eventType] ||
     'Событие';
@@ -112,6 +125,7 @@ export default function StatusChangeFormScreen({
   useEffect(() => {
     setIsCareDropdownOpen(false);
     setIsDiseaseSeverityDropdownOpen(false);
+    setIsProblemTypeDropdownOpen(false);
     setIsRiskDropdownOpen(false);
     setIsStressDropdownOpen(false);
     setIsStabilityDropdownOpen(false);
@@ -145,6 +159,11 @@ export default function StatusChangeFormScreen({
   function selectRiskLevel(value) {
     onChangeField('riskLevel', value);
     setIsRiskDropdownOpen(false);
+  }
+
+  function selectProblemType(value) {
+    onChangeField('problemType', value);
+    setIsProblemTypeDropdownOpen(false);
   }
 
   function selectDiseaseSeverity(value) {
@@ -182,12 +201,20 @@ export default function StatusChangeFormScreen({
               <Text style={styles.eventFormCardTitle}>
                 {getCardDisplayName(selectedCard)}
               </Text>
-              <Text style={styles.cardsSubtitle}>
-                {formatDisplayDate(selectedDate)}
-              </Text>
-              <Text style={styles.cardsSubtitle}>
-                Текущее количество: {getCardCurrentQuantity(selectedCard)} шт.
-              </Text>
+              <View style={styles.cardsMetaRow}>
+                <View style={styles.cardsMetaItem}>
+                  <CalendarIcon color="#15863F" size={16} />
+                  <Text style={styles.cardsMetaText}>
+                    {formatDisplayDate(selectedDate)}
+                  </Text>
+                </View>
+                <View style={styles.cardsMetaItem}>
+                  <LeaveIcon color="#15863F" size={16} />
+                  <Text style={styles.cardsMetaText}>
+                    {getCardCurrentQuantity(selectedCard)} шт.
+                  </Text>
+                </View>
+              </View>
             </View>
 
             {!isEditing && (
@@ -203,7 +230,7 @@ export default function StatusChangeFormScreen({
           </View>
 
           <View style={localStyles.contentArea}>
-            <View style={[localStyles.whitePanel]}>
+            <View style={[styles.surfacePanel, styles.formPanel, localStyles.whitePanel]}>
               <ScrollView
                 bounces={false}
                 contentContainerStyle={localStyles.scrollContent}
@@ -224,6 +251,7 @@ export default function StatusChangeFormScreen({
                 'greenhouseCare',
                 'greenhouseEnvironment',
                 'greenhouseDisease',
+                'problem',
                 'movement',
                 'quarantine',
                 'quarantineReleased',
@@ -678,6 +706,100 @@ export default function StatusChangeFormScreen({
                 </>
               )}
 
+              {eventType === 'problem' && (
+                <>
+                  <View style={styles.field}>
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => setIsProblemTypeDropdownOpen((current) => !current)}
+                      style={({ pressed }) => [
+                        styles.selectButton,
+                        pressed && styles.linkButtonPressed,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.selectButtonText,
+                          !form.problemType && styles.selectPlaceholder,
+                        ]}
+                      >
+                        {form.problemType || 'Выберите тип проблемы'}
+                      </Text>
+                      <View style={styles.selectButtonArrow}>
+                        <ChevronDownIcon />
+                      </View>
+                    </Pressable>
+
+                    <SelectBottomSheet
+                      onClose={() => setIsProblemTypeDropdownOpen(false)}
+                      onSelect={selectProblemType}
+                      options={problemTypeOptions}
+                      title="Выберите тип проблемы"
+                      visible={isProblemTypeDropdownOpen}
+                    />
+                  </View>
+
+                  <View style={styles.field}>
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => setIsRiskDropdownOpen((current) => !current)}
+                      style={({ pressed }) => [
+                        styles.selectButton,
+                        pressed && styles.linkButtonPressed,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.selectButtonText,
+                          !form.riskLevel && styles.selectPlaceholder,
+                        ]}
+                      >
+                        {form.riskLevel || 'Выберите уровень риска'}
+                      </Text>
+                      <View style={styles.selectButtonArrow}>
+                        <ChevronDownIcon />
+                      </View>
+                    </Pressable>
+
+                    <SelectBottomSheet
+                      onClose={() => setIsRiskDropdownOpen(false)}
+                      onSelect={selectRiskLevel}
+                      options={riskLevelOptions}
+                      title="Выберите уровень риска"
+                      visible={isRiskDropdownOpen}
+                    />
+                  </View>
+
+                  <View style={styles.field}>
+                    <Text style={styles.label}>Описание проблемы</Text>
+                    <TextInput
+                      multiline
+                      onChangeText={(value) => onChangeField('problemDescription', value)}
+                      placeholder="Опишите проблему"
+                      placeholderTextColor="#7C8A80"
+                      style={[styles.input, styles.multilineInput]}
+                      value={form.problemDescription}
+                    />
+                  </View>
+
+                  <View style={localStyles.photoField}>
+                    <PhotoGallery
+                      addLabel="Добавить фото"
+                      addMoreLabel="Добавить еще фото"
+                      editable
+                      onAdd={onAddPhoto}
+                      onRemove={onRemovePhoto}
+                      onReplace={onReplacePhoto}
+                      uris={Array.isArray(form.photoUris) && form.photoUris.length > 0
+                        ? form.photoUris
+                        : form.photoUri
+                          ? [form.photoUri]
+                          : []}
+                    />
+                  </View>
+                </>
+              )}
+
               {eventType === 'transplant' && (
                 <>
                   <View style={styles.field}>
@@ -814,7 +936,7 @@ export default function StatusChangeFormScreen({
                 </View>
               )}
 
-              {!isMovementEvent && (
+              {!isMovementEvent && eventType !== 'problem' && (
                 <>
                   {/* Общие поля есть у всех событий. */}
                   <View style={styles.field}>
@@ -830,7 +952,6 @@ export default function StatusChangeFormScreen({
                   </View>
 
                   <View style={localStyles.photoField}>
-                    <Text style={styles.label}>Фото</Text>
                     <PhotoGallery
                       addLabel="Добавить фото"
                       addMoreLabel="Добавить еще фото"
@@ -843,14 +964,6 @@ export default function StatusChangeFormScreen({
                         : form.photoUri
                           ? [form.photoUri]
                           : []}
-                    />
-                    <TextInput
-                      multiline
-                      onChangeText={(value) => onChangeField('photoNote', value)}
-                      placeholder="Описание фото"
-                      placeholderTextColor="#7C8A80"
-                      style={[styles.input, styles.multilineInput]}
-                      value={form.photoNote}
                     />
                   </View>
                 </>
@@ -928,23 +1041,13 @@ const localStyles = StyleSheet.create({
     minHeight: 0,
   },
   whitePanel: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#F0F2F4',
-    borderRadius: 22,
-    borderWidth: 1,
     flex: 1,
+    minHeight: 0,
     overflow: 'hidden',
-    shadowColor: '#102015',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.04,
-    shadowRadius: 16,
   },
   scrollContent: {
     flexGrow: 1,
     gap: 14,
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 18,
   },
   footer: {
     flexShrink: 0,

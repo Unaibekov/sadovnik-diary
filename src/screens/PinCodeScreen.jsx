@@ -401,8 +401,8 @@ const pinStyles = StyleSheet.create({
   },
   primaryActionText: {
     color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '800',
+    fontSize: 16,
+    fontWeight: '700',
   },
   secondaryAction: {
     alignItems: 'center',
@@ -417,8 +417,8 @@ const pinStyles = StyleSheet.create({
   },
   secondaryActionText: {
     color: '#15863F',
-    fontSize: 15,
-    fontWeight: '800',
+    fontSize: 16,
+    fontWeight: '700',
   },
   biometricButton: {
     alignItems: 'center',
@@ -439,8 +439,8 @@ const pinStyles = StyleSheet.create({
   },
   biometricButtonText: {
     color: '#15863F',
-    fontSize: 15,
-    fontWeight: '800',
+    fontSize: 16,
+    fontWeight: '700',
   },
   biometricButtonTextDisabled: {
     color: '#98A2B3',
@@ -471,8 +471,8 @@ const pinStyles = StyleSheet.create({
   },
   resetButtonText: {
     color: '#B42318',
-    fontSize: 14,
-    fontWeight: '800',
+    fontSize: 16,
+    fontWeight: '700',
     textAlign: 'center',
   },
   errorText: {

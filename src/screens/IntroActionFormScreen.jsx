@@ -17,17 +17,22 @@ import styles from '../../styles';
 import PhotoGallery from '../components/PhotoGallery';
 import StageHeader from '../components/StageHeader';
 import StatusFilterTabs from '../components/StatusFilterTabs';
+import SelectBottomSheet from '../components/SelectBottomSheet';
+import { CalendarIcon, ChevronDownIcon, LeaveIcon } from '../components/icons';
 import { INTRO_STAGE } from '../domain/constants';
+import { formatDisplayDate } from '../domain/dates';
 import { getCardCurrentQuantity, getCardDisplayName } from '../domain/batch';
 import { isRenderablePhotoUri } from '../domain/photoUri';
 
 const introActionCommands = [
   ['comment', 'Комментарий'],
   ['movement', 'Перемещение'],
-  ['contamination', 'Контаминация'],
+  ['problem', 'Проблема'],
   ['introLoss', 'Потери'],
-  ['quarantine', 'Карантин'],
 ];
+
+const problemTypeOptions = ['Контаминация', 'Карантин', 'Болезнь', 'Вредители', 'Стресс', 'Другое'];
+const riskLevelOptions = ['Низкий', 'Средний', 'Высокий', 'Критический'];
 
 export default function IntroActionFormScreen({
   actionForm,
@@ -42,13 +47,20 @@ export default function IntroActionFormScreen({
   onSave,
   onSelectActionType,
   selectedCard,
+  selectedCalendarDate,
 }) {
   const [isAlertVisible, setIsAlertVisible] = useState(false);
   const [saveAttemptCount, setSaveAttemptCount] = useState(0);
+  const [isProblemTypeDropdownOpen, setIsProblemTypeDropdownOpen] = useState(false);
+  const [isRiskDropdownOpen, setIsRiskDropdownOpen] = useState(false);
   const seenAlertRef = useRef('');
   const selectedActionLabel =
     introActionCommands.find(([value]) => value === actionType)?.[1] ||
-    (actionType === 'photo' ? 'Фото' : 'Запись');
+    {
+      contamination: 'Контаминация',
+      quarantine: 'Карантин',
+    }[actionType] ||
+    'Запись';
   const isPhotoAction = actionType === 'photo';
   const commentValue = isPhotoAction ? actionForm.photoNote : actionForm.comment;
   const commentField = isPhotoAction ? 'photoNote' : 'comment';
@@ -74,9 +86,24 @@ export default function IntroActionFormScreen({
     }
   }, [error, saveAttemptCount]);
 
+  useEffect(() => {
+    setIsProblemTypeDropdownOpen(false);
+    setIsRiskDropdownOpen(false);
+  }, [actionType]);
+
   function handleSavePress() {
     setSaveAttemptCount((current) => current + 1);
     onSave();
+  }
+
+  function selectProblemType(value) {
+    onChangeActionForm('problemType', value);
+    setIsProblemTypeDropdownOpen(false);
+  }
+
+  function selectRiskLevel(value) {
+    onChangeActionForm('riskLevel', value);
+    setIsRiskDropdownOpen(false);
   }
 
   return (
@@ -98,9 +125,20 @@ export default function IntroActionFormScreen({
               <Text style={styles.eventFormCardTitle}>
                 {getCardDisplayName(selectedCard)}
               </Text>
-              <Text style={styles.cardsSubtitle}>
-                Текущее количество: {getCardCurrentQuantity(selectedCard)} шт.
-              </Text>
+              <View style={styles.cardsMetaRow}>
+                <View style={styles.cardsMetaItem}>
+                  <CalendarIcon color="#15863F" size={16} />
+                  <Text style={styles.cardsMetaText}>
+                    {selectedCalendarDate ? formatDisplayDate(selectedCalendarDate) : ''}
+                  </Text>
+                </View>
+                <View style={styles.cardsMetaItem}>
+                  <LeaveIcon color="#15863F" size={16} />
+                  <Text style={styles.cardsMetaText}>
+                    {getCardCurrentQuantity(selectedCard)} шт.
+                  </Text>
+                </View>
+              </View>
             </View>
 
             {!isEditing && (
@@ -139,6 +177,83 @@ export default function IntroActionFormScreen({
                     />
                   </View>
                 )}
+                {actionType === 'problem' && (
+                  <>
+                    <View style={styles.field}>
+                      <Pressable
+                        accessibilityRole="button"
+                        onPress={() => setIsProblemTypeDropdownOpen((current) => !current)}
+                        style={({ pressed }) => [
+                          styles.selectButton,
+                          pressed && styles.linkButtonPressed,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.selectButtonText,
+                            !actionForm.problemType && styles.selectPlaceholder,
+                          ]}
+                        >
+                          {actionForm.problemType || 'Выберите тип проблемы'}
+                        </Text>
+                        <View style={styles.selectButtonArrow}>
+                          <ChevronDownIcon />
+                        </View>
+                      </Pressable>
+
+                      <SelectBottomSheet
+                        onClose={() => setIsProblemTypeDropdownOpen(false)}
+                        onSelect={selectProblemType}
+                        options={problemTypeOptions}
+                        title="Выберите тип проблемы"
+                        visible={isProblemTypeDropdownOpen}
+                      />
+                    </View>
+
+                    <View style={styles.field}>
+                      <Pressable
+                        accessibilityRole="button"
+                        onPress={() => setIsRiskDropdownOpen((current) => !current)}
+                        style={({ pressed }) => [
+                          styles.selectButton,
+                          pressed && styles.linkButtonPressed,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.selectButtonText,
+                            !actionForm.riskLevel && styles.selectPlaceholder,
+                          ]}
+                        >
+                          {actionForm.riskLevel || 'Выберите уровень риска'}
+                        </Text>
+                        <View style={styles.selectButtonArrow}>
+                          <ChevronDownIcon />
+                        </View>
+                      </Pressable>
+
+                      <SelectBottomSheet
+                        onClose={() => setIsRiskDropdownOpen(false)}
+                        onSelect={selectRiskLevel}
+                        options={riskLevelOptions}
+                        title="Выберите уровень риска"
+                        visible={isRiskDropdownOpen}
+                      />
+                    </View>
+
+                    <View style={localStyles.commentField}>
+                      <TextInput
+                        multiline
+                        onChangeText={(value) => onChangeActionForm('problemDescription', value)}
+                        placeholder="Описание проблемы"
+                        placeholderTextColor="#7C8A80"
+                        style={[styles.input, styles.multilineInput]}
+                        value={actionForm.problemDescription}
+                      />
+                    </View>
+
+                  </>
+                )}
                 {actionType === 'contamination' && (
                   <TextInput
                     multiline
@@ -173,6 +288,16 @@ export default function IntroActionFormScreen({
                       />
                     </View>
                   </>
+                )}
+                {actionType === 'quarantine' && (
+                  <TextInput
+                    multiline
+                    onChangeText={(value) => onChangeActionForm('quarantineReason', value)}
+                    placeholder="Причина карантина"
+                    placeholderTextColor="#7C8A80"
+                    style={[styles.input, styles.multilineInput]}
+                    value={actionForm.quarantineReason}
+                  />
                 )}
                 {actionType === 'movement' && (
                   <>
@@ -219,17 +344,6 @@ export default function IntroActionFormScreen({
                     </View>
                   </>
                 )}
-                {actionType === 'quarantine' && (
-                  <TextInput
-                    multiline
-                    onChangeText={(value) => onChangeActionForm('quarantineReason', value)}
-                    placeholder="Причина карантина"
-                    placeholderTextColor="#7C8A80"
-                    style={[styles.input, styles.multilineInput]}
-                    value={actionForm.quarantineReason}
-                  />
-                )}
-
                 <View style={localStyles.photoField}>
                   <PhotoGallery
                     addLabel="Добавить фото"
@@ -305,7 +419,6 @@ const localStyles = {
   contentArea: {
     flex: 1,
     minHeight: 0,
-    paddingTop: 18,
   },
   whitePanel: {
     flex: 1,
@@ -351,15 +464,15 @@ const localStyles = {
   },
   alertTitle: {
     color: '#1E3B2B',
-    fontFamily: 'Nunito_800ExtraBold',
     fontSize: 24,
     lineHeight: 30,
+    fontFamily: 'Nunito_800ExtraBold',
   },
   alertMessage: {
     color: '#71837B',
-    fontFamily: 'Nunito_400Regular',
     fontSize: 17,
     lineHeight: 24,
+    fontFamily: 'Nunito_400Regular',
   },
   alertButton: {
     marginTop: 2,

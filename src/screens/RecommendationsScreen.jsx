@@ -1,9 +1,15 @@
 // Экран рекомендаций по уходу и действиям.
+import { useEffect, useRef, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import appStyles from '../../styles';
 import StageHeader from '../components/StageHeader';
+
+const recommendationTabs = [
+  ['current', 'Текущая стадия'],
+  ['all', 'Все стадии'],
+];
 
 export default function RecommendationsScreen({
   entries,
@@ -18,6 +24,25 @@ export default function RecommendationsScreen({
     ? entries.filter((entry) => entry.items.length > 0)
     : entries;
   const emptyStageLabel = stage || 'этой стадии';
+  const [tabBarWidth, setTabBarWidth] = useState(0);
+  const indicatorX = useRef(new Animated.Value(0)).current;
+  const activeIndex = Math.max(
+    0,
+    recommendationTabs.findIndex(([value]) => value === mode),
+  );
+  const tabWidth = tabBarWidth > 0 ? tabBarWidth / recommendationTabs.length : 0;
+
+  useEffect(() => {
+    if (!tabWidth) {
+      return;
+    }
+
+    Animated.timing(indicatorX, {
+      duration: 220,
+      toValue: activeIndex * tabWidth,
+      useNativeDriver: true,
+    }).start();
+  }, [activeIndex, indicatorX, tabWidth]);
 
   return (
     <SafeAreaView style={appStyles.safeArea}>
@@ -31,33 +56,49 @@ export default function RecommendationsScreen({
 
         <View style={styles.recommendationsHeader}>
           {showModeSwitch && (
-            <View style={styles.recommendationModeRow}>
-              {[
-                ['current', 'Текущая стадия'],
-                ['all', 'Все стадии'],
-              ].map(([value, label]) => (
-                <Pressable
-                  accessibilityRole="button"
-                  key={value}
-                  onPress={() => onChangeMode(value)}
+            <View
+              onLayout={(event) => setTabBarWidth(event.nativeEvent.layout.width)}
+              style={styles.recommendationTabs}
+            >
+              {tabWidth > 0 && (
+                <Animated.View
+                  pointerEvents="none"
                   style={[
-                    styles.recommendationModeButton,
-                    mode === value && styles.recommendationModeButtonActive,
+                    styles.recommendationTabIndicator,
+                    {
+                      width: tabWidth - 8,
+                      transform: [{ translateX: indicatorX }],
+                    },
                   ]}
-                >
-                  <Text
-                    style={[
-                      styles.recommendationModeButtonText,
-                      mode === value && styles.recommendationModeButtonTextActive,
+                />
+              )}
+              {recommendationTabs.map(([value, label]) => {
+                const isActive = mode === value;
+
+                return (
+                  <Pressable
+                    accessibilityRole="button"
+                    key={value}
+                    onPress={() => onChangeMode(value)}
+                    style={({ pressed }) => [
+                      styles.recommendationTab,
+                      isActive && styles.recommendationTabActive,
+                      pressed && appStyles.linkButtonPressed,
                     ]}
                   >
-                    {label}
-                  </Text>
-                </Pressable>
-              ))}
+                    <Text
+                      style={[
+                        styles.recommendationTabText,
+                        isActive && styles.recommendationTabTextActive,
+                      ]}
+                    >
+                      {label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
             </View>
           )}
-
         </View>
 
         <ScrollView contentContainerStyle={styles.recommendationsScrollContent}>
@@ -74,7 +115,9 @@ export default function RecommendationsScreen({
 
             {visibleEntries.map((entry) => (
               <View key={entry.key} style={[appStyles.surfacePanel, styles.recommendationCard]}>
-                <Text style={styles.recommendationCardTitle}>{entry.title}</Text>
+                <Text style={styles.recommendationCardTitle}>
+                  {mode === 'current' ? (stage || entry.title) : entry.title}
+                </Text>
 
                 {entry.items.length === 0 ? (
                   <Text style={styles.recommendationEmptyText}>
@@ -108,9 +151,9 @@ const styles = StyleSheet.create({
   },
   recommendationCardTitle: {
     color: '#111827',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '800',
-    lineHeight: 24,
+    lineHeight: 21,
   },
   recommendationEmptyText: {
     color: '#65756B',
@@ -123,43 +166,19 @@ const styles = StyleSheet.create({
   },
   recommendationItemLabel: {
     color: '#6B7280',
-    fontSize: 11,
-    fontWeight: '600',
-    letterSpacing: 0.2,
-    lineHeight: 15,
+    fontSize: 14,
+    lineHeight: 19,
   },
   recommendationItemList: {
     gap: 2,
   },
   recommendationItemValue: {
     color: '#17251C',
-    fontSize: 15,
-    fontWeight: '700',
-    lineHeight: 21,
+    fontSize: 16,
+    fontWeight: '500',
+    lineHeight: 22,
   },
-  recommendationModeButton: {
-    alignItems: 'center',
-    borderRadius: 999,
-    flex: 1,
-    justifyContent: 'center',
-    minHeight: 42,
-    paddingHorizontal: 12,
-  },
-  recommendationModeButtonActive: {
-    backgroundColor: '#15863F',
-  },
-  recommendationModeButtonText: {
-    color: '#6B716D',
-    fontSize: 14,
-    fontWeight: '700',
-    lineHeight: 18,
-    textAlign: 'center',
-  },
-  recommendationModeButtonTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '800',
-  },
-  recommendationModeRow: {
+  recommendationTabs: {
     backgroundColor: '#FFFFFF',
     borderColor: '#E4E7E5',
     borderRadius: 40,
@@ -167,6 +186,38 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginBottom: 14,
     padding: 4,
+    position: 'relative',
+    shadowColor: '#102015',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+  },
+  recommendationTab: {
+    alignItems: 'center',
+    borderRadius: 999,
+    flex: 1,
+    justifyContent: 'center',
+    minHeight: 38,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  recommendationTabActive: {},
+  recommendationTabText: {
+    color: '#6B716D',
+    fontSize: 14,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  recommendationTabTextActive: {
+    color: '#FFFFFF',
+  },
+  recommendationTabIndicator: {
+    backgroundColor: '#15863F',
+    borderRadius: 999,
+    bottom: 3,
+    left: 4,
+    position: 'absolute',
+    top: 3,
   },
   recommendationsHeader: {
     flexShrink: 0,

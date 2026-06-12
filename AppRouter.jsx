@@ -434,6 +434,7 @@ export default function AppRouter({ actions, state }) {
           setStageActionError("");
         }}
         selectedCard={selectedCard}
+        selectedCalendarDate={selectedCalendarDate}
       />
     );
   }

@@ -97,7 +97,7 @@ export default function CultureJournalTab({
 
           {groupedOperations.map((group) => {
             const groupDate = group.operations[0]?.date || group.operations[0]?.createdAt || '';
-            const showGroupTitle = groupedOperations.length > 1;
+            const showGroupTitle = true;
 
             return (
               <View key={group.stage} style={localStyles.stageGroupCard}>
@@ -126,7 +126,7 @@ export default function CultureJournalTab({
                         <View
                           style={[
                             styles.journalItem,
-                            ['contamination', 'quarantine'].includes(operation.type) && styles.journalItemWarning,
+                            ['contamination', 'quarantine', 'problem'].includes(operation.type) && styles.journalItemWarning,
                           ]}
                         >
                           <View style={localStyles.itemRow}>
@@ -287,7 +287,7 @@ const localStyles = StyleSheet.create({
     color: '#1B3023',
     flex: 1,
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: '900',
     lineHeight: 22,
     minWidth: 0,
   },
@@ -308,7 +308,7 @@ const localStyles = StyleSheet.create({
   fieldValue: {
     color: '#1B3023',
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '500',
     lineHeight: 22,
   },
   photoThumb: {

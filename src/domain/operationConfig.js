@@ -17,6 +17,7 @@ export const introOperationFields = {
   contamination: 'contaminationNote',
   introLoss: 'lossReason',
   quarantine: 'quarantineReason',
+  problem: 'problemDescription',
 };
 
 export const editableStatusOperationTypes = [
@@ -36,6 +37,7 @@ export const editableStatusOperationTypes = [
   'greenhouseCare',
   'greenhouseEnvironment',
   'greenhouseDisease',
+  'problem',
   'movement',
   'transplant',
 ];

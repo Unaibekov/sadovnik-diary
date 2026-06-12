@@ -4,6 +4,7 @@ import { buildIntroActionUpdatedCard } from './introActionCardBuilder';
 import { buildStatusOperationContext } from './statusOperationContext';
 import { INTRO_STAGE } from './constants';
 import { isPositiveInteger } from './batch';
+import { getProblemValidationError } from './statusProblemValidation';
 
 export function buildIntroActionSaveResult({
   actionConfig,
@@ -53,6 +54,11 @@ export function buildIntroActionSaveResult({
     return { nextCards: cultureCards, nextOperation: null, error: actionConfig.error };
   }
 
+  const problemValidationError = getProblemValidationError(introActionType, introActionForm);
+  if (problemValidationError) {
+    return { nextCards: cultureCards, nextOperation: null, error: actionConfig.error };
+  }
+
   const nextOperation = buildIntroActionOperation({
     actionConfig,
     editingOperationId,
@@ -67,6 +73,11 @@ export function buildIntroActionSaveResult({
     lossCount,
     lossReason,
     movementDetails,
+    problemType: introActionForm.problemType?.trim() || '',
+    riskLevel: introActionForm.riskLevel?.trim() || '',
+    problemDescription: introActionForm.problemDescription?.trim() || '',
+    comment: introActionForm.comment?.trim() || '',
+    photoNote: introActionForm.photoNote?.trim() || '',
     currentQuantity: introLossPreviousQuantity,
   });
 

@@ -405,7 +405,7 @@ const localStyles = {
   titleText: {
     color: '#1B3023',
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: '900',
     lineHeight: 22,
   },
   commentText: {
@@ -425,7 +425,7 @@ const localStyles = {
   fieldValue: {
     color: '#1B3023',
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '500',
     lineHeight: 22,
   },
 };

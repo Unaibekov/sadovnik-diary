@@ -68,9 +68,9 @@ const styles = StyleSheet.create({
   },
   title: {
     color: '#111827',
-    fontSize: 21,
+    fontSize: 18,
     fontWeight: '800',
-    lineHeight: 27,
+    lineHeight: 24,
   },
   titleBlock: {
     flex: 1,

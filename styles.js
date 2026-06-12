@@ -126,8 +126,8 @@ export default StyleSheet.create({
   },
   codeButtonText: {
     color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '800',
+    fontSize: 16,
+    fontWeight: '700',
   },
   passportHeaderButton: {
     alignItems: 'center',
@@ -146,8 +146,8 @@ export default StyleSheet.create({
   },
   passportHeaderButtonText: {
     color: '#15863F',
-    fontSize: 14,
-    fontWeight: '800',
+    fontSize: 16,
+    fontWeight: '700',
   },
   headerSpacer: {
     minWidth: 78,
@@ -169,8 +169,8 @@ export default StyleSheet.create({
   },
   stageHeaderSubtitle: {
     color: '#5F7065',
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 14,
+    lineHeight: 19,
     marginTop: 2,
   },
   stageGrid: {
@@ -261,8 +261,8 @@ export default StyleSheet.create({
   },
   globalJournalButtonText: {
     color: '#FFFFFF',
-    fontSize: 17,
-    fontWeight: '800',
+    fontSize: 16,
+    fontWeight: '700',
   },
   globalJournalButtonMeta: {
     color: '#DCE9DF',
@@ -282,8 +282,8 @@ export default StyleSheet.create({
   },
   testClearButtonText: {
     color: '#B42318',
-    fontSize: 15,
-    fontWeight: '800',
+    fontSize: 16,
+    fontWeight: '700',
   },
   homeNoticeText: {
     color: '#15863F',
@@ -703,15 +703,31 @@ export default StyleSheet.create({
   },
   cardsSubtitle: {
     color: '#5F7065',
-    fontSize: 15,
-    lineHeight: 21,
+    fontSize: 14,
+    lineHeight: 19,
     marginTop: 6,
+  },
+  cardsMetaRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 14,
+    marginTop: 6,
+  },
+  cardsMetaItem: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 6,
+  },
+  cardsMetaText: {
+    color: '#5F7065',
+    fontSize: 14,
+    lineHeight: 19,
   },
   eventFormCardTitle: {
     color: '#17251C',
-    fontSize: 24,
-    fontWeight: '800',
-    lineHeight: 30,
+    fontSize: 18,
+    fontWeight: '700',
+    lineHeight: 24,
   },
   searchRow: {
     alignItems: 'center',
@@ -991,7 +1007,7 @@ export default StyleSheet.create({
     minHeight: 0,
     overflow: 'hidden',
     paddingHorizontal: 16,
-    paddingTop: 0,
+    paddingTop: 16,
     paddingBottom: 16,
   },
   calendarRecordsDivider: {
@@ -1025,9 +1041,9 @@ export default StyleSheet.create({
     flex: 1,
   },
   calendarStageMoveButtonText: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '700',
-    lineHeight: 19,
+    lineHeight: 21,
   },
   calendarAddEventButton: {
     alignItems: 'center',
@@ -1209,8 +1225,9 @@ export default StyleSheet.create({
   journalItemTitle: {
     color: '#1B3023',
     flex: 1,
-    fontSize: 15,
-    fontWeight: '800',
+    fontSize: 16,
+    fontWeight: '900',
+    lineHeight: 22,
     minWidth: 0,
   },
   journalItemDate: {
@@ -1302,8 +1319,8 @@ export default StyleSheet.create({
   },
   globalJournalOpenCardButtonText: {
     color: '#15863F',
-    fontSize: 14,
-    fontWeight: '800',
+    fontSize: 16,
+    fontWeight: '700',
   },
   globalJournalCollapseLink: {
     alignItems: 'center',
@@ -1312,8 +1329,8 @@ export default StyleSheet.create({
   },
   globalJournalCollapseLinkText: {
     color: '#15863F',
-    fontSize: 14,
-    fontWeight: '800',
+    fontSize: 16,
+    fontWeight: '700',
   },
   globalJournalEventList: {
     gap: 0,
@@ -1406,8 +1423,8 @@ export default StyleSheet.create({
   },
   eventActionButtonText: {
     color: '#15863F',
-    fontSize: 13,
-    fontWeight: '800',
+    fontSize: 16,
+    fontWeight: '700',
   },
   eventDangerButton: {
     alignItems: 'center',
@@ -1419,8 +1436,8 @@ export default StyleSheet.create({
   },
   eventDangerButtonText: {
     color: '#B42318',
-    fontSize: 13,
-    fontWeight: '800',
+    fontSize: 16,
+    fontWeight: '700',
   },
   actionGrid: {
     flexDirection: 'row',
@@ -1455,8 +1472,8 @@ export default StyleSheet.create({
   },
   addButtonText: {
     color: '#FFFFFF',
-    fontSize: 17,
-    fontWeight: '800',
+    fontSize: 16,
+    fontWeight: '700',
     letterSpacing: 0,
   },
   plantCardList: {
@@ -1520,8 +1537,8 @@ export default StyleSheet.create({
   },
   plantCardActionButtonText: {
     color: '#15863F',
-    fontSize: 13,
-    fontWeight: '800',
+    fontSize: 16,
+    fontWeight: '700',
   },
   plantCardStatusDot: {
     borderRadius: 7,
@@ -1670,9 +1687,9 @@ export default StyleSheet.create({
   selectButtonText: {
     color: '#000000',
     flex: 1,
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '700',
-    lineHeight: 22,
+    lineHeight: 21,
   },
   selectButtonArrow: {
     alignItems: 'center',
@@ -1826,8 +1843,8 @@ export default StyleSheet.create({
   },
   inlineActionButtonText: {
     color: '#15863F',
-    fontSize: 13,
-    fontWeight: '800',
+    fontSize: 16,
+    fontWeight: '700',
   },
   inlineDangerButton: {
     alignItems: 'center',
@@ -1840,8 +1857,8 @@ export default StyleSheet.create({
   },
   inlineDangerButtonText: {
     color: '#B42318',
-    fontSize: 13,
-    fontWeight: '800',
+    fontSize: 16,
+    fontWeight: '700',
   },
   toggleRow: {
     backgroundColor: 'transparent',
@@ -1892,9 +1909,9 @@ export default StyleSheet.create({
   },
   secondaryOutlineButtonText: {
     color: '#15863F',
-    fontSize: 15,
-    fontWeight: '800',
-    lineHeight: 19,
+    fontSize: 16,
+    fontWeight: '700',
+    lineHeight: 21,
   },
   keyboardView: {
     flex: 1,
@@ -2088,6 +2105,7 @@ export default StyleSheet.create({
   dateButtonText: {
     color: '#132017',
     fontSize: 16,
+    fontWeight: '700',
   },
   errorText: {
     color: '#B42318',
@@ -2109,8 +2127,8 @@ export default StyleSheet.create({
   },
   authPrimaryButtonText: {
     color: '#FFFFFF',
-    fontSize: 17,
-    fontWeight: '800',
+    fontSize: 16,
+    fontWeight: '700',
     letterSpacing: 0,
   },
   noticeText: {
@@ -2137,7 +2155,7 @@ export default StyleSheet.create({
   primaryButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: '700',
   },
   statusButton: {
     alignItems: 'center',
@@ -2149,8 +2167,8 @@ export default StyleSheet.create({
   },
   statusButtonText: {
     color: '#15863F',
-    fontSize: 15,
-    fontWeight: '800',
+    fontSize: 16,
+    fontWeight: '700',
   },
   cancelButton: {
     alignItems: 'center',
@@ -2164,8 +2182,8 @@ export default StyleSheet.create({
   },
   cancelButtonText: {
     color: '#566170',
-    fontSize: 15,
-    fontWeight: '800',
+    fontSize: 16,
+    fontWeight: '700',
   },
   dangerButton: {
     alignItems: 'center',
@@ -2179,8 +2197,8 @@ export default StyleSheet.create({
   },
   dangerButtonText: {
     color: '#B42318',
-    fontSize: 15,
-    fontWeight: '800',
+    fontSize: 16,
+    fontWeight: '700',
   },
   secondaryActions: {
     alignItems: 'center',
