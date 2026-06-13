@@ -17,6 +17,11 @@ export default function CulturePassportTab({
   getResolvedBatchStatus,
   onShareQrPress,
 }) {
+  const safeHardeningStats = hardeningStats || {
+    lossCount: 0,
+    readinessForPlanting: 'Не указана',
+    riskStatus: 'Нормальный',
+  };
   const safePlantingStats = plantingStats || {
     completionResult: 'Не указан',
     lossCount: 0,
@@ -50,7 +55,7 @@ export default function CulturePassportTab({
         {card.stage === stages[4] && (
           <View style={styles.passportRow}>
             <Text style={styles.passportLabel}>Статус риска</Text>
-            <Text style={styles.passportValue}>{hardeningStats.riskStatus}</Text>
+            <Text style={styles.passportValue}>{safeHardeningStats.riskStatus}</Text>
           </View>
         )}
         {card.stage === stages[5] && (
@@ -97,11 +102,11 @@ export default function CulturePassportTab({
           <>
             <View style={styles.passportRow}>
               <Text style={styles.passportLabel}>Готовность к высадке</Text>
-              <Text style={styles.passportValue}>{hardeningStats.readinessForPlanting}</Text>
+              <Text style={styles.passportValue}>{safeHardeningStats.readinessForPlanting}</Text>
             </View>
             <View style={styles.passportRow}>
               <Text style={styles.passportLabel}>Потери</Text>
-              <Text style={styles.passportValue}>{hardeningStats.lossCount} шт.</Text>
+              <Text style={styles.passportValue}>{safeHardeningStats.lossCount} шт.</Text>
             </View>
           </>
         )}
