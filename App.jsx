@@ -2135,6 +2135,7 @@ function AppContent() {
     isCultureIntroStage,
     isEditingCard,
     isGreenhouseStage,
+    isHardeningStage: selectedStageFlags.isHardeningStage,
     isStageMoveConfirmVisible,
     isDateActionErrorVisible,
     isSupportedPlantingStage,

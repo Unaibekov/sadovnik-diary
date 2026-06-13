@@ -96,6 +96,7 @@ export function buildAppDerivedState({
     isCloneStage: selectedStageFlags.isCloneStage,
     isCultureIntroStage: selectedStageFlags.isCultureIntroStage,
     isGreenhouseStage: selectedStageFlags.isGreenhouseStage,
+    isHardeningStage: selectedStageFlags.isHardeningStage,
     selectedStage,
   });
 
@@ -158,6 +159,7 @@ export function buildAppDerivedState({
     selectedCardCloneStats: selectedCardMetrics.selectedCardCloneStats,
     selectedCardCurrentQuantity: selectedCardMetrics.selectedCardCurrentQuantity,
     selectedCardDaysInStage: selectedCardMetrics.selectedCardDaysInStage,
+    selectedCardHardeningStats: selectedCardMetrics.selectedCardHardeningStats,
     selectedCardNextStage,
     selectedCardOperations: selectedCardJournalData.selectedCardOperations,
     selectedDateOperations: selectedCardJournalData.selectedDateOperations,

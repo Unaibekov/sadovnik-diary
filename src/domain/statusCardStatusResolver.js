@@ -19,7 +19,11 @@ export function getFallbackBatchStatus(card, introActionType, nextQuantity, stat
   }
 
   if (introActionType === 'problem') {
-    const problemBatchStatus = getProblemBatchStatus(statusForm.problemType, statusForm.riskLevel);
+    const problemBatchStatus = getProblemBatchStatus(
+      statusForm.problemType,
+      statusForm.riskLevel,
+      card.stage,
+    );
 
     if (problemBatchStatus) {
       return problemBatchStatus;

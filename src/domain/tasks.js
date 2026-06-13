@@ -1,6 +1,12 @@
 // Формирование задач и напоминаний по уходу.
-import { getAdaptationCareSchedules, getCardCurrentQuantity, getCardDisplayName, getGreenhouseCareSchedules } from './batch';
-import { INTRO_STAGE } from './constants';
+import {
+  getAdaptationCareSchedules,
+  getCardCurrentQuantity,
+  getCardDisplayName,
+  getGreenhouseCareSchedules,
+  getHardeningCareSchedules,
+} from './batch';
+import { INTRO_STAGE, stages } from './constants';
 import { dateFromIso, getTodayIsoDate, isoFromDate } from './dates';
 
 export function getScheduleNextDate(schedule, card) {
@@ -33,10 +39,12 @@ export function buildCareTasks(cards, getResolvedBatchStatus) {
     }
 
     const stage = card.stage || INTRO_STAGE;
-    const schedules = stage === 'Адаптация'
+    const schedules = stage === stages[2]
       ? getAdaptationCareSchedules(card)
-      : stage === 'Теплица'
+      : stage === stages[3]
         ? getGreenhouseCareSchedules(card)
+      : stage === stages[4]
+        ? getHardeningCareSchedules(card)
         : [];
 
     return schedules.map((schedule) => {

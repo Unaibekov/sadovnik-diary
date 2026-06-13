@@ -24,8 +24,12 @@ export function buildUpdatedStatusCard(card, {
     operation.type === 'contamination' ||
     (operation.type === 'problem' && operation.problemType === 'Контаминация')
   ));
-  const problemBatchStatus = getProblemBatchStatus(nextOperation.problemType, nextOperation.riskLevel);
-  const problemBatchStatusFromOperations = getProblemBatchStatusFromOperations(nextOperations);
+  const problemBatchStatus = getProblemBatchStatus(
+    nextOperation.problemType,
+    nextOperation.riskLevel,
+    card.stage,
+  );
+  const problemBatchStatusFromOperations = getProblemBatchStatusFromOperations(nextOperations, card.stage);
 
   const nextCard = {
     ...card,

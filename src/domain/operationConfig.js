@@ -37,6 +37,8 @@ export const editableStatusOperationTypes = [
   'greenhouseCare',
   'greenhouseEnvironment',
   'greenhouseDisease',
+  'hardeningObservation',
+  'hardeningCare',
   'problem',
   'movement',
   'transplant',

@@ -2,7 +2,7 @@
 import { getTodayIsoDate } from './dates';
 import { getStatusEventConfig } from './statusOperations';
 import { getStatusBaseValidationError } from './statusValidation';
-import { getAdaptationValidationError } from './statusStageValidation';
+import { getAdaptationValidationError, getHardeningValidationError } from './statusStageValidation';
 import { getGreenhouseValidationError } from './statusGreenhouseValidation';
 import { getProblemValidationError } from './statusProblemValidation';
 
@@ -54,6 +54,15 @@ export function getStatusChangeValidationError({
     return adaptationValidationError;
   }
 
+  const hardeningValidationError = getHardeningValidationError(
+    introActionType,
+    statusForm,
+  );
+
+  if (hardeningValidationError) {
+    return hardeningValidationError;
+  }
+
   const greenhouseValidationError = getGreenhouseValidationError(
     introActionType,
     statusForm,
@@ -96,6 +105,10 @@ export function getStatusChangeValidationMessage(validationError) {
     case 'adaptation_humidity_reduction_missing':
       return 'Укажите снижение влажности или состояние партии';
     case 'adaptation_care_type_missing':
+      return 'Укажите тип ухода';
+    case 'hardening_observation_missing':
+      return 'Укажите хотя бы один параметр наблюдения';
+    case 'hardening_care_type_missing':
       return 'Укажите тип ухода';
     case 'greenhouse_observation_missing':
       return 'Укажите хотя бы один параметр наблюдения';

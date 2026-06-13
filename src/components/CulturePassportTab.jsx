@@ -2,7 +2,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import appStyles from '../../styles';
 import { DownloadSquareIcon } from './icons';
-import { BATCH_STATUS_LABELS, INTRO_STAGE, QR_STATUS_LABELS } from '../domain/constants';
+import { BATCH_STATUS_LABELS, INTRO_STAGE, QR_STATUS_LABELS, stages } from '../domain/constants';
 import { formatDisplayDate } from '../domain/dates';
 import { getCardLocationDescription, getQrStatus } from '../domain/batch';
 
@@ -12,6 +12,7 @@ export default function CulturePassportTab({
   cloneStats,
   currentQuantity,
   daysInStage,
+  hardeningStats,
   getResolvedBatchStatus,
   onShareQrPress,
 }) {
@@ -37,6 +38,12 @@ export default function CulturePassportTab({
           <View style={styles.passportRow}>
             <Text style={styles.passportLabel}>Статус риска</Text>
             <Text style={styles.passportValue}>{adaptationStats.riskStatus}</Text>
+          </View>
+        )}
+        {card.stage === stages[4] && (
+          <View style={styles.passportRow}>
+            <Text style={styles.passportLabel}>Статус риска</Text>
+            <Text style={styles.passportValue}>{hardeningStats.riskStatus}</Text>
           </View>
         )}
         <View style={styles.passportRow}>
@@ -70,6 +77,18 @@ export default function CulturePassportTab({
             <View style={styles.passportRow}>
               <Text style={styles.passportLabel}>Потери</Text>
               <Text style={styles.passportValue}>{adaptationStats.lossCount} шт.</Text>
+            </View>
+          </>
+        )}
+        {card.stage === stages[4] && (
+          <>
+            <View style={styles.passportRow}>
+              <Text style={styles.passportLabel}>Готовность к высадке</Text>
+              <Text style={styles.passportValue}>{hardeningStats.readinessForPlanting}</Text>
+            </View>
+            <View style={styles.passportRow}>
+              <Text style={styles.passportLabel}>Потери</Text>
+              <Text style={styles.passportValue}>{hardeningStats.lossCount} шт.</Text>
             </View>
           </>
         )}
@@ -134,7 +153,6 @@ export default function CulturePassportTab({
             </View>
           </>
         )}
-
       </View>
 
       <View style={[appStyles.surfacePanel, styles.passportPanel]}>

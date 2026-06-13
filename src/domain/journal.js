@@ -64,6 +64,10 @@ function matchesImportantRisk(event) {
     return isCriticalLevel(event.stressLevel || event.riskLevel);
   }
 
+  if (event.type === 'hardeningObservation') {
+    return isCriticalLevel(event.stressLevel);
+  }
+
   if (event.type === 'greenhouseDisease') {
     return true;
   }
@@ -145,6 +149,13 @@ export function getOperationEffectiveStage(operation, card) {
     'transplant',
   ].includes(operation.type)) {
     return stages[3];
+  }
+
+  if ([
+    'hardeningObservation',
+    'hardeningCare',
+  ].includes(operation.type)) {
+    return stages[4];
   }
 
   if (operation.type === 'statusChange') {
@@ -282,9 +293,9 @@ export function doesJournalEventMatchSubFilter(event, subFilter, mainFilter = 'a
     transplant: event.type === 'transplant',
     stageChange: event.type === 'stageChange',
     movement: event.type === 'movement',
-    observation: ['adaptationStress', 'greenhouseObservation'].includes(event.type),
+    observation: ['adaptationStress', 'greenhouseObservation', 'hardeningObservation'].includes(event.type),
     environment: ['adaptationEnvironment', 'adaptationHumidityReduction', 'greenhouseEnvironment'].includes(event.type),
-    care: ['adaptationCare', 'greenhouseCare'].includes(event.type),
+    care: ['adaptationCare', 'greenhouseCare', 'hardeningCare'].includes(event.type),
   };
 
   if (mainFilter === 'important') {

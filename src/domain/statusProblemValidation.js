@@ -1,3 +1,5 @@
+import { stages } from './constants';
+
 export function getProblemValidationError(actionType, form) {
   if (actionType !== 'problem') {
     return '';
@@ -16,22 +18,35 @@ export function getProblemValidationError(actionType, form) {
   return hasProblemDetails ? '' : 'problem_missing';
 }
 
-export function getProblemBatchStatus(problemType, riskLevel) {
+export function getProblemBatchStatus(problemType, riskLevel, stage = '') {
   if (!problemType) {
     return '';
   }
+
+  const isHardeningStage = stage === stages[4];
 
   if (problemType === 'Карантин') {
     return 'quarantine';
   }
 
-  if (problemType === 'Контаминация') {
+  if (!isHardeningStage && problemType === 'Контаминация') {
+    return 'problem';
+  }
+
+  const isCriticalRisk = ['Высокий', 'Критический'].includes(riskLevel);
+
+  if (
+    !isHardeningStage &&
+    ['Болезнь', 'Вредители', 'Стресс', 'Другое'].includes(problemType) &&
+    isCriticalRisk
+  ) {
     return 'problem';
   }
 
   if (
-    ['Болезнь', 'Вредители', 'Стресс', 'Другое'].includes(problemType) &&
-    ['Высокий', 'Критический'].includes(riskLevel)
+    isHardeningStage &&
+    ['Ожоги', 'Увядание', 'Болезнь', 'Вредители', 'Другое'].includes(problemType) &&
+    isCriticalRisk
   ) {
     return 'problem';
   }
@@ -39,7 +54,7 @@ export function getProblemBatchStatus(problemType, riskLevel) {
   return '';
 }
 
-export function getProblemBatchStatusFromOperations(operations = []) {
+export function getProblemBatchStatusFromOperations(operations = [], stage = '') {
   for (const operation of operations) {
     if (operation.type === 'quarantine') {
       return 'quarantine';
@@ -50,7 +65,11 @@ export function getProblemBatchStatusFromOperations(operations = []) {
     }
 
     if (operation.type === 'problem') {
-      const problemBatchStatus = getProblemBatchStatus(operation.problemType, operation.riskLevel);
+      const problemBatchStatus = getProblemBatchStatus(
+        operation.problemType,
+        operation.riskLevel,
+        operation.stage || stage,
+      );
 
       if (problemBatchStatus) {
         return problemBatchStatus;

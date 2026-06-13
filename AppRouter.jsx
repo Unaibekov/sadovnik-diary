@@ -63,6 +63,7 @@ export default function AppRouter({ actions, state }) {
     isCultureIntroStage,
     isEditingCard,
     isGreenhouseStage,
+    isHardeningStage,
     isDateActionErrorVisible,
     isStageMoveConfirmVisible,
     isSupportedPlantingStage,
@@ -85,6 +86,7 @@ export default function AppRouter({ actions, state }) {
     selectedCardCloneStats,
     selectedCardCurrentQuantity,
     selectedCardDaysInStage,
+    selectedCardHardeningStats,
     selectedCardNextStage,
     selectedCardOperations,
     selectedCalendarDate,
@@ -373,6 +375,7 @@ export default function AppRouter({ actions, state }) {
             cloneStats={selectedCardCloneStats}
             currentQuantity={selectedCardCurrentQuantity}
             daysInStage={selectedCardDaysInStage}
+            hardeningStats={selectedCardHardeningStats}
             getResolvedBatchStatus={getResolvedBatchStatus}
             onShareQrPress={() => handleShareQrPress(selectedCard)}
           />
@@ -498,6 +501,7 @@ export default function AppRouter({ actions, state }) {
         isCloneStage={isCloneStage}
         isCultureIntroStage={isCultureIntroStage}
         isGreenhouseStage={isGreenhouseStage}
+        isHardeningStage={isHardeningStage}
         selectedStageCardsCount={selectedStageCardsCount}
         onBack={() => setSelectedStage("")}
         onChangeBatchStatusFilter={setBatchStatusFilter}
@@ -552,7 +556,7 @@ export default function AppRouter({ actions, state }) {
     } else if (currentScreen === "introActionForm" && selectedCard) {
       screenNode = renderIntroActionFormScreen();
     } else if (
-      (isCultureIntroStage || isCloneStage || isAdaptationStage || isGreenhouseStage) &&
+      (isCultureIntroStage || isCloneStage || isAdaptationStage || isGreenhouseStage || isHardeningStage) &&
       currentScreen === "statusChangeForm" &&
       selectedCard
     ) {

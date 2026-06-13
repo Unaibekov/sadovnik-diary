@@ -1,5 +1,11 @@
 // Селекторы для группировки карточек по журналу культур.
-import { getAdaptationStats, getCloneStats, getGreenhouseStats, getIntroStats } from './batch';
+import {
+  getAdaptationStats,
+  getCloneStats,
+  getGreenhouseStats,
+  getHardeningStats,
+  getIntroStats,
+} from './batch';
 import { INTRO_STAGE } from './constants';
 
 function hasCriticalProblemVisual(card, {
@@ -7,6 +13,7 @@ function hasCriticalProblemVisual(card, {
   isCloneStage,
   isCultureIntroStage,
   isGreenhouseStage,
+  isHardeningStage,
 }) {
   if (isCultureIntroStage) {
     return getIntroStats(card).riskStatus === 'Критический';
@@ -22,6 +29,10 @@ function hasCriticalProblemVisual(card, {
 
   if (isGreenhouseStage) {
     return getGreenhouseStats(card).riskStatus === 'Критический';
+  }
+
+  if (isHardeningStage) {
+    return getHardeningStats(card).riskStatus === 'Критический';
   }
 
   return false;
@@ -63,6 +74,7 @@ export function filterCultureCards(cultureCards, options) {
     isCloneStage,
     isCultureIntroStage,
     isGreenhouseStage,
+    isHardeningStage,
     selectedStage,
   } = options;
 
@@ -77,6 +89,7 @@ export function filterCultureCards(cultureCards, options) {
       isCloneStage,
       isCultureIntroStage,
       isGreenhouseStage,
+      isHardeningStage,
     });
 
     if (card.status === 'cancelled' || (card.status === 'archived' && batchStatus === 'sold')) {
@@ -88,7 +101,7 @@ export function filterCultureCards(cultureCards, options) {
     }
 
     if (
-      (isCultureIntroStage || isCloneStage || isAdaptationStage || isGreenhouseStage) &&
+      (isCultureIntroStage || isCloneStage || isAdaptationStage || isGreenhouseStage || isHardeningStage) &&
       batchStatusFilter !== 'all' &&
       !((isProblemFilter)
         ? (isProblemStatus || isCriticalProblemVisual)

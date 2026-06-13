@@ -11,7 +11,7 @@ import StageHeader from '../components/StageHeader';
 import StatusFilterTabs from '../components/StatusFilterTabs';
 import SelectBottomSheet from '../components/SelectBottomSheet';
 import { CalendarIcon, ChevronDownIcon, LeaveIcon } from '../components/icons';
-import { INTRO_STAGE } from '../domain/constants';
+import { INTRO_STAGE, stages } from '../domain/constants';
 
 const countFieldByType = {
   rooting: 'rootedCount',
@@ -25,9 +25,15 @@ const countFieldByType = {
 
 const adaptationCareOptions = ['Полив', 'Подкормка', 'Стимуляция', 'Профилактика', 'Лечение'];
 const greenhouseCareOptions = ['Полив', 'Подкормка', 'Стимуляция', 'Профилактика', 'Лечение'];
-const problemTypeOptions = ['Контаминация', 'Карантин', 'Болезнь', 'Вредители', 'Другое'];
+const genericProblemTypeOptions = ['Контаминация', 'Карантин', 'Болезнь', 'Вредители', 'Другое'];
+const hardeningProblemTypeOptions = ['Ожоги', 'Увядание', 'Болезнь', 'Вредители', 'Карантин', 'Другое'];
 const riskLevelOptions = ['Низкий', 'Средний', 'Высокий', 'Критический'];
 const turgorOptions = ['Нормальный', 'Снижен', 'Критически снижен'];
+const readinessOptions = ['Не готова', 'Частично готова', 'Готова'];
+
+function getProblemTypeOptions(stage) {
+  return stage === stages[4] ? hardeningProblemTypeOptions : genericProblemTypeOptions;
+}
 
 // Экран добавления и редактирования производственного события по выбранной дате.
 export default function StatusChangeFormScreen({
@@ -53,6 +59,7 @@ export default function StatusChangeFormScreen({
   const [isStressDropdownOpen, setIsStressDropdownOpen] = useState(false);
   const [isStabilityDropdownOpen, setIsStabilityDropdownOpen] = useState(false);
   const [isTurgorDropdownOpen, setIsTurgorDropdownOpen] = useState(false);
+  const [isReadinessDropdownOpen, setIsReadinessDropdownOpen] = useState(false);
   const [isNoticeVisible, setIsNoticeVisible] = useState(false);
   const [saveAttemptCount, setSaveAttemptCount] = useState(0);
   const seenAlertRef = useRef('');
@@ -96,6 +103,15 @@ export default function StatusChangeFormScreen({
         ['introLoss', 'Потери'],
         ['sale', 'Продажа'],
       ]
+      : selectedCard.stage === stages[4]
+        ? [
+          ['hardeningObservation', 'Наблюдение'],
+          ['hardeningCare', 'Уход'],
+          ['problem', 'Проблема'],
+          ['movement', 'Перемещение'],
+          ['introLoss', 'Потери'],
+          ['sale', 'Продажа'],
+        ]
       : [
       ['rooting', 'Укоренение'],
       ['propagation', 'Размножение'],
@@ -113,9 +129,11 @@ export default function StatusChangeFormScreen({
       quarantine: 'Карантин',
       adaptationHumidityReduction: 'Снижение влажности',
       adaptationEnvironment: 'Изменение среды',
+      hardeningObservation: 'Наблюдение',
+      hardeningCare: 'Уход',
     }[eventType] ||
     'Событие';
-  const careOptions = eventType === 'greenhouseCare'
+  const careOptions = ['greenhouseCare', 'hardeningCare'].includes(eventType)
     ? greenhouseCareOptions
     : adaptationCareOptions;
 
@@ -127,6 +145,7 @@ export default function StatusChangeFormScreen({
     setIsStressDropdownOpen(false);
     setIsStabilityDropdownOpen(false);
     setIsTurgorDropdownOpen(false);
+    setIsReadinessDropdownOpen(false);
   }, [eventType]);
 
   useEffect(() => {
@@ -182,6 +201,11 @@ export default function StatusChangeFormScreen({
   function selectTurgor(value) {
     onChangeField('turgor', value);
     setIsTurgorDropdownOpen(false);
+  }
+
+  function selectReadiness(value) {
+    onChangeField('readinessForPlanting', value);
+    setIsReadinessDropdownOpen(false);
   }
 
   return (
@@ -254,6 +278,8 @@ export default function StatusChangeFormScreen({
                 'greenhouseCare',
                 'greenhouseEnvironment',
                 'greenhouseDisease',
+                'hardeningObservation',
+                'hardeningCare',
                 'problem',
                 'movement',
                 'quarantine',
@@ -531,7 +557,7 @@ export default function StatusChangeFormScreen({
                 </View>
               )}
 
-              {eventType === 'greenhouseCare' && (
+              {['greenhouseCare', 'hardeningCare'].includes(eventType) && (
                 <>
                   <View style={styles.field}>
                     <Pressable
@@ -561,6 +587,101 @@ export default function StatusChangeFormScreen({
                       options={careOptions}
                       title="Выберите тип ухода"
                       visible={isCareDropdownOpen}
+                    />
+                  </View>
+                </>
+              )}
+
+              {eventType === 'hardeningObservation' && (
+                <>
+                  <View style={styles.field}>
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => setIsStressDropdownOpen((current) => !current)}
+                      style={({ pressed }) => [
+                        styles.selectButton,
+                        pressed && styles.linkButtonPressed,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.selectButtonText,
+                          !form.stressLevel && styles.selectPlaceholder,
+                        ]}
+                      >
+                        {form.stressLevel || 'Выберите уровень стресса'}
+                      </Text>
+                      <View style={styles.selectButtonArrow}>
+                        <ChevronDownIcon />
+                      </View>
+                    </Pressable>
+
+                    <SelectBottomSheet
+                      onClose={() => setIsStressDropdownOpen(false)}
+                      onSelect={selectStressLevel}
+                      options={['Низкий', 'Средний', 'Высокий', 'Критический']}
+                      title="Выберите уровень стресса"
+                      visible={isStressDropdownOpen}
+                    />
+                  </View>
+                  <View style={styles.field}>
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => setIsTurgorDropdownOpen((current) => !current)}
+                      style={({ pressed }) => [
+                        styles.selectButton,
+                        pressed && styles.linkButtonPressed,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.selectButtonText,
+                          !form.turgor && styles.selectPlaceholder,
+                        ]}
+                      >
+                        {form.turgor || 'Выберите тургор'}
+                      </Text>
+                      <View style={styles.selectButtonArrow}>
+                        <ChevronDownIcon />
+                      </View>
+                    </Pressable>
+
+                    <SelectBottomSheet
+                      onClose={() => setIsTurgorDropdownOpen(false)}
+                      onSelect={selectTurgor}
+                      options={turgorOptions}
+                      title="Выберите тургор"
+                      visible={isTurgorDropdownOpen}
+                    />
+                  </View>
+                  <View style={styles.field}>
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => setIsReadinessDropdownOpen((current) => !current)}
+                      style={({ pressed }) => [
+                        styles.selectButton,
+                        pressed && styles.linkButtonPressed,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.selectButtonText,
+                          !form.readinessForPlanting && styles.selectPlaceholder,
+                        ]}
+                      >
+                        {form.readinessForPlanting || 'Выберите готовность к высадке'}
+                      </Text>
+                      <View style={styles.selectButtonArrow}>
+                        <ChevronDownIcon />
+                      </View>
+                    </Pressable>
+
+                    <SelectBottomSheet
+                      onClose={() => setIsReadinessDropdownOpen(false)}
+                      onSelect={selectReadiness}
+                      options={readinessOptions}
+                      title="Выберите готовность к высадке"
+                      visible={isReadinessDropdownOpen}
                     />
                   </View>
                 </>
@@ -678,7 +799,7 @@ export default function StatusChangeFormScreen({
                     <SelectBottomSheet
                       onClose={() => setIsProblemTypeDropdownOpen(false)}
                       onSelect={selectProblemType}
-                      options={problemTypeOptions}
+                      options={getProblemTypeOptions(selectedCard.stage)}
                       title="Выберите тип проблемы"
                       visible={isProblemTypeDropdownOpen}
                     />

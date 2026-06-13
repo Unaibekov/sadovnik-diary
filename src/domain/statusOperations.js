@@ -69,6 +69,14 @@ const statusEventConfigs = {
     title: 'Болезни / вредители',
     countField: '',
   },
+  hardeningObservation: {
+    title: 'Наблюдение',
+    countField: '',
+  },
+  hardeningCare: {
+    title: 'Уход',
+    countField: '',
+  },
   problem: {
     title: 'Проблема',
     countField: '',

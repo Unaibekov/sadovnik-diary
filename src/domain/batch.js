@@ -196,6 +196,28 @@ export function getOperationSummaryItems(operation, card) {
     ].filter(([, value]) => Boolean(value));
   }
 
+  if (operation.type === 'hardeningObservation') {
+    return [
+      ['Уровень стресса', operation.stressLevel],
+      ['Тургор', operation.turgor],
+      ['Готовность к высадке', operation.readinessForPlanting],
+      ['Комментарий', operation.comment],
+      ['Фото', operation.photoNote],
+    ].filter(([, value]) => Boolean(value));
+  }
+
+  if (operation.type === 'hardeningCare') {
+    return [
+      ['Тип ухода', operation.careType],
+      ['Препарат', operation.productName],
+      ['Дозировка', operation.dosage],
+      ['Способ внесения', operation.applicationMethod],
+      ['Реакция растений', operation.plantReaction],
+      ['Комментарий', operation.comment],
+      ['Фото', operation.photoNote],
+    ].filter(([, value]) => Boolean(value));
+  }
+
   if ([
     'rooting',
     'death',
@@ -210,6 +232,8 @@ export function getOperationSummaryItems(operation, card) {
     'greenhouseCare',
     'greenhouseEnvironment',
     'greenhouseDisease',
+    'hardeningObservation',
+    'hardeningCare',
     'movement',
     'transplant',
     'introLoss',
@@ -548,6 +572,54 @@ export function getGreenhouseStats(card) {
   };
 }
 
+export function getHardeningStats(card) {
+  const operations = card?.operations || [];
+  const currentQuantity = getCardCurrentQuantity(card);
+  const initialQuantity = Number(card?.quantity) || 0;
+  const deathCount = operations.reduce((sum, operation) => (
+    sum + (operation.type === 'death' ? Number(operation.count) || 0 : 0)
+  ), 0);
+  const discardCount = operations.reduce((sum, operation) => (
+    sum + (operation.type === 'discard' ? Number(operation.count) || 0 : 0)
+  ), 0);
+  const saleCount = operations.reduce((sum, operation) => (
+    sum + (operation.type === 'sale' ? Number(operation.count) || 0 : 0)
+  ), 0);
+  const introLossCount = operations.reduce((sum, operation) => (
+    sum + (operation.type === 'introLoss' ? Number(operation.count) || 0 : 0)
+  ), 0);
+  const stressLevel = getLatestOperationValue(operations, ['hardeningObservation'], 'stressLevel') || 'Не указан';
+  const turgor = getLatestOperationValue(operations, ['hardeningObservation'], 'turgor') || 'Не указан';
+  const readinessForPlanting = getLatestOperationValue(
+    operations,
+    ['hardeningObservation'],
+    'readinessForPlanting',
+  ) || 'Не указана';
+  const lossCount = deathCount + discardCount + introLossCount;
+  const lossPercent = initialQuantity > 0
+    ? Math.round((lossCount / initialQuantity) * 100)
+    : 0;
+  const riskStatus = stressLevel === 'Критический' || card?.batchStatus === 'problem' || lossPercent >= 30
+    ? 'Критический'
+    : stressLevel === 'Высокий'
+      ? 'Повышенный'
+      : 'Нормальный';
+
+  return {
+    initialQuantity,
+    currentQuantity,
+    deathCount,
+    discardCount,
+    saleCount,
+    lossCount,
+    lossPercent,
+    stressLevel,
+    turgor,
+    readinessForPlanting,
+    riskStatus,
+  };
+}
+
 export function getAdaptationCareSchedules(card) {
   const operations = card?.operations || [];
   const careTypes = [
@@ -617,6 +689,55 @@ export function getGreenhouseCareSchedules(card) {
       (careType === 'Полив' ? card?.wateringIntervalDays : '') ||
       defaultIntervalDays,
     ) || defaultIntervalDays;
+    const lastDate = latestCare?.date || '';
+    const nextDate = lastDate
+      ? isoFromDate(new Date(
+        dateFromIso(lastDate).getTime() + intervalDays * 24 * 60 * 60 * 1000,
+      ))
+      : '';
+    const nextDateValue = nextDate ? dateFromIso(nextDate) : null;
+    const daysOverdue = nextDateValue
+      ? Math.max(Math.floor((todayDate - nextDateValue) / (24 * 60 * 60 * 1000)), 0)
+      : 0;
+    const status = !lastDate
+      ? emptyStatus
+      : daysOverdue > 0
+        ? 'Просрочен'
+        : nextDate === todayIso
+          ? 'Сегодня'
+          : 'В графике';
+
+    return {
+      careType,
+      lastDate,
+      nextDate,
+      intervalDays,
+      status,
+      daysOverdue,
+      isOverdue: status === 'Просрочен',
+      isDueToday: status === 'Сегодня',
+    };
+  });
+}
+
+export function getHardeningCareSchedules(card) {
+  const operations = card?.operations || [];
+  const careTypes = [
+    { careType: 'Полив', emptyStatus: 'Нет полива', defaultIntervalDays: 2 },
+    { careType: 'Подкормка', emptyStatus: 'Нет подкормки', defaultIntervalDays: 14 },
+    { careType: 'Стимуляция', emptyStatus: 'Нет стимуляции', defaultIntervalDays: 14 },
+    { careType: 'Профилактика', emptyStatus: 'Нет профилактики', defaultIntervalDays: 30 },
+    { careType: 'Лечение', emptyStatus: 'Нет лечения', defaultIntervalDays: 7 },
+  ];
+  const todayIso = getTodayIsoDate();
+  const todayDate = dateFromIso(todayIso);
+
+  return careTypes.map(({ careType, emptyStatus, defaultIntervalDays }) => {
+    const latestCare = operations.find((operation) => (
+      operation.type === 'hardeningCare' && operation.careType === careType
+    ));
+    const savedInterval = card?.hardeningCareIntervals?.[careType];
+    const intervalDays = Number(savedInterval || defaultIntervalDays) || defaultIntervalDays;
     const lastDate = latestCare?.date || '';
     const nextDate = lastDate
       ? isoFromDate(new Date(

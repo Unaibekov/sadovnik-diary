@@ -5,6 +5,7 @@ import {
   getCardCurrentQuantity,
   getCloneStats,
   getDaysInCurrentStage,
+  getHardeningStats,
   getNextStage,
 } from './batch';
 import { getLatestFilledCalendarDate } from './journal';
@@ -86,6 +87,7 @@ export function getSelectedStageFlags(selectedStage) {
     isCloneStage: selectedStage === stages[1],
     isCultureIntroStage: selectedStage === INTRO_STAGE,
     isGreenhouseStage: selectedStage === stages[3],
+    isHardeningStage: selectedStage === stages[4],
   };
 }
 
@@ -119,6 +121,7 @@ export function getSelectedCardMetrics(selectedCard) {
     selectedCardCloneStats: getCloneStats(selectedCard),
     selectedCardCurrentQuantity: getCardCurrentQuantity(selectedCard),
     selectedCardDaysInStage: getDaysInCurrentStage(selectedCard),
+    selectedCardHardeningStats: getHardeningStats(selectedCard),
   };
 }
 

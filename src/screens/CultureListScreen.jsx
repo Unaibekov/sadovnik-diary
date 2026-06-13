@@ -14,10 +14,11 @@ import {
   getCloneStats,
   getDaysInCurrentStage,
   getGreenhouseStats,
+  getHardeningStats,
   getIntroStats,
   getQrStatus,
 } from '../domain/batch';
-import { BATCH_STATUS_LABELS } from '../domain/constants';
+import { BATCH_STATUS_LABELS, stages } from '../domain/constants';
 
 export default function CultureListScreen({
   allVisibleStageCardsCount,
@@ -32,6 +33,7 @@ export default function CultureListScreen({
   isCloneStage,
   isCultureIntroStage,
   isGreenhouseStage,
+  isHardeningStage,
   selectedStageCardsCount,
   onBack,
   onChangeBatchStatusFilter,
@@ -42,11 +44,13 @@ export default function CultureListScreen({
   selectedStage,
   storageError,
 }) {
-  const showStatusFilters = isCultureIntroStage || isCloneStage || isAdaptationStage || isGreenhouseStage;
+  const isHardeningStageSelected = selectedStage === stages[4];
+  const showHardeningStatusFilters = isHardeningStage || isHardeningStageSelected;
+  const showStatusFilters = isCultureIntroStage || isCloneStage || isAdaptationStage || isGreenhouseStage || showHardeningStatusFilters;
   const visibleBatchStatusFilter = batchStatusFilter === 'quarantine'
     ? 'problem'
     : batchStatusFilter;
-  const statusFilterItems = isCloneStage || isAdaptationStage || isGreenhouseStage
+  const statusFilterItems = isCloneStage || isAdaptationStage || isGreenhouseStage || showHardeningStatusFilters
     ? [
       ['all', 'Все'],
       ['active', 'Активная'],
@@ -134,13 +138,15 @@ export default function CultureListScreen({
               const cloneStats = getCloneStats(card);
               const adaptationStats = getAdaptationStats(card);
               const greenhouseStats = getGreenhouseStats(card);
+              const hardeningStats = getHardeningStats(card);
               const cardDaysInStage = getDaysInCurrentStage(card);
               const isContaminated = card.sterilityStatus === 'contaminated';
               const isCriticalLossRisk = (
                 (isCultureIntroStage && introStats.riskStatus === 'Критический') ||
                 (isCloneStage && cloneStats.riskStatus === 'Критический') ||
                 (isAdaptationStage && adaptationStats.riskStatus === 'Критический') ||
-                (isGreenhouseStage && greenhouseStats.riskStatus === 'Критический')
+                (isGreenhouseStage && greenhouseStats.riskStatus === 'Критический') ||
+                (isHardeningStage && hardeningStats.riskStatus === 'Критический')
               );
               const isProblemStatus = batchStatus === 'problem' || batchStatus === 'quarantine' || isContaminated || isCriticalLossRisk;
               const introMeta = [
@@ -238,6 +244,14 @@ export default function CultureListScreen({
                     textStyle: { color: '#D92D20' },
                   }]
                   : []),
+                ...(isHardeningStage
+                  ? [{
+                    key: 'hardening-readiness',
+                    icon: <TimeIcon color={hardeningStats.readinessForPlanting === 'Готова' ? '#15863F' : '#F59E0B'} size={14} />,
+                    text: `Готовность: ${hardeningStats.readinessForPlanting}`,
+                    textStyle: { color: hardeningStats.readinessForPlanting === 'Готова' ? '#15863F' : '#B45309' },
+                  }]
+                  : []),
               ];
 
               return (
@@ -319,7 +333,8 @@ export default function CultureListScreen({
                   {isCloneStage && 'Карточек пока нет. Переведите растение из введения в культуру.'}
                   {isAdaptationStage && 'Карточек пока нет. Переведите растение из клонирования.'}
                   {isGreenhouseStage && 'Карточек пока нет. Переведите растение из адаптации.'}
-                  {!isCultureIntroStage && !isCloneStage && !isAdaptationStage && !isGreenhouseStage &&
+                  {isHardeningStage && 'Карточек пока нет. Переведите растение из теплицы.'}
+                  {!isCultureIntroStage && !isCloneStage && !isAdaptationStage && !isGreenhouseStage && !isHardeningStage &&
                     'Карточек пока нет. Переведите растение из предыдущей стадии.'}
                 </Text>
               </View>

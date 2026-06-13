@@ -48,6 +48,7 @@ const TASK_STAGE_FILTERS = [
   { key: 'all', label: 'Все стадии', stage: null },
   { key: 'adaptation', label: 'Адаптация', stage: stages[2] },
   { key: 'greenhouse', label: 'Теплица', stage: stages[3] },
+  { key: 'hardening', label: 'Закалка', stage: stages[4] },
 ];
 
 function getTaskStatusKey(task) {
@@ -238,6 +239,9 @@ export default function TasksScreen({
           <View style={localStyles.tasksHeaderRow}>
             <View style={localStyles.tasksHeaderTextBlock}>
               <Text style={localStyles.tasksPageTitle}>Задачи</Text>
+              <Text style={localStyles.tasksSubtitle}>
+                Напоминания по уходу формируются автоматически на основе стадии партии.
+              </Text>
             </View>
 
             <Pressable
@@ -311,12 +315,12 @@ export default function TasksScreen({
           {taskGroups.length === 0 ? (
             <View style={localStyles.tasksEmptyCard}>
               <Text style={localStyles.tasksEmptyTitle}>
-                {tasks.length === 0 ? 'Пока нет задач' : 'Ничего не найдено'}
+                {tasks.length === 0 ? 'Пока нет напоминаний по уходу' : 'Ничего не найдено'}
               </Text>
               <Text style={localStyles.tasksEmptyText}>
                 {tasks.length === 0
-                  ? 'Когда появятся уходы, они будут собраны здесь.'
-                  : 'Смените фильтры по сроку или стадии.'}
+                  ? 'Они появятся автоматически для партий на стадиях адаптации, теплицы и закалки.'
+                  : 'Попробуйте изменить статус или стадию.'}
               </Text>
             </View>
           ) : (
@@ -365,15 +369,12 @@ export default function TasksScreen({
                         <View
                           style={[
                             localStyles.taskBadge,
-                            { backgroundColor: 'transparent' },
+                            { backgroundColor: statusMeta.badgeBackground },
                           ]}
                         >
-                          <View
-                            style={[
-                              localStyles.taskBadgeDot,
-                              { backgroundColor: statusMeta.badgeText },
-                            ]}
-                          />
+                          <Text style={[localStyles.taskBadgeText, { color: statusMeta.badgeText }]}>
+                            Регламент
+                          </Text>
                         </View>
                       </View>
 
@@ -419,6 +420,10 @@ export default function TasksScreen({
                               );
                             })}
                           </View>
+
+                          <Text style={localStyles.taskHint}>
+                            Чтобы закрыть напоминание, добавьте событие ухода в карточке партии.
+                          </Text>
 
                           <Pressable
                             accessibilityRole="button"
@@ -518,6 +523,12 @@ const localStyles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '900',
     lineHeight: 34,
+  },
+  tasksSubtitle: {
+    color: '#667085',
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 4,
   },
   headerFilterButton: {
     alignItems: 'center',
@@ -709,20 +720,25 @@ const localStyles = StyleSheet.create({
     borderRadius: 999,
     justifyContent: 'center',
     minHeight: 28,
-    minWidth: 28,
     paddingHorizontal: 10,
     paddingVertical: 6,
   },
-  taskBadgeDot: {
-    borderRadius: 999,
-    height: 10,
-    width: 10,
+  taskBadgeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    lineHeight: 14,
   },
   taskRows: {
     borderTopColor: '#EEF2F0',
     borderTopWidth: 1,
     gap: 4,
     paddingTop: 8,
+  },
+  taskHint: {
+    color: '#667085',
+    fontSize: 12,
+    lineHeight: 16,
+    marginTop: 4,
   },
   taskRow: {
     alignItems: 'center',

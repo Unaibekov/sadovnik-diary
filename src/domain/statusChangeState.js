@@ -12,6 +12,8 @@ export function buildStatusChangeOpenState(selectedCard, initialEventType = '') 
         ? 'adaptationStress'
         : selectedCard.stage === stages[3]
           ? 'greenhouseObservation'
+          : selectedCard.stage === stages[4]
+            ? 'hardeningObservation'
           : 'rooting'),
     statusFormError: '',
     statusFormNotice: '',

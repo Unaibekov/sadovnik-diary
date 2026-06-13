@@ -145,6 +145,22 @@ export function buildStatusOperation({
     ...(introActionType === 'adaptationCare'
       ? { careType: statusForm.careType.trim() }
       : {}),
+    ...(introActionType === 'hardeningObservation'
+      ? {
+        stressLevel: statusForm.stressLevel.trim(),
+        turgor: statusForm.turgor.trim(),
+        readinessForPlanting: statusForm.readinessForPlanting.trim(),
+      }
+      : {}),
+    ...(introActionType === 'hardeningCare'
+      ? {
+        careType: statusForm.careType.trim(),
+        productName: statusForm.productName.trim(),
+        dosage: statusForm.dosage.trim(),
+        applicationMethod: statusForm.applicationMethod.trim(),
+        plantReaction: statusForm.plantReaction.trim(),
+      }
+      : {}),
     ...(introActionType === 'greenhouseObservation'
       ? {
         growthRate: statusForm.growthRate.trim(),

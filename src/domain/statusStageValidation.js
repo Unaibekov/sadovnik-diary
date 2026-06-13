@@ -40,3 +40,23 @@ export function getAdaptationValidationError(introActionType, statusForm) {
 
   return '';
 }
+
+export function getHardeningValidationError(introActionType, statusForm) {
+  if (introActionType === 'hardeningObservation' && ![
+    statusForm.stressLevel,
+    statusForm.turgor,
+    statusForm.readinessForPlanting,
+    statusForm.comment,
+    statusForm.photoNote,
+    statusForm.photoUri,
+    ...(Array.isArray(statusForm.photoUris) ? statusForm.photoUris : []),
+  ].some((value) => `${value || ''}`.trim())) {
+    return 'hardening_observation_missing';
+  }
+
+  if (introActionType === 'hardeningCare' && !statusForm.careType.trim()) {
+    return 'hardening_care_type_missing';
+  }
+
+  return '';
+}

@@ -44,6 +44,7 @@ export function createEmptyStatusForm() {
     propagationMethod: '',
     stressLevel: '',
     conditionDescription: '',
+    readinessForPlanting: '',
     environmentTemperature: '',
     environmentHumidity: '',
     environmentAirHumidity: '',

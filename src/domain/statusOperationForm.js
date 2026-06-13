@@ -20,6 +20,7 @@ export function buildStatusFormFromOperation(operation, countField) {
     propagationMethod: operation.propagationMethod || '',
     stressLevel: operation.stressLevel || '',
     conditionDescription: operation.conditionDescription || '',
+    readinessForPlanting: operation.readinessForPlanting || '',
     environmentTemperature: operation.environmentTemperature || '',
     environmentHumidity: operation.environmentHumidity || operation.environmentAirHumidity || '',
     environmentAirHumidity: operation.environmentAirHumidity || '',
