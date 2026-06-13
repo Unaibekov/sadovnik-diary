@@ -118,13 +118,30 @@ export function getSelectedCardNextStage(selectedCard, selectedStage) {
 }
 
 export function getSelectedCardMetrics(selectedCard) {
+  const plantingStats = typeof getPlantingStats === 'function'
+    ? getPlantingStats(selectedCard)
+    : {
+      completionResult: 'Не указан',
+      currentQuantity: getCardCurrentQuantity(selectedCard),
+      deathCount: 0,
+      discardCount: 0,
+      initialQuantity: Number(selectedCard?.quantity) || 0,
+      lossCount: 0,
+      lossPercent: 0,
+      riskStatus: 'Нормальный',
+      saleCount: 0,
+      stressLevel: 'Не указан',
+      survivalRate: 'Не указана',
+      turgor: 'Не указан',
+    };
+
   return {
     selectedCardAdaptationStats: getAdaptationStats(selectedCard),
     selectedCardCloneStats: getCloneStats(selectedCard),
     selectedCardCurrentQuantity: getCardCurrentQuantity(selectedCard),
     selectedCardDaysInStage: getDaysInCurrentStage(selectedCard),
     selectedCardHardeningStats: getHardeningStats(selectedCard),
-    selectedCardPlantingStats: getPlantingStats(selectedCard),
+    selectedCardPlantingStats: plantingStats,
   };
 }
 

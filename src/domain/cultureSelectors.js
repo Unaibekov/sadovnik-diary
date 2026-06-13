@@ -38,7 +38,10 @@ function hasCriticalProblemVisual(card, {
   }
 
   if (isPlantingStage) {
-    return getPlantingStats(card).riskStatus === 'Критический';
+    return (typeof getPlantingStats === 'function'
+      ? getPlantingStats(card)
+      : { riskStatus: 'Нормальный' }
+    ).riskStatus === 'Критический';
   }
 
   return false;

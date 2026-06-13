@@ -143,7 +143,14 @@ export default function CultureListScreen({
               const adaptationStats = getAdaptationStats(card);
               const greenhouseStats = getGreenhouseStats(card);
               const hardeningStats = getHardeningStats(card);
-              const plantingStats = getPlantingStats(card);
+              const plantingStats = typeof getPlantingStats === 'function'
+                ? getPlantingStats(card)
+                : {
+                  completionResult: 'Не указан',
+                  lossCount: 0,
+                  riskStatus: 'Нормальный',
+                  survivalRate: 'Не указана',
+                };
               const cardDaysInStage = getDaysInCurrentStage(card);
               const isContaminated = card.sterilityStatus === 'contaminated';
               const isCriticalLossRisk = (
