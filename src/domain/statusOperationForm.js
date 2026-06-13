@@ -21,6 +21,7 @@ export function buildStatusFormFromOperation(operation, countField) {
     stressLevel: operation.stressLevel || '',
     conditionDescription: operation.conditionDescription || '',
     readinessForPlanting: operation.readinessForPlanting || '',
+    survivalRate: operation.survivalRate || '',
     environmentTemperature: operation.environmentTemperature || '',
     environmentHumidity: operation.environmentHumidity || operation.environmentAirHumidity || '',
     environmentAirHumidity: operation.environmentAirHumidity || '',
@@ -52,5 +53,10 @@ export function buildStatusFormFromOperation(operation, countField) {
     lossCount: operation.count || '',
     problemType: operation.problemType || '',
     problemDescription: operation.problemDescription || '',
+    plantingLocation: operation.plantingLocation || '',
+    plantingScheme: operation.plantingScheme || '',
+    plotArea: operation.plotArea || '',
+    soilType: operation.soilType || '',
+    completionResult: operation.completionResult || '',
   };
 }

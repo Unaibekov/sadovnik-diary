@@ -60,3 +60,40 @@ export function getHardeningValidationError(introActionType, statusForm) {
 
   return '';
 }
+
+export function getPlantingValidationError(introActionType, statusForm) {
+  if (introActionType === 'planting' && ![
+    statusForm.plantingLocation,
+    statusForm.plantingScheme,
+    statusForm.plotArea,
+    statusForm.soilType,
+    statusForm.comment,
+    statusForm.photoNote,
+    statusForm.photoUri,
+    ...(Array.isArray(statusForm.photoUris) ? statusForm.photoUris : []),
+  ].some((value) => `${value || ''}`.trim())) {
+    return 'planting_missing';
+  }
+
+  if (introActionType === 'plantingObservation' && ![
+    statusForm.survivalRate,
+    statusForm.stressLevel,
+    statusForm.turgor,
+    statusForm.comment,
+    statusForm.photoNote,
+    statusForm.photoUri,
+    ...(Array.isArray(statusForm.photoUris) ? statusForm.photoUris : []),
+  ].some((value) => `${value || ''}`.trim())) {
+    return 'planting_observation_missing';
+  }
+
+  if (introActionType === 'plantingCare' && !statusForm.careType.trim()) {
+    return 'planting_care_type_missing';
+  }
+
+  if (introActionType === 'plantingCompletion' && !statusForm.completionResult.trim()) {
+    return 'planting_completion_missing';
+  }
+
+  return '';
+}

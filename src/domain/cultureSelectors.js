@@ -5,6 +5,7 @@ import {
   getGreenhouseStats,
   getHardeningStats,
   getIntroStats,
+  getPlantingStats,
 } from './batch';
 import { INTRO_STAGE } from './constants';
 
@@ -14,6 +15,7 @@ function hasCriticalProblemVisual(card, {
   isCultureIntroStage,
   isGreenhouseStage,
   isHardeningStage,
+  isPlantingStage,
 }) {
   if (isCultureIntroStage) {
     return getIntroStats(card).riskStatus === 'Критический';
@@ -33,6 +35,10 @@ function hasCriticalProblemVisual(card, {
 
   if (isHardeningStage) {
     return getHardeningStats(card).riskStatus === 'Критический';
+  }
+
+  if (isPlantingStage) {
+    return getPlantingStats(card).riskStatus === 'Критический';
   }
 
   return false;
@@ -75,6 +81,7 @@ export function filterCultureCards(cultureCards, options) {
     isCultureIntroStage,
     isGreenhouseStage,
     isHardeningStage,
+    isPlantingStage,
     selectedStage,
   } = options;
 
@@ -90,6 +97,7 @@ export function filterCultureCards(cultureCards, options) {
       isCultureIntroStage,
       isGreenhouseStage,
       isHardeningStage,
+      isPlantingStage,
     });
 
     if (card.status === 'cancelled' || (card.status === 'archived' && batchStatus === 'sold')) {
@@ -101,7 +109,7 @@ export function filterCultureCards(cultureCards, options) {
     }
 
     if (
-      (isCultureIntroStage || isCloneStage || isAdaptationStage || isGreenhouseStage || isHardeningStage) &&
+      (isCultureIntroStage || isCloneStage || isAdaptationStage || isGreenhouseStage || isHardeningStage || isPlantingStage) &&
       batchStatusFilter !== 'all' &&
       !((isProblemFilter)
         ? (isProblemStatus || isCriticalProblemVisual)

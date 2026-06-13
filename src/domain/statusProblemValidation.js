@@ -51,6 +51,14 @@ export function getProblemBatchStatus(problemType, riskLevel, stage = '') {
     return 'problem';
   }
 
+  if (
+    stage === stages[5] &&
+    ['Увядание', 'Ожоги', 'Болезнь', 'Вредители', 'Погодный стресс', 'Другое'].includes(problemType) &&
+    isCriticalRisk
+  ) {
+    return 'problem';
+  }
+
   return '';
 }
 

@@ -30,6 +30,8 @@ const SUB_FILTER_LABELS = {
   losses: 'Потери',
   disease: 'Болезни',
   sales: 'Продажи',
+  planting: 'Высадка',
+  completion: 'Завершение',
   rooting: 'Укоренение',
   propagation: 'Размножение',
   transplant: 'Пересадка',
@@ -48,7 +50,7 @@ const STAGE_SUB_FILTERS = {
   [stages[2]]: ['all', 'observation', 'care', 'problems', 'movement', 'losses', 'sales'],
   [stages[3]]: ['all', 'observation', 'care', 'problems', 'transplant', 'movement', 'losses', 'sales'],
   [stages[4]]: ['all', 'observation', 'care', 'problems', 'movement', 'losses', 'sales'],
-  [stages[5]]: ['all', 'observation', 'care', 'problems', 'movement', 'losses', 'sales'],
+  [stages[5]]: ['all', 'planting', 'observation', 'care', 'problems', 'completion', 'movement', 'losses', 'sales'],
 };
 
 function isCriticalLevel(level) {
@@ -66,6 +68,14 @@ function matchesImportantRisk(event) {
 
   if (event.type === 'hardeningObservation') {
     return isCriticalLevel(event.stressLevel);
+  }
+
+  if (event.type === 'plantingObservation') {
+    return event.survivalRate === 'Низкая' || isCriticalLevel(event.stressLevel);
+  }
+
+  if (event.type === 'plantingCompletion') {
+    return ['Не прижилась', 'Частично прижилась'].includes(event.completionResult);
   }
 
   if (event.type === 'greenhouseDisease') {
@@ -156,6 +166,15 @@ export function getOperationEffectiveStage(operation, card) {
     'hardeningCare',
   ].includes(operation.type)) {
     return stages[4];
+  }
+
+  if ([
+    'planting',
+    'plantingObservation',
+    'plantingCare',
+    'plantingCompletion',
+  ].includes(operation.type)) {
+    return stages[5];
   }
 
   if (operation.type === 'statusChange') {
@@ -288,14 +307,16 @@ export function doesJournalEventMatchSubFilter(event, subFilter, mainFilter = 'a
     losses: ['death', 'discard', 'introLoss'].includes(event.type),
     disease: event.type === 'greenhouseDisease',
     sales: event.type === 'sale',
+    planting: ['planting', 'plantingObservation', 'plantingCare'].includes(event.type),
+    completion: event.type === 'plantingCompletion',
     rooting: event.type === 'rooting',
     propagation: event.type === 'propagation',
     transplant: event.type === 'transplant',
     stageChange: event.type === 'stageChange',
     movement: event.type === 'movement',
-    observation: ['adaptationStress', 'greenhouseObservation', 'hardeningObservation'].includes(event.type),
+    observation: ['adaptationStress', 'greenhouseObservation', 'hardeningObservation', 'plantingObservation'].includes(event.type),
     environment: ['adaptationEnvironment', 'adaptationHumidityReduction', 'greenhouseEnvironment'].includes(event.type),
-    care: ['adaptationCare', 'greenhouseCare', 'hardeningCare'].includes(event.type),
+    care: ['adaptationCare', 'greenhouseCare', 'hardeningCare', 'plantingCare'].includes(event.type),
   };
 
   if (mainFilter === 'important') {

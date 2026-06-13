@@ -1,4 +1,4 @@
-// Утилиты для партий растений, количества и статусов карточек.
+﻿// Утилиты для партий растений, количества и статусов карточек.
 import {
   currentUser,
   INTRO_STAGE,
@@ -133,6 +133,47 @@ export function getOperationSummaryItems(operation, card) {
       ? `${value} из ${totalQuantity} шт.`
       : `${value} шт.`;
   };
+
+  if (operation.type === 'planting') {
+    return [
+      ['Место высадки', operation.plantingLocation],
+      ['Схема посадки', operation.plantingScheme],
+      ['Площадь / участок', operation.plotArea],
+      ['Тип грунта', operation.soilType],
+      ['Комментарий', operation.comment],
+      ['Фото', operation.photoNote],
+    ].filter(([, value]) => Boolean(value));
+  }
+
+  if (operation.type === 'plantingObservation') {
+    return [
+      ['Приживаемость', operation.survivalRate],
+      ['Уровень стресса', operation.stressLevel],
+      ['Тургор', operation.turgor],
+      ['Комментарий', operation.comment],
+      ['Фото', operation.photoNote],
+    ].filter(([, value]) => Boolean(value));
+  }
+
+  if (operation.type === 'plantingCare') {
+    return [
+      ['Тип ухода', operation.careType],
+      ['Препарат', operation.productName],
+      ['Дозировка', operation.dosage],
+      ['Способ внесения', operation.applicationMethod],
+      ['Реакция растений', operation.plantReaction],
+      ['Комментарий', operation.comment],
+      ['Фото', operation.photoNote],
+    ].filter(([, value]) => Boolean(value));
+  }
+
+  if (operation.type === 'plantingCompletion') {
+    return [
+      ['Итог высадки', operation.completionResult],
+      ['Комментарий', operation.comment],
+      ['Фото', operation.photoNote],
+    ].filter(([, value]) => Boolean(value));
+  }
 
   if (operation.type === 'batchCreated') {
     return [
@@ -823,4 +864,54 @@ export function getStageMoveButtonLabel(nextStage) {
   }
 
   return `Переместить в ${stageMoveTargetLabels[nextStage] || nextStage.toLocaleLowerCase('ru-RU')}`;
+}
+
+export function getPlantingStats(card) {
+  const operations = card?.operations || [];
+  const currentQuantity = getCardCurrentQuantity(card);
+  const initialQuantity = Number(card?.quantity) || 0;
+  const deathCount = operations.reduce((sum, operation) => (
+    sum + (operation.type === 'death' ? Number(operation.count) || 0 : 0)
+  ), 0);
+  const discardCount = operations.reduce((sum, operation) => (
+    sum + (operation.type === 'discard' ? Number(operation.count) || 0 : 0)
+  ), 0);
+  const saleCount = operations.reduce((sum, operation) => (
+    sum + (operation.type === 'sale' ? Number(operation.count) || 0 : 0)
+  ), 0);
+  const introLossCount = operations.reduce((sum, operation) => (
+    sum + (operation.type === 'introLoss' ? Number(operation.count) || 0 : 0)
+  ), 0);
+  const survivalRate = getLatestOperationValue(operations, ['plantingObservation'], 'survivalRate') || 'Не указана';
+  const stressLevel = getLatestOperationValue(operations, ['plantingObservation'], 'stressLevel') || 'Не указан';
+  const turgor = getLatestOperationValue(operations, ['plantingObservation'], 'turgor') || 'Не указан';
+  const completionResult = getLatestOperationValue(
+    operations,
+    ['plantingCompletion'],
+    'completionResult',
+  ) || 'Не указан';
+  const lossCount = deathCount + discardCount + introLossCount;
+  const lossPercent = initialQuantity > 0
+    ? Math.round((lossCount / initialQuantity) * 100)
+    : 0;
+  const riskStatus = survivalRate === 'Низкая' || stressLevel === 'Критический' || completionResult === 'Не прижилась' || card?.batchStatus === 'problem' || lossPercent >= 30
+    ? 'Критический'
+    : survivalRate === 'Средняя' || stressLevel === 'Высокий' || completionResult === 'Частично прижилась' || lossPercent >= 15
+      ? 'Повышенный'
+      : 'Нормальный';
+
+  return {
+    initialQuantity,
+    currentQuantity,
+    deathCount,
+    discardCount,
+    saleCount,
+    lossCount,
+    lossPercent,
+    survivalRate,
+    stressLevel,
+    turgor,
+    completionResult,
+    riskStatus,
+  };
 }

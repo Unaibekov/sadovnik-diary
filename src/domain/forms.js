@@ -45,6 +45,7 @@ export function createEmptyStatusForm() {
     stressLevel: '',
     conditionDescription: '',
     readinessForPlanting: '',
+    survivalRate: '',
     environmentTemperature: '',
     environmentHumidity: '',
     environmentAirHumidity: '',
@@ -75,6 +76,11 @@ export function createEmptyStatusForm() {
     movementComment: '',
     problemType: '',
     problemDescription: '',
+    plantingLocation: '',
+    plantingScheme: '',
+    plotArea: '',
+    soilType: '',
+    completionResult: '',
   };
 }
 

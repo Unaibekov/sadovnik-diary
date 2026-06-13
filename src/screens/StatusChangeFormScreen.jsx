@@ -27,12 +27,23 @@ const adaptationCareOptions = ['Полив', 'Подкормка', 'Стимул
 const greenhouseCareOptions = ['Полив', 'Подкормка', 'Стимуляция', 'Профилактика', 'Лечение'];
 const genericProblemTypeOptions = ['Контаминация', 'Карантин', 'Болезнь', 'Вредители', 'Другое'];
 const hardeningProblemTypeOptions = ['Ожоги', 'Увядание', 'Болезнь', 'Вредители', 'Карантин', 'Другое'];
+const plantingProblemTypeOptions = ['Увядание', 'Ожоги', 'Болезнь', 'Вредители', 'Погодный стресс', 'Карантин', 'Другое'];
 const riskLevelOptions = ['Низкий', 'Средний', 'Высокий', 'Критический'];
 const turgorOptions = ['Нормальный', 'Снижен', 'Критически снижен'];
 const readinessOptions = ['Не готова', 'Частично готова', 'Готова'];
+const survivalRateOptions = ['Низкая', 'Средняя', 'Хорошая', 'Отличная'];
+const completionResultOptions = ['Прижилась', 'Частично прижилась', 'Не прижилась', 'Завершена вручную'];
 
 function getProblemTypeOptions(stage) {
-  return stage === stages[4] ? hardeningProblemTypeOptions : genericProblemTypeOptions;
+  if (stage === stages[4]) {
+    return hardeningProblemTypeOptions;
+  }
+
+  if (stage === stages[5]) {
+    return plantingProblemTypeOptions;
+  }
+
+  return genericProblemTypeOptions;
 }
 
 // Экран добавления и редактирования производственного события по выбранной дате.
@@ -60,6 +71,8 @@ export default function StatusChangeFormScreen({
   const [isStabilityDropdownOpen, setIsStabilityDropdownOpen] = useState(false);
   const [isTurgorDropdownOpen, setIsTurgorDropdownOpen] = useState(false);
   const [isReadinessDropdownOpen, setIsReadinessDropdownOpen] = useState(false);
+  const [isSurvivalDropdownOpen, setIsSurvivalDropdownOpen] = useState(false);
+  const [isCompletionDropdownOpen, setIsCompletionDropdownOpen] = useState(false);
   const [isNoticeVisible, setIsNoticeVisible] = useState(false);
   const [saveAttemptCount, setSaveAttemptCount] = useState(0);
   const seenAlertRef = useRef('');
@@ -103,14 +116,24 @@ export default function StatusChangeFormScreen({
         ['introLoss', 'Потери'],
         ['sale', 'Продажа'],
       ]
-      : selectedCard.stage === stages[4]
+    : selectedCard.stage === stages[4]
+      ? [
+        ['hardeningObservation', 'Наблюдение'],
+        ['hardeningCare', 'Уход'],
+        ['problem', 'Проблема'],
+        ['movement', 'Перемещение'],
+        ['introLoss', 'Потери'],
+        ['sale', 'Продажа'],
+      ]
+      : selectedCard.stage === stages[5]
         ? [
-          ['hardeningObservation', 'Наблюдение'],
-          ['hardeningCare', 'Уход'],
+          ['planting', 'Высадка'],
+          ['plantingObservation', 'Наблюдение'],
+          ['plantingCare', 'Уход'],
           ['problem', 'Проблема'],
-          ['movement', 'Перемещение'],
           ['introLoss', 'Потери'],
           ['sale', 'Продажа'],
+          ['plantingCompletion', 'Завершение'],
         ]
       : [
       ['rooting', 'Укоренение'],
@@ -131,9 +154,13 @@ export default function StatusChangeFormScreen({
       adaptationEnvironment: 'Изменение среды',
       hardeningObservation: 'Наблюдение',
       hardeningCare: 'Уход',
+      planting: 'Высадка',
+      plantingObservation: 'Наблюдение',
+      plantingCare: 'Уход',
+      plantingCompletion: 'Завершение',
     }[eventType] ||
     'Событие';
-  const careOptions = ['greenhouseCare', 'hardeningCare'].includes(eventType)
+  const careOptions = ['greenhouseCare', 'hardeningCare', 'plantingCare'].includes(eventType)
     ? greenhouseCareOptions
     : adaptationCareOptions;
 
@@ -146,6 +173,8 @@ export default function StatusChangeFormScreen({
     setIsStabilityDropdownOpen(false);
     setIsTurgorDropdownOpen(false);
     setIsReadinessDropdownOpen(false);
+    setIsSurvivalDropdownOpen(false);
+    setIsCompletionDropdownOpen(false);
   }, [eventType]);
 
   useEffect(() => {
@@ -206,6 +235,16 @@ export default function StatusChangeFormScreen({
   function selectReadiness(value) {
     onChangeField('readinessForPlanting', value);
     setIsReadinessDropdownOpen(false);
+  }
+
+  function selectSurvivalRate(value) {
+    onChangeField('survivalRate', value);
+    setIsSurvivalDropdownOpen(false);
+  }
+
+  function selectCompletionResult(value) {
+    onChangeField('completionResult', value);
+    setIsCompletionDropdownOpen(false);
   }
 
   return (
@@ -280,6 +319,10 @@ export default function StatusChangeFormScreen({
                 'greenhouseDisease',
                 'hardeningObservation',
                 'hardeningCare',
+                'planting',
+                'plantingObservation',
+                'plantingCare',
+                'plantingCompletion',
                 'problem',
                 'movement',
                 'quarantine',
@@ -590,6 +633,206 @@ export default function StatusChangeFormScreen({
                     />
                   </View>
                 </>
+              )}
+
+              {eventType === 'planting' && (
+                <>
+                  <View style={styles.field}>
+                    <Text style={styles.label}>Место высадки</Text>
+                    <TextInput onChangeText={(value) => onChangeField('plantingLocation', value)} placeholder="Грядка, кассета, контейнер" placeholderTextColor="#7C8A80" style={styles.input} value={form.plantingLocation} />
+                  </View>
+                  <View style={styles.field}>
+                    <Text style={styles.label}>Схема посадки</Text>
+                    <TextInput onChangeText={(value) => onChangeField('plantingScheme', value)} placeholder="Например: 30x40 см" placeholderTextColor="#7C8A80" style={styles.input} value={form.plantingScheme} />
+                  </View>
+                  <View style={styles.field}>
+                    <Text style={styles.label}>Площадь / участок</Text>
+                    <TextInput onChangeText={(value) => onChangeField('plotArea', value)} placeholder="Например: участок 2, 12 м2" placeholderTextColor="#7C8A80" style={styles.input} value={form.plotArea} />
+                  </View>
+                  <View style={styles.field}>
+                    <Text style={styles.label}>Тип грунта</Text>
+                    <TextInput onChangeText={(value) => onChangeField('soilType', value)} placeholder="Грунт, субстрат, смесь" placeholderTextColor="#7C8A80" style={styles.input} value={form.soilType} />
+                  </View>
+                </>
+              )}
+
+              {eventType === 'plantingObservation' && (
+                <>
+                  <View style={styles.field}>
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => setIsSurvivalDropdownOpen((current) => !current)}
+                      style={({ pressed }) => [
+                        styles.selectButton,
+                        pressed && styles.linkButtonPressed,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.selectButtonText,
+                          !form.survivalRate && styles.selectPlaceholder,
+                        ]}
+                      >
+                        {form.survivalRate || 'Выберите приживаемость'}
+                      </Text>
+                      <View style={styles.selectButtonArrow}>
+                        <ChevronDownIcon />
+                      </View>
+                    </Pressable>
+
+                    <SelectBottomSheet
+                      onClose={() => setIsSurvivalDropdownOpen(false)}
+                      onSelect={selectSurvivalRate}
+                      options={survivalRateOptions}
+                      title="Выберите приживаемость"
+                      visible={isSurvivalDropdownOpen}
+                    />
+                  </View>
+                  <View style={styles.field}>
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => setIsStressDropdownOpen((current) => !current)}
+                      style={({ pressed }) => [
+                        styles.selectButton,
+                        pressed && styles.linkButtonPressed,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.selectButtonText,
+                          !form.stressLevel && styles.selectPlaceholder,
+                        ]}
+                      >
+                        {form.stressLevel || 'Выберите уровень стресса'}
+                      </Text>
+                      <View style={styles.selectButtonArrow}>
+                        <ChevronDownIcon />
+                      </View>
+                    </Pressable>
+
+                    <SelectBottomSheet
+                      onClose={() => setIsStressDropdownOpen(false)}
+                      onSelect={selectStressLevel}
+                      options={['Низкий', 'Средний', 'Высокий', 'Критический']}
+                      title="Выберите уровень стресса"
+                      visible={isStressDropdownOpen}
+                    />
+                  </View>
+                  <View style={styles.field}>
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => setIsTurgorDropdownOpen((current) => !current)}
+                      style={({ pressed }) => [
+                        styles.selectButton,
+                        pressed && styles.linkButtonPressed,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.selectButtonText,
+                          !form.turgor && styles.selectPlaceholder,
+                        ]}
+                      >
+                        {form.turgor || 'Выберите тургор'}
+                      </Text>
+                      <View style={styles.selectButtonArrow}>
+                        <ChevronDownIcon />
+                      </View>
+                    </Pressable>
+
+                    <SelectBottomSheet
+                      onClose={() => setIsTurgorDropdownOpen(false)}
+                      onSelect={selectTurgor}
+                      options={turgorOptions}
+                      title="Выберите тургор"
+                      visible={isTurgorDropdownOpen}
+                    />
+                  </View>
+                </>
+              )}
+
+              {eventType === 'plantingCare' && (
+                <>
+                  <View style={styles.field}>
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => setIsCareDropdownOpen((current) => !current)}
+                      style={({ pressed }) => [
+                        styles.selectButton,
+                        pressed && styles.linkButtonPressed,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.selectButtonText,
+                          !form.careType && styles.selectPlaceholder,
+                        ]}
+                      >
+                        {form.careType || 'Выберите тип ухода'}
+                      </Text>
+                      <View style={styles.selectButtonArrow}>
+                        <ChevronDownIcon />
+                      </View>
+                    </Pressable>
+
+                    <SelectBottomSheet
+                      onClose={() => setIsCareDropdownOpen(false)}
+                      onSelect={selectCareType}
+                      options={careOptions}
+                      title="Выберите тип ухода"
+                      visible={isCareDropdownOpen}
+                    />
+                  </View>
+                  <View style={styles.field}>
+                    <Text style={styles.label}>Препарат</Text>
+                    <TextInput onChangeText={(value) => onChangeField('productName', value)} placeholder="Препарат" placeholderTextColor="#7C8A80" style={styles.input} value={form.productName} />
+                  </View>
+                  <View style={styles.field}>
+                    <Text style={styles.label}>Дозировка</Text>
+                    <TextInput onChangeText={(value) => onChangeField('dosage', value)} placeholder="Дозировка" placeholderTextColor="#7C8A80" style={styles.input} value={form.dosage} />
+                  </View>
+                  <View style={styles.field}>
+                    <Text style={styles.label}>Способ внесения</Text>
+                    <TextInput onChangeText={(value) => onChangeField('applicationMethod', value)} placeholder="Способ внесения" placeholderTextColor="#7C8A80" style={styles.input} value={form.applicationMethod} />
+                  </View>
+                  <View style={styles.field}>
+                    <Text style={styles.label}>Реакция растений</Text>
+                    <TextInput onChangeText={(value) => onChangeField('plantReaction', value)} placeholder="Реакция растений" placeholderTextColor="#7C8A80" style={styles.input} value={form.plantReaction} />
+                  </View>
+                </>
+              )}
+
+              {eventType === 'plantingCompletion' && (
+                <View style={styles.field}>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => setIsCompletionDropdownOpen((current) => !current)}
+                    style={({ pressed }) => [
+                      styles.selectButton,
+                      pressed && styles.linkButtonPressed,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.selectButtonText,
+                        !form.completionResult && styles.selectPlaceholder,
+                      ]}
+                    >
+                      {form.completionResult || 'Выберите итог высадки'}
+                    </Text>
+                    <View style={styles.selectButtonArrow}>
+                      <ChevronDownIcon />
+                    </View>
+                  </Pressable>
+
+                  <SelectBottomSheet
+                    onClose={() => setIsCompletionDropdownOpen(false)}
+                    onSelect={selectCompletionResult}
+                    options={completionResultOptions}
+                    title="Выберите итог высадки"
+                    visible={isCompletionDropdownOpen}
+                  />
+                </View>
               )}
 
               {eventType === 'hardeningObservation' && (

@@ -13,6 +13,7 @@ export default function CulturePassportTab({
   currentQuantity,
   daysInStage,
   hardeningStats,
+  plantingStats,
   getResolvedBatchStatus,
   onShareQrPress,
 }) {
@@ -44,6 +45,12 @@ export default function CulturePassportTab({
           <View style={styles.passportRow}>
             <Text style={styles.passportLabel}>Статус риска</Text>
             <Text style={styles.passportValue}>{hardeningStats.riskStatus}</Text>
+          </View>
+        )}
+        {card.stage === stages[5] && (
+          <View style={styles.passportRow}>
+            <Text style={styles.passportLabel}>Статус риска</Text>
+            <Text style={styles.passportValue}>{plantingStats.riskStatus}</Text>
           </View>
         )}
         <View style={styles.passportRow}>
@@ -89,6 +96,22 @@ export default function CulturePassportTab({
             <View style={styles.passportRow}>
               <Text style={styles.passportLabel}>Потери</Text>
               <Text style={styles.passportValue}>{hardeningStats.lossCount} шт.</Text>
+            </View>
+          </>
+        )}
+        {card.stage === stages[5] && (
+          <>
+            <View style={styles.passportRow}>
+              <Text style={styles.passportLabel}>Приживаемость</Text>
+              <Text style={styles.passportValue}>{plantingStats.survivalRate}</Text>
+            </View>
+            <View style={styles.passportRow}>
+              <Text style={styles.passportLabel}>Итог высадки</Text>
+              <Text style={styles.passportValue}>{plantingStats.completionResult}</Text>
+            </View>
+            <View style={styles.passportRow}>
+              <Text style={styles.passportLabel}>Потери</Text>
+              <Text style={styles.passportValue}>{plantingStats.lossCount} шт.</Text>
             </View>
           </>
         )}

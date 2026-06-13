@@ -161,6 +161,35 @@ export function buildStatusOperation({
         plantReaction: statusForm.plantReaction.trim(),
       }
       : {}),
+    ...(introActionType === 'planting'
+      ? {
+        plantingLocation: statusForm.plantingLocation.trim(),
+        plantingScheme: statusForm.plantingScheme.trim(),
+        plotArea: statusForm.plotArea.trim(),
+        soilType: statusForm.soilType.trim(),
+      }
+      : {}),
+    ...(introActionType === 'plantingObservation'
+      ? {
+        survivalRate: statusForm.survivalRate.trim(),
+        stressLevel: statusForm.stressLevel.trim(),
+        turgor: statusForm.turgor.trim(),
+      }
+      : {}),
+    ...(introActionType === 'plantingCare'
+      ? {
+        careType: statusForm.careType.trim(),
+        productName: statusForm.productName.trim(),
+        dosage: statusForm.dosage.trim(),
+        applicationMethod: statusForm.applicationMethod.trim(),
+        plantReaction: statusForm.plantReaction.trim(),
+      }
+      : {}),
+    ...(introActionType === 'plantingCompletion'
+      ? {
+        completionResult: statusForm.completionResult.trim(),
+      }
+      : {}),
     ...(introActionType === 'greenhouseObservation'
       ? {
         growthRate: statusForm.growthRate.trim(),

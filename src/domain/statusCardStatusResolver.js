@@ -18,6 +18,10 @@ export function getFallbackBatchStatus(card, introActionType, nextQuantity, stat
     return 'active';
   }
 
+  if (introActionType === 'plantingCompletion') {
+    return 'archived';
+  }
+
   if (introActionType === 'problem') {
     const problemBatchStatus = getProblemBatchStatus(
       statusForm.problemType,

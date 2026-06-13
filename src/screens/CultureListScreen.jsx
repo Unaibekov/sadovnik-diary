@@ -16,6 +16,7 @@ import {
   getGreenhouseStats,
   getHardeningStats,
   getIntroStats,
+  getPlantingStats,
   getQrStatus,
 } from '../domain/batch';
 import { BATCH_STATUS_LABELS, stages } from '../domain/constants';
@@ -34,6 +35,7 @@ export default function CultureListScreen({
   isCultureIntroStage,
   isGreenhouseStage,
   isHardeningStage,
+  isPlantingStage,
   selectedStageCardsCount,
   onBack,
   onChangeBatchStatusFilter,
@@ -45,12 +47,14 @@ export default function CultureListScreen({
   storageError,
 }) {
   const isHardeningStageSelected = selectedStage === stages[4];
+  const isPlantingStageSelected = selectedStage === stages[5];
   const showHardeningStatusFilters = isHardeningStage || isHardeningStageSelected;
-  const showStatusFilters = isCultureIntroStage || isCloneStage || isAdaptationStage || isGreenhouseStage || showHardeningStatusFilters;
+  const showPlantingStatusFilters = isPlantingStage || isPlantingStageSelected;
+  const showStatusFilters = isCultureIntroStage || isCloneStage || isAdaptationStage || isGreenhouseStage || showHardeningStatusFilters || showPlantingStatusFilters;
   const visibleBatchStatusFilter = batchStatusFilter === 'quarantine'
     ? 'problem'
     : batchStatusFilter;
-  const statusFilterItems = isCloneStage || isAdaptationStage || isGreenhouseStage || showHardeningStatusFilters
+  const statusFilterItems = isCloneStage || isAdaptationStage || isGreenhouseStage || showHardeningStatusFilters || showPlantingStatusFilters
     ? [
       ['all', 'Все'],
       ['active', 'Активная'],
@@ -139,6 +143,7 @@ export default function CultureListScreen({
               const adaptationStats = getAdaptationStats(card);
               const greenhouseStats = getGreenhouseStats(card);
               const hardeningStats = getHardeningStats(card);
+              const plantingStats = getPlantingStats(card);
               const cardDaysInStage = getDaysInCurrentStage(card);
               const isContaminated = card.sterilityStatus === 'contaminated';
               const isCriticalLossRisk = (
@@ -146,7 +151,8 @@ export default function CultureListScreen({
                 (isCloneStage && cloneStats.riskStatus === 'Критический') ||
                 (isAdaptationStage && adaptationStats.riskStatus === 'Критический') ||
                 (isGreenhouseStage && greenhouseStats.riskStatus === 'Критический') ||
-                (isHardeningStage && hardeningStats.riskStatus === 'Критический')
+                (isHardeningStage && hardeningStats.riskStatus === 'Критический') ||
+                (isPlantingStage && plantingStats.riskStatus === 'Критический')
               );
               const isProblemStatus = batchStatus === 'problem' || batchStatus === 'quarantine' || isContaminated || isCriticalLossRisk;
               const introMeta = [
@@ -252,6 +258,16 @@ export default function CultureListScreen({
                     textStyle: { color: hardeningStats.readinessForPlanting === 'Готова' ? '#15863F' : '#B45309' },
                   }]
                   : []),
+                ...(isPlantingStage
+                  ? [{
+                    key: 'planting-completion',
+                    icon: <TimeIcon color={plantingStats.completionResult === 'Прижилась' ? '#15863F' : '#F59E0B'} size={14} />,
+                    text: plantingStats.completionResult !== 'Не указан'
+                      ? `Итог: ${plantingStats.completionResult}`
+                      : `Приживаемость: ${plantingStats.survivalRate}`,
+                    textStyle: { color: plantingStats.completionResult === 'Прижилась' ? '#15863F' : '#B45309' },
+                  }]
+                  : []),
               ];
 
               return (
@@ -334,7 +350,8 @@ export default function CultureListScreen({
                   {isAdaptationStage && 'Карточек пока нет. Переведите растение из клонирования.'}
                   {isGreenhouseStage && 'Карточек пока нет. Переведите растение из адаптации.'}
                   {isHardeningStage && 'Карточек пока нет. Переведите растение из теплицы.'}
-                  {!isCultureIntroStage && !isCloneStage && !isAdaptationStage && !isGreenhouseStage && !isHardeningStage &&
+                  {isPlantingStage && 'Карточек пока нет. Переведите растение из закалки.'}
+                  {!isCultureIntroStage && !isCloneStage && !isAdaptationStage && !isGreenhouseStage && !isHardeningStage && !isPlantingStage &&
                     'Карточек пока нет. Переведите растение из предыдущей стадии.'}
                 </Text>
               </View>

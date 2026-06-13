@@ -2,7 +2,7 @@
 import { getTodayIsoDate } from './dates';
 import { getStatusEventConfig } from './statusOperations';
 import { getStatusBaseValidationError } from './statusValidation';
-import { getAdaptationValidationError, getHardeningValidationError } from './statusStageValidation';
+import { getAdaptationValidationError, getHardeningValidationError, getPlantingValidationError } from './statusStageValidation';
 import { getGreenhouseValidationError } from './statusGreenhouseValidation';
 import { getProblemValidationError } from './statusProblemValidation';
 
@@ -63,6 +63,15 @@ export function getStatusChangeValidationError({
     return hardeningValidationError;
   }
 
+  const plantingValidationError = getPlantingValidationError(
+    introActionType,
+    statusForm,
+  );
+
+  if (plantingValidationError) {
+    return plantingValidationError;
+  }
+
   const greenhouseValidationError = getGreenhouseValidationError(
     introActionType,
     statusForm,
@@ -110,6 +119,14 @@ export function getStatusChangeValidationMessage(validationError) {
       return 'Укажите хотя бы один параметр наблюдения';
     case 'hardening_care_type_missing':
       return 'Укажите тип ухода';
+    case 'planting_missing':
+      return 'Укажите хотя бы один параметр высадки';
+    case 'planting_observation_missing':
+      return 'Укажите хотя бы один параметр наблюдения';
+    case 'planting_care_type_missing':
+      return 'Укажите тип ухода';
+    case 'planting_completion_missing':
+      return 'Укажите итог высадки';
     case 'greenhouse_observation_missing':
       return 'Укажите хотя бы один параметр наблюдения';
     case 'greenhouse_care_type_missing':

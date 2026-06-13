@@ -77,6 +77,22 @@ const statusEventConfigs = {
     title: 'Уход',
     countField: '',
   },
+  planting: {
+    title: 'Высадка',
+    countField: '',
+  },
+  plantingObservation: {
+    title: 'Наблюдение',
+    countField: '',
+  },
+  plantingCare: {
+    title: 'Уход',
+    countField: '',
+  },
+  plantingCompletion: {
+    title: 'Завершение',
+    countField: '',
+  },
   problem: {
     title: 'Проблема',
     countField: '',
