@@ -28,6 +28,7 @@ export default function CultureCalendarScreen({
   stageActionError,
   stageMoveBlockedMessage,
   stageMoveButtonLabel,
+  stageMoveHint,
   stageMoveTarget,
   subtitle,
   title,
@@ -66,6 +67,7 @@ export default function CultureCalendarScreen({
             {!!stageMoveTarget && !stageMoveBlockedMessage && (
               <Pressable
                 accessibilityRole="button"
+                testID="stage-move-button"
                 onPress={onRequestStageMove}
                 style={({ pressed }) => [
                   styles.primaryButton,
@@ -86,6 +88,7 @@ export default function CultureCalendarScreen({
 
             <Pressable
               accessibilityRole="button"
+              testID="calendar-add-event"
               onPress={onAddEvent}
               style={({ pressed }) => [
                 styles.calendarAddEventButton,
@@ -103,16 +106,16 @@ export default function CultureCalendarScreen({
           visible={isStageMoveConfirmVisible}
           onRequestClose={onCancelStageMove}
         >
-          <View style={styles.modalOverlay}>
+            <View style={styles.modalOverlay}>
             <View style={styles.confirmModal}>
               <Text style={styles.confirmModalTitle}>Подтвердить перенос</Text>
               <Text style={styles.confirmModalText}>
                 Перенести серию в стадию {stageMoveTarget}?
               </Text>
-              {!!stageActionError && (
-                <View style={styles.confirmModalNotice}>
-                  <InfoIcon color="#EF4444" size={18} />
-                  <Text style={styles.blockedNoticeText}>{stageActionError}</Text>
+              {!!stageMoveHint && (
+                <View style={localStyles.moveHintNotice}>
+                  <InfoIcon color="#6B7280" size={18} />
+                  <Text style={localStyles.moveHintText}>{stageMoveHint}</Text>
                 </View>
               )}
               <View style={styles.confirmModalActions}>
@@ -129,6 +132,7 @@ export default function CultureCalendarScreen({
                 </Pressable>
                 <Pressable
                   accessibilityRole="button"
+                  testID="confirm-stage-move"
                   onPress={onConfirmStageMove}
                   style={({ pressed }) => [
                     styles.primaryButton,
@@ -226,3 +230,25 @@ export default function CultureCalendarScreen({
     </SafeAreaView>
   );
 }
+
+const localStyles = {
+  moveHintNotice: {
+    alignItems: "center",
+    backgroundColor: "#F3F4F6",
+    borderColor: "#E5E7EB",
+    borderRadius: 14,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 16,
+    marginTop: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  moveHintText: {
+    color: "#6B7280",
+    flex: 1,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+};

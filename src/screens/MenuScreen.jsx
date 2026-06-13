@@ -210,6 +210,7 @@ export default function MenuScreen({
             {menuItems.map((item) => (
               <Pressable
                 accessibilityRole="button"
+                testID={`menu-item-${item.key}`}
                 key={item.key}
                 onPress={item.onPress}
                 style={({ pressed }) => [

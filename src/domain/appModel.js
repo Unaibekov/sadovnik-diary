@@ -82,6 +82,17 @@ export function getStageMoveBlockedMessage(selectedCard) {
   return '';
 }
 
+export function getStageMoveHint(selectedCard) {
+  if (
+    selectedCard?.stage !== stages[3] ||
+    (selectedCard?.operations || []).some((operation) => operation.type === 'greenhouseObservation')
+  ) {
+    return '';
+  }
+
+  return 'Перед закалкой можно добавить в теплице наблюдение, чтобы зафиксировать готовность';
+}
+
 export function getSelectedStageFlags(selectedStage) {
   return {
     isAdaptationStage: selectedStage === stages[2],

@@ -58,13 +58,26 @@ export function getResolvedBatchStatus(card) {
   const batchStatus = card?.batchStatus || 'active';
   const currentQuantity = getCardCurrentQuantity(card);
   const hasSale = hasSaleOperation(card);
+  const totalQuantity = Number(card?.quantity) || 0;
+
+  if (batchStatus === 'quarantine') {
+    return 'quarantine';
+  }
 
   if (hasSale && currentQuantity === 0) {
     return 'sold';
   }
 
-  if (['sold', 'partial'].includes(batchStatus)) {
-    return hasSale ? 'partial' : 'active';
+  if (batchStatus === 'sold') {
+    return hasSale || currentQuantity < totalQuantity ? 'partial' : 'active';
+  }
+
+  if (batchStatus === 'partial') {
+    return hasSale || currentQuantity < totalQuantity ? 'partial' : 'active';
+  }
+
+  if (batchStatus === 'problem') {
+    return hasSale || currentQuantity < totalQuantity ? 'partial' : 'active';
   }
 
   return batchStatus;

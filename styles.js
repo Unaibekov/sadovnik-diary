@@ -1558,9 +1558,9 @@ export default StyleSheet.create({
     zIndex: 1,
   },
   plantCardStatusDotInline: {
-    borderRadius: 7,
-    height: 14,
-    width: 14,
+    borderRadius: 5,
+    height: 10,
+    width: 10,
   },
   plantCardStatusDotActive: {
     backgroundColor: '#15863F',

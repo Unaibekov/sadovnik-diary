@@ -26,6 +26,7 @@ import {
   getRecommendationStage,
   getRecommendationSourceCards,
   getSelectedStageFlags,
+  getStageMoveHint,
   getStageMoveBlockedMessage,
   getStageMoveButtonLabelText,
   isSelectedCardActionLocked,
@@ -66,6 +67,7 @@ export function buildAppDerivedState({
   const selectedCardActionLocked = isSelectedCardActionLocked(selectedCard);
   const stageMoveButtonLabel = getStageMoveButtonLabelText(selectedCardNextStage);
   const stageMoveBlockedMessage = getStageMoveBlockedMessage(selectedCard);
+  const stageMoveHint = getStageMoveHint(selectedCard);
   const showIdentityAsText = shouldShowIdentityAsText(Boolean(editingCardId));
   const isSupportedPlantingStage = isSupportedPlantingStageForStage(selectedStage);
   const isSelectedCloneCard = isSelectedCloneCardForCard(selectedCard);
@@ -171,6 +173,7 @@ export function buildAppDerivedState({
     speciesOptions,
     stageMoveBlockedMessage,
     stageMoveButtonLabel,
+    stageMoveHint,
     varietyOptions,
   };
 }

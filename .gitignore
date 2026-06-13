@@ -26,6 +26,8 @@ npm-debug.*
 yarn-debug.*
 yarn-error.*
 expo-server*.log
+allure-results/
+allure-report/
 
 # macOS
 .DS_Store

@@ -295,6 +295,7 @@ function AppContent() {
     speciesOptions,
     stageMoveBlockedMessage,
     stageMoveButtonLabel,
+    stageMoveHint,
     varietyOptions,
   } = buildAppDerivedState({
     batchStatusFilter,
@@ -820,6 +821,7 @@ function AppContent() {
     const nextState = buildStagePressNavigationState(stage);
 
     setSelectedStage(nextState.selectedStage);
+    setBatchStatusFilter("all");
     setCurrentScreen(nextState.currentScreen);
   }
 
@@ -1794,6 +1796,10 @@ function AppContent() {
         selectedCard.stage === stages[2]
           ? getAdaptationStats(selectedCard)
           : null,
+      greenhouseStats:
+        selectedCard.stage === stages[3]
+          ? getGreenhouseStats(selectedCard)
+          : null,
     });
 
     if (stageMoveValidationError) {
@@ -2173,6 +2179,7 @@ function AppContent() {
     stageActionError,
     stageMoveBlockedMessage,
     stageMoveButtonLabel,
+    stageMoveHint,
     storageError,
     statusForm,
     statusFormError,

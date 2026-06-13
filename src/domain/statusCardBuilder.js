@@ -5,7 +5,6 @@ import { getFallbackBatchStatus } from './statusCardStatusResolver';
 import { getGreenhouseCareIntervalsPatch } from './statusCardMutations';
 import {
   getProblemBatchStatus,
-  getProblemBatchStatusFromOperations,
 } from './statusProblemValidation';
 
 export function buildUpdatedStatusCard(card, {
@@ -29,8 +28,6 @@ export function buildUpdatedStatusCard(card, {
     nextOperation.riskLevel,
     card.stage,
   );
-  const problemBatchStatusFromOperations = getProblemBatchStatusFromOperations(nextOperations, card.stage);
-
   const nextCard = {
     ...card,
     operations: nextOperations,
@@ -41,9 +38,6 @@ export function buildUpdatedStatusCard(card, {
     ...(introActionType === 'problem' && problemBatchStatus === 'quarantine'
       ? { batchStatus: 'quarantine' }
       : {}),
-    ...(introActionType === 'problem' && problemBatchStatus === 'problem'
-      ? { sterilityStatus: 'contaminated' }
-      : {}),
   };
   const nextQuantity = getCardCurrentQuantity(nextCard);
   const fallbackBatchStatus = getFallbackBatchStatus(
@@ -53,11 +47,9 @@ export function buildUpdatedStatusCard(card, {
     statusForm,
   );
   const nextBatchStatus = introActionType === 'problem'
-    ? problemBatchStatusFromOperations || (
-      ['problem', 'quarantine'].includes(card.batchStatus || '')
-        ? 'active'
-        : fallbackBatchStatus
-    )
+    ? problemBatchStatus === 'quarantine'
+      ? 'quarantine'
+      : fallbackBatchStatus
     : fallbackBatchStatus;
   const nextCardWithStatus = {
     ...nextCard,

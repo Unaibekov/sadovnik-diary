@@ -359,6 +359,17 @@ export function getOperationSummaryItems(operation, card) {
   return [];
 }
 
+export function formatQuantityDisplay(currentQuantity, totalQuantity) {
+  const normalizedCurrentQuantity = Number(currentQuantity) || 0;
+  const normalizedTotalQuantity = Number(totalQuantity) || 0;
+
+  if (normalizedTotalQuantity > 0 && normalizedCurrentQuantity !== normalizedTotalQuantity) {
+    return `${normalizedCurrentQuantity} из ${normalizedTotalQuantity} шт.`;
+  }
+
+  return `${normalizedCurrentQuantity} шт.`;
+}
+
 export function getCardCurrentQuantity(card) {
   const initialQuantity = Number(card?.quantity) || 0;
   const operations = card?.operations || [];

@@ -4,7 +4,7 @@ import appStyles from '../../styles';
 import { DownloadSquareIcon } from './icons';
 import { BATCH_STATUS_LABELS, INTRO_STAGE, QR_STATUS_LABELS, stages } from '../domain/constants';
 import { formatDisplayDate } from '../domain/dates';
-import { getCardLocationDescription, getQrStatus } from '../domain/batch';
+import { formatQuantityDisplay, getCardLocationDescription, getQrStatus } from '../domain/batch';
 
 export default function CulturePassportTab({
   adaptationStats,
@@ -67,7 +67,7 @@ export default function CulturePassportTab({
         <View style={styles.passportRow}>
           <Text style={styles.passportLabel}>Остаток</Text>
           <Text style={styles.passportValue}>
-            {currentQuantity} из {card.quantity} шт.
+            {formatQuantityDisplay(currentQuantity, card.quantity)}
           </Text>
         </View>
         {card.stage === 'Клонирование' && (

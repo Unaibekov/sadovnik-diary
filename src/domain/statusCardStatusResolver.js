@@ -29,7 +29,7 @@ export function getFallbackBatchStatus(card, introActionType, nextQuantity, stat
       card.stage,
     );
 
-    if (problemBatchStatus) {
+    if (problemBatchStatus === 'quarantine') {
       return problemBatchStatus;
     }
 

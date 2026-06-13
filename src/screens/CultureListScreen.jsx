@@ -18,7 +18,9 @@ import {
   getIntroStats,
   getPlantingStats,
   getQrStatus,
+  formatQuantityDisplay,
 } from '../domain/batch';
+import { hasProblemOperation } from '../domain/statusProblemValidation';
 import { BATCH_STATUS_LABELS, stages } from '../domain/constants';
 
 export default function CultureListScreen({
@@ -54,6 +56,86 @@ export default function CultureListScreen({
   const visibleBatchStatusFilter = batchStatusFilter === 'quarantine'
     ? 'problem'
     : batchStatusFilter;
+  const searchQuery = cardSearch.trim();
+  const selectedFilterLabel = {
+    all: 'Все',
+    active: 'Активная',
+    draft: 'Черновик',
+    problem: 'Проблема',
+  }[visibleBatchStatusFilter] || 'Все';
+  const getEmptyStateCopy = () => {
+    if (searchQuery) {
+      return {
+        title: 'Ничего не найдено',
+        text: `По запросу «${searchQuery}» карточек нет.\nОчистите поиск или смените фильтр.`,
+      };
+    }
+
+    if (visibleBatchStatusFilter === 'draft') {
+      if (isCultureIntroStage) {
+        return {
+          title: 'Черновиков пока нет',
+          text: 'Нажмите «Создать партию», чтобы создать первую.',
+        };
+      }
+
+      return {
+        title: 'Карточек пока нет',
+        text: isCloneStage
+          ? 'Переведите растение из введения в культуру.'
+          : isAdaptationStage
+            ? 'Переведите растение из клонирования.'
+            : isGreenhouseStage
+              ? 'Переведите растение из адаптации.'
+              : isHardeningStage
+                ? 'Переведите растение из теплицы.'
+                : isPlantingStage
+                  ? 'Переведите растение из закалки.'
+                  : 'Переведите растение из предыдущей стадии.',
+      };
+    }
+
+    if (visibleBatchStatusFilter === 'active') {
+      return {
+        title: 'Активных карточек пока нет',
+        text: isCultureIntroStage
+          ? 'Нажмите «Создать партию», чтобы добавить первую карточку.'
+          : `Переведите растение из предыдущей стадии, чтобы оно появилось в фильтре «${selectedFilterLabel}».`,
+      };
+    }
+
+    if (visibleBatchStatusFilter === 'partial') {
+      return {
+        title: 'Частично реализованных карточек пока нет',
+        text: 'Когда часть партии будет реализована, карточка появится здесь.',
+      };
+    }
+
+    if (visibleBatchStatusFilter === 'problem') {
+      return {
+        title: 'Проблемных карточек пока нет',
+        text: 'Это хороший знак. Если появятся отклонения, они отобразятся здесь.',
+      };
+    }
+
+    return {
+      title: 'Карточек пока нет',
+      text: isCultureIntroStage
+        ? 'Нажмите «Создать партию», чтобы создать первую.'
+        : isCloneStage
+          ? 'Переведите растение из введения в культуру.'
+          : isAdaptationStage
+            ? 'Переведите растение из клонирования.'
+            : isGreenhouseStage
+              ? 'Переведите растение из адаптации.'
+              : isHardeningStage
+                ? 'Переведите растение из теплицы.'
+                : isPlantingStage
+                  ? 'Переведите растение из закалки.'
+                  : 'Переведите растение из предыдущей стадии.',
+    };
+  };
+  const emptyStateCopy = getEmptyStateCopy();
   const statusFilterItems = isCloneStage || isAdaptationStage || isGreenhouseStage || showHardeningStatusFilters || showPlantingStatusFilters
     ? [
       ['all', 'Все'],
@@ -119,7 +201,7 @@ export default function CultureListScreen({
           contentContainerStyle={[
             styles.fixedCardsScrollContent,
             isCultureIntroStage && styles.fixedCardsScrollContentWithActions,
-            !isCardsLoading && selectedStageCardsCount === 0 && localStyles.emptyScrollContent,
+            !isCardsLoading && cards.length === 0 && localStyles.emptyScrollContent,
           ]}
           keyboardShouldPersistTaps="handled"
         >
@@ -161,12 +243,23 @@ export default function CultureListScreen({
                 (isHardeningStage && hardeningStats.riskStatus === 'Критический') ||
                 (isPlantingStage && plantingStats.riskStatus === 'Критический')
               );
-              const isProblemStatus = batchStatus === 'problem' || batchStatus === 'quarantine' || isContaminated || isCriticalLossRisk;
+              const isProblemStatus = hasProblemOperation(card) || batchStatus === 'problem' || batchStatus === 'quarantine' || isContaminated || isCriticalLossRisk;
+              const statusDots = [];
+
+              if (batchStatus === 'partial') {
+                statusDots.push('active', 'partial');
+              } else {
+                statusDots.push(batchStatus === 'draft' ? 'draft' : 'active');
+              }
+
+              if (isProblemStatus) {
+                statusDots.push('problem');
+              }
               const introMeta = [
                 {
                   key: 'quantity',
                   icon: <LeaveIcon color="#15863F" size={16} />,
-                  value: `${getCardCurrentQuantity(card)} шт.`,
+                  value: formatQuantityDisplay(getCardCurrentQuantity(card), card.quantity),
                 },
                 {
                   key: 'days',
@@ -178,9 +271,7 @@ export default function CultureListScreen({
                 {
                   key: 'quantity',
                   icon: <LeaveIcon color="#15863F" size={16} />,
-                  value: isCloneStage
-                    ? `${getCardCurrentQuantity(card)} шт.`
-                    : `${getCardCurrentQuantity(card)} из ${card.quantity} шт.`,
+                  value: formatQuantityDisplay(getCardCurrentQuantity(card), card.quantity),
                 },
                 {
                   key: 'days',
@@ -280,6 +371,7 @@ export default function CultureListScreen({
               return (
                 <Pressable
                   accessibilityRole="button"
+                  testID="culture-card"
                   key={card.id}
                   onPress={() => onOpenCultureCalendar(card)}
                   style={({ pressed }) => [
@@ -287,27 +379,41 @@ export default function CultureListScreen({
                     pressed && styles.stageCardPressed,
                   ]}
                 >
-                  {batchStatus === 'partial' && card.sterilityStatus !== 'contaminated' ? (
+                  {statusDots.length > 1 ? (
                     <View
-                      accessibilityLabel="Активная, частично реализована"
+                      accessibilityLabel={
+                        statusDots.includes('problem')
+                          ? (batchStatus === 'partial' ? 'Активная, частично реализована, проблема' : 'Активная, проблема')
+                          : 'Активная, частично реализована'
+                      }
                       style={styles.plantCardStatusDotGroup}
                     >
-                      <View style={[styles.plantCardStatusDotInline, styles.plantCardStatusDotActive]} />
-                      <View style={[styles.plantCardStatusDotInline, styles.plantCardStatusDotPartial]} />
+                      {statusDots.map((statusDot) => (
+                        <View
+                          key={statusDot}
+                          style={[
+                            styles.plantCardStatusDotInline,
+                            statusDot === 'active' && styles.plantCardStatusDotActive,
+                            statusDot === 'draft' && styles.plantCardStatusDotDraft,
+                            statusDot === 'partial' && styles.plantCardStatusDotPartial,
+                            statusDot === 'problem' && styles.plantCardStatusDotProblem,
+                          ]}
+                        />
+                      ))}
                     </View>
                   ) : (
-                        <View
-                          accessibilityLabel={
+                    <View
+                      accessibilityLabel={
                         BATCH_STATUS_LABELS[batchStatus] ||
                         (isCriticalLossRisk ? 'Проблема' : '') ||
                         batchStatus ||
                         'Активная'
                       }
-                          style={[
-                            styles.plantCardStatusDot,
+                      style={[
+                        styles.plantCardStatusDot,
                         getPlantCardStatusDotStyle(batchStatus, card.sterilityStatus, isCriticalLossRisk),
-                          ]}
-                        />
+                      ]}
+                    />
                   )}
 
                   <View>
@@ -348,19 +454,11 @@ export default function CultureListScreen({
               );
             })}
 
-            {!isCardsLoading && selectedStageCardsCount === 0 && (
+            {!isCardsLoading && cards.length === 0 && (
               <View style={localStyles.emptyState}>
                 <LogoElementIcon color="#15863F" size={74} />
-                <Text style={localStyles.emptyStateText}>
-                  {isCultureIntroStage && 'Партии пока нет. \nНажмите «Создать партию», чтобы создать первую.'}
-                  {isCloneStage && 'Карточек пока нет. Переведите растение из введения в культуру.'}
-                  {isAdaptationStage && 'Карточек пока нет. Переведите растение из клонирования.'}
-                  {isGreenhouseStage && 'Карточек пока нет. Переведите растение из адаптации.'}
-                  {isHardeningStage && 'Карточек пока нет. Переведите растение из теплицы.'}
-                  {isPlantingStage && 'Карточек пока нет. Переведите растение из закалки.'}
-                  {!isCultureIntroStage && !isCloneStage && !isAdaptationStage && !isGreenhouseStage && !isHardeningStage && !isPlantingStage &&
-                    'Карточек пока нет. Переведите растение из предыдущей стадии.'}
-                </Text>
+                <Text style={localStyles.emptyStateTitle}>{emptyStateCopy.title}</Text>
+                <Text style={localStyles.emptyStateText}>{emptyStateCopy.text}</Text>
               </View>
             )}
           </View>
@@ -444,10 +542,17 @@ const localStyles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 28,
   },
-  emptyStateText: {
+  emptyStateTitle: {
     color: '#15863F',
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: '800',
+    lineHeight: 24,
+    textAlign: 'center',
+  },
+  emptyStateText: {
+    color: '#15863F',
+    fontSize: 16,
+    fontWeight: '600',
     lineHeight: 24,
     textAlign: 'center',
   },

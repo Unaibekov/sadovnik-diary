@@ -24,6 +24,7 @@ export default function CultureCalendarTab({
   selectedDateOperations,
   stageActionError,
   stageMoveBlockedMessage,
+  stageMoveHint,
   stageMoveTarget,
 }) {
   const [isViewerVisible, setIsViewerVisible] = useState(false);
@@ -46,9 +47,16 @@ export default function CultureCalendarTab({
       />
 
       {!!stageMoveTarget && !!stageMoveBlockedMessage && (
-        <View style={localStyles.moveBlockedNotice}>
-          <InfoIcon color="#EF4444" size={18} />
-          <Text style={localStyles.moveBlockedText}>{stageMoveBlockedMessage}</Text>
+        <View style={localStyles.moveHintNotice}>
+          <InfoIcon color="#6B7280" size={18} />
+          <Text style={localStyles.moveHintText}>{stageMoveBlockedMessage}</Text>
+        </View>
+      )}
+
+      {!!stageMoveTarget && !!stageMoveHint && (
+        <View style={localStyles.moveHintNotice}>
+          <InfoIcon color="#6B7280" size={18} />
+          <Text style={localStyles.moveHintText}>{stageMoveHint}</Text>
         </View>
       )}
 
@@ -169,9 +177,9 @@ export default function CultureCalendarTab({
       </View>
 
       {!!stageActionError && (
-        <View style={styles.stageActionErrorNotice}>
-          <InfoIcon color="#EF4444" size={18} />
-          <Text style={styles.blockedNoticeText}>{stageActionError}</Text>
+        <View style={localStyles.moveHintNotice}>
+          <InfoIcon color="#6B7280" size={18} />
+          <Text style={localStyles.moveHintText}>{stageActionError}</Text>
         </View>
       )}
     </View>
@@ -193,17 +201,23 @@ const localStyles = {
     flexDirection: 'row',
     gap: 12,
   },
-  moveBlockedNotice: {
+  moveHintNotice: {
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderColor: '#F1D6D2',
+    backgroundColor: '#F3F4F6',
+    borderColor: '#E5E7EB',
     borderRadius: 14,
-    borderWidth: 2,
+    borderWidth: 1,
     flexDirection: 'row',
     gap: 10,
     marginBottom: 18,
     paddingHorizontal: 12,
     paddingVertical: 12,
+  },
+  moveHintText: {
+    color: '#6B7280',
+    flex: 1,
+    fontSize: 14,
+    lineHeight: 20,
   },
   timeBadge: {
     alignItems: 'center',

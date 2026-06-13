@@ -101,6 +101,7 @@ export default function AppRouter({ actions, state }) {
     stageActionError,
     stageMoveBlockedMessage,
     stageMoveButtonLabel,
+    stageMoveHint,
     storageError,
     statusForm,
     statusFormError,
@@ -325,6 +326,7 @@ export default function AppRouter({ actions, state }) {
         stageActionError={stageActionError}
         stageMoveBlockedMessage={stageMoveBlockedMessage}
         stageMoveButtonLabel={stageMoveButtonLabel}
+        stageMoveHint={stageMoveHint}
         stageMoveTarget={selectedCardNextStage}
         subtitle={
           <Text style={styles.stageHeaderSubtitle}>
@@ -366,6 +368,7 @@ export default function AppRouter({ actions, state }) {
             selectedDateOperations={selectedDateOperations}
             stageActionError=""
             stageMoveBlockedMessage={stageMoveBlockedMessage}
+            stageMoveHint={stageMoveHint}
             stageMoveTarget={selectedCardNextStage}
           />
         )}
@@ -624,6 +627,7 @@ export default function AppRouter({ actions, state }) {
                 {stageHomeItemsConfig.map((stage) => (
                   <Pressable
                     accessibilityRole="button"
+                    testID={`stage-home-${stage.iconName}`}
                     key={stage.title}
                     onPress={() => handleStagePress(stage.title)}
                     style={({ pressed }) => [

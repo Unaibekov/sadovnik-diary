@@ -12,7 +12,12 @@
     "export:web": "expo export --platform web",
     "serve:dist": "node scripts/serve-dist.js",
     "phone:web": "npm run export:web && npm run serve:dist",
-    "build:apk": "npx eas-cli build --platform android --profile apk"
+    "build:apk": "npx eas-cli build --platform android --profile apk",
+    "pretest:e2e": "node scripts/clean-e2e-artifacts.js",
+    "test:e2e": "set PWTEST_OUTPUT_DIR=%TEMP%\\sadovnik-playwright-%RANDOM%&& npx playwright test",
+    "test:e2e:allure": "npm run test:e2e && npm run allure:generate",
+    "allure:open": "allure open allure-report",
+    "allure:generate": "allure generate allure-results -o allure-report --clean"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",
@@ -35,5 +40,10 @@
     "react-native-web": "~0.21.0",
     "xlsx": "^0.18.5"
   },
-  "private": true
+  "private": true,
+  "devDependencies": {
+    "@playwright/test": "^1.60.0",
+    "allure-commandline": "^2.42.1",
+    "allure-playwright": "^3.10.0"
+  }
 }

@@ -8,6 +8,7 @@ import {
   getPlantingStats,
 } from './batch';
 import { INTRO_STAGE } from './constants';
+import { hasProblemOperation } from './statusProblemValidation';
 
 function hasCriticalProblemVisual(card, {
   isAdaptationStage,
@@ -92,8 +93,9 @@ export function filterCultureCards(cultureCards, options) {
     const query = cardSearch.trim().toLowerCase();
     const cardStage = card.stage || INTRO_STAGE;
     const batchStatus = getResolvedBatchStatus(card);
-    const isProblemStatus = batchStatus === 'problem' || batchStatus === 'quarantine' || card.sterilityStatus === 'contaminated';
+    const isProblemStatus = hasProblemOperation(card) || batchStatus === 'problem' || batchStatus === 'quarantine' || card.sterilityStatus === 'contaminated';
     const isProblemFilter = batchStatusFilter === 'problem' || batchStatusFilter === 'quarantine';
+    const isActiveFilter = batchStatusFilter === 'active';
     const isCriticalProblemVisual = hasCriticalProblemVisual(card, {
       isAdaptationStage,
       isCloneStage,
@@ -116,7 +118,9 @@ export function filterCultureCards(cultureCards, options) {
       batchStatusFilter !== 'all' &&
       !((isProblemFilter)
         ? (isProblemStatus || isCriticalProblemVisual)
-        : batchStatus === batchStatusFilter)
+        : isActiveFilter
+          ? (batchStatus === 'active' || batchStatus === 'partial')
+          : batchStatus === batchStatusFilter)
     ) {
       return false;
     }

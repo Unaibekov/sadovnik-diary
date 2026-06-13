@@ -350,6 +350,7 @@ export default function AuthScreen({
               autoCapitalize="none"
               autoCorrect={false}
               inputMode="text"
+              testID="auth-login-input"
               onBlur={() => onFocusedFieldChange('')}
               onChangeText={onLoginChange}
               onFocus={() => onFocusedFieldChange('login')}
@@ -388,6 +389,7 @@ export default function AuthScreen({
               autoCapitalize="none"
               autoCorrect={false}
               inputMode="text"
+              testID="auth-password-input"
               onBlur={() => onFocusedFieldChange('')}
               onChangeText={onPasswordChange}
               onFocus={() => onFocusedFieldChange('password')}

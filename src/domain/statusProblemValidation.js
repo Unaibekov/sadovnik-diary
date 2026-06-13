@@ -29,37 +29,14 @@ export function getProblemBatchStatus(problemType, riskLevel, stage = '') {
     return 'quarantine';
   }
 
-  if (!isHardeningStage && problemType === 'Контаминация') {
+  if (problemType === 'Контаминация') {
     return 'problem';
   }
 
-  const isCriticalRisk = ['Высокий', 'Критический'].includes(riskLevel);
-
-  if (
-    !isHardeningStage &&
-    ['Болезнь', 'Вредители', 'Стресс', 'Другое'].includes(problemType) &&
-    isCriticalRisk
-  ) {
-    return 'problem';
-  }
-
-  if (
-    isHardeningStage &&
-    ['Ожоги', 'Увядание', 'Болезнь', 'Вредители', 'Другое'].includes(problemType) &&
-    isCriticalRisk
-  ) {
-    return 'problem';
-  }
-
-  if (
-    stage === stages[5] &&
-    ['Увядание', 'Ожоги', 'Болезнь', 'Вредители', 'Погодный стресс', 'Другое'].includes(problemType) &&
-    isCriticalRisk
-  ) {
-    return 'problem';
-  }
-
-  return '';
+  return ['Болезнь', 'Вредители', 'Стресс', 'Ожоги', 'Увядание', 'Погодный стресс', 'Другое']
+    .includes(problemType)
+    ? 'problem'
+    : '';
 }
 
 export function getProblemBatchStatusFromOperations(operations = [], stage = '') {
@@ -86,4 +63,8 @@ export function getProblemBatchStatusFromOperations(operations = [], stage = '')
   }
 
   return '';
+}
+
+export function hasProblemOperation(card) {
+  return Boolean(getProblemBatchStatusFromOperations(card?.operations || [], card?.stage || ''));
 }
