@@ -54,11 +54,6 @@ export const protectedOperationTypes = [
   'quarantineReleased',
 ];
 
-export const cultureCreateBatchStatuses = [
-  ['active', BATCH_STATUS_LABELS.active],
-  ['draft', BATCH_STATUS_LABELS.draft],
-];
-
 export const stageHomeItems = [
   {
     iconName: 'intro',

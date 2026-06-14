@@ -24,7 +24,6 @@ import {
 import { dateFromIso, getTodayIsoDate } from "./src/domain/dates";
 import { getCardDisplayName } from "./src/domain/batch";
 import {
-  cultureCreateBatchStatuses,
   editableStatusOperationTypes,
   introOperationFields,
   protectedOperationTypes,
@@ -122,6 +121,7 @@ export default function AppRouter({ actions, state }) {
     handleAddStageChange,
     handleClearTestData,
     handleGenerateTestData,
+    handleGenerateIntroTestData,
     handleDateChange,
     handleGenerateCode,
     handleLogout,
@@ -130,7 +130,7 @@ export default function AppRouter({ actions, state }) {
     handleSaveStatusChange,
     handleScanPress,
     handleScheduleWateringReminder,
-    handleShareData,
+    handleShareZipData,
     handleChangePermanentPassword,
     handleShareQrPress,
     handleStagePress,
@@ -203,7 +203,6 @@ export default function AppRouter({ actions, state }) {
       <CultureFormScreen
         canEditCurrentIdentity={canEditCurrentIdentity}
         canSaveCultureForm={Boolean(canSaveCultureForm)}
-        cultureCreateBatchStatuses={cultureCreateBatchStatuses}
         cultureForm={cultureForm}
         cultureOptions={cultureOptions}
         formError={formError}
@@ -593,9 +592,10 @@ export default function AppRouter({ actions, state }) {
           onOpenDirectories={openDirectories}
           onClearCards={handleClearTestData}
           onGenerateTestData={handleGenerateTestData}
+          onGenerateIntroTestData={handleGenerateIntroTestData}
           onChangePermanentPassword={handleChangePermanentPassword}
           onScheduleWateringReminder={handleScheduleWateringReminder}
-          onShareData={handleShareData}
+          onShareZipData={handleShareZipData}
           onScanPress={handleScanPress}
           onTasksPress={openTasks}
           role={userRole}

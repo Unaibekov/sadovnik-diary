@@ -1565,8 +1565,14 @@ export default StyleSheet.create({
   plantCardStatusDotActive: {
     backgroundColor: '#15863F',
   },
+  plantCardStatusDotContamination: {
+    backgroundColor: '#DC2626',
+  },
   plantCardStatusDotDraft: {
     backgroundColor: '#9CA3AF',
+  },
+  plantCardStatusDotQuarantine: {
+    backgroundColor: '#EF4444',
   },
   plantCardStatusDotProblem: {
     backgroundColor: '#EF4444',
@@ -1690,6 +1696,9 @@ export default StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     lineHeight: 21,
+  },
+  selectPlaceholder: {
+    color: '#7C8A80',
   },
   selectButtonArrow: {
     alignItems: 'center',

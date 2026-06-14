@@ -79,7 +79,9 @@ export function normalizeCultureCard(card) {
       : [];
   const normalizedCard = {
     ...card,
-    batchStatus: card.batchStatus || (card.status === 'cancelled' ? 'cancelled' : 'active'),
+    batchStatus: card.batchStatus === 'draft'
+      ? 'active'
+      : (card.batchStatus || (card.status === 'cancelled' ? 'cancelled' : 'active')),
     qrStatus: normalizedQrStatus,
     sterilityStatus: card.sterilityStatus || 'unchecked',
     sourceMaterial: card.sourceMaterial || card.sourcePlantName || '',

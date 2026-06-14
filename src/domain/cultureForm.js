@@ -90,6 +90,7 @@ export function buildCultureFormForEdit(card) {
   return {
     ...createEmptyCultureForm(),
     ...removeRecommendationFields(card),
+    batchStatus: card?.batchStatus === 'draft' ? 'active' : (card?.batchStatus || 'active'),
     locationDescription: card?.locationDescription || '',
     qrPrinted: card?.qrPrinted || false,
     qrPrintedAt: card?.qrPrintedAt || null,

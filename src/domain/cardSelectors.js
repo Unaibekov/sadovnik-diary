@@ -32,11 +32,15 @@ export function buildCultureFormOptions(plantsCatalog, cultureForm) {
 }
 
 export function getPlantCardStatusDotStyle(batchStatus, sterilityStatus, isProblemVisual = false) {
-  if (batchStatus === 'draft') {
-    return styles.plantCardStatusDotDraft;
+  if (sterilityStatus === 'contaminated') {
+    return styles.plantCardStatusDotContamination;
   }
 
-  if (isProblemVisual || sterilityStatus === 'contaminated' || ['quarantine', 'problem'].includes(batchStatus)) {
+  if (batchStatus === 'quarantine') {
+    return styles.plantCardStatusDotQuarantine;
+  }
+
+  if (isProblemVisual || batchStatus === 'problem') {
     return styles.plantCardStatusDotProblem;
   }
 
@@ -55,7 +59,9 @@ export function hasSaleOperation(card) {
 }
 
 export function getResolvedBatchStatus(card) {
-  const batchStatus = card?.batchStatus || 'active';
+  const batchStatus = card?.batchStatus === 'draft'
+    ? 'active'
+    : (card?.batchStatus || 'active');
   const currentQuantity = getCardCurrentQuantity(card);
   const hasSale = hasSaleOperation(card);
   const totalQuantity = Number(card?.quantity) || 0;

@@ -14,7 +14,6 @@ import styles from '../../styles';
 import SelectBottomSheet from '../components/SelectBottomSheet';
 import { ChevronDownIcon, QrGenerateIcon } from '../components/icons';
 import StageHeader from '../components/StageHeader';
-import { BATCH_STATUS_LABELS } from '../domain/constants';
 import { dateFromIso, formatDisplayDate, parseDisplayDate } from '../domain/dates';
 
 const NativeDateTimePicker = Platform.OS === 'web'
@@ -24,7 +23,6 @@ const NativeDateTimePicker = Platform.OS === 'web'
 export default function CultureFormScreen({
   canEditCurrentIdentity,
   canSaveCultureForm,
-  cultureCreateBatchStatuses,
   cultureForm,
   cultureOptions,
   formError,
@@ -422,35 +420,6 @@ export default function CultureFormScreen({
                 )}
               </View>
 
-              {!isEditingCard && (
-                <View style={styles.field}>
-                  <Pressable
-                    accessibilityRole="button"
-                    onPress={() => setOpenDropdown(openDropdown === 'batchStatus' ? '' : 'batchStatus')}
-                    style={styles.selectButton}
-                  >
-                    <Text style={styles.selectButtonText}>
-                      {BATCH_STATUS_LABELS[cultureForm.batchStatus] || 'Выберите статус партии'}
-                    </Text>
-                    <View style={styles.selectButtonArrow}>
-                      <ChevronDownIcon />
-                    </View>
-                  </Pressable>
-
-                  <SelectBottomSheet
-                    getKey={([value]) => value}
-                    getLabel={([, label]) => label}
-                    onClose={() => setOpenDropdown('')}
-                    onSelect={([value]) => {
-                      updateCultureForm('batchStatus', value);
-                      setOpenDropdown('');
-                    }}
-                    options={cultureCreateBatchStatuses}
-                    title="Выберите статус партии"
-                    visible={openDropdown === 'batchStatus'}
-                  />
-                </View>
-              )}
             </View>
 
             <View style={styles.cultureFormFooter}>

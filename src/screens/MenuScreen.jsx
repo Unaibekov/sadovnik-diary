@@ -37,8 +37,9 @@ export default function MenuScreen({
   onLogout,
   onClearCards,
   onGenerateTestData,
+  onGenerateIntroTestData,
   onScheduleWateringReminder,
-  onShareData,
+  onShareZipData,
   onScanPress,
   onTasksPress,
   onOpenDirectories,
@@ -60,13 +61,27 @@ export default function MenuScreen({
     ['Активные партии', String(activeCardsCount)],
     ['Задачи', taskCount > 0 ? String(taskCount) : 'Нет новых'],
   ];
-  const testMenuItems = [{
-    key: 'generateTestData',
-    onPress: onGenerateTestData,
-    subtitle: 'Добавить 40 карточек для тестирования MVP',
-    title: 'Заполнить тестовыми данными',
-  }];
+  const testMenuItems = [
+    {
+      key: 'generateIntroTestData',
+      onPress: onGenerateIntroTestData,
+      subtitle: 'Добавить 10 карточек только во введении в культуру',
+      title: '10 карточек в культуре',
+    },
+    {
+      key: 'generateTestData',
+      onPress: onGenerateTestData,
+      subtitle: 'Добавить 10 карточек в каждой стадии',
+      title: 'Заполнить всеми стадиями',
+    },
+  ];
   const menuItems = [
+    {
+      key: 'shareZip',
+      onPress: onShareZipData,
+      subtitle: 'report.json и photos/ для ручной загрузки',
+      title: 'Экспорт ZIP для админки',
+    },
     {
       key: 'password',
       onPress: () => {
@@ -84,12 +99,6 @@ export default function MenuScreen({
       onPress: onScheduleWateringReminder,
       subtitle: 'Тестовое напоминание о поливе через 1 минуту',
       title: 'Проверить уведомления',
-    },
-    {
-      key: 'share',
-      onPress: onShareData,
-      subtitle: 'Excel-файл с партиями и журналом',
-      title: 'Поделиться отчетом',
     },
     {
       key: 'directories',

@@ -4,7 +4,6 @@ import appStyles from '../../styles';
 
 const statusDotColors = {
   active: '#15863F',
-  draft: '#9CA3AF',
   quarantine: '#EF4444',
   partial: '#F59E0B',
   problem: '#EF4444',

@@ -22,3 +22,19 @@ export function getShareReportNotice(shareResult) {
 
   return 'Excel-файл отчета готов к отправке.';
 }
+
+export function getShareZipReportNotice(shareResult) {
+  if (shareResult === 'web_downloaded') {
+    return 'ZIP-отчет скачан.';
+  }
+
+  if (shareResult === 'web_ready') {
+    return 'ZIP-отчет подготовлен.';
+  }
+
+  if (shareResult === 'native_unavailable') {
+    return 'Отправка ZIP-файла недоступна на устройстве.';
+  }
+
+  return 'ZIP-отчет готов к отправке.';
+}

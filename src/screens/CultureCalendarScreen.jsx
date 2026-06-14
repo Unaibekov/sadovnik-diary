@@ -61,42 +61,52 @@ export default function CultureCalendarScreen({
           <View
             style={[
               styles.calendarBottomActions,
+              localStyles.bottomActionsColumn,
               { paddingBottom: Math.max(bottomInset + 6, 16) },
             ]}
           >
-            {!!stageMoveTarget && !stageMoveBlockedMessage && (
-              <Pressable
-                accessibilityRole="button"
-                testID="stage-move-button"
-                onPress={onRequestStageMove}
-                style={({ pressed }) => [
-                  styles.primaryButton,
-                  styles.calendarStageMoveButton,
-                  pressed && styles.pressedButton,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.primaryButtonText,
-                    styles.calendarStageMoveButtonText,
-                  ]}
-                >
-                  {stageMoveButtonLabel}
-                </Text>
-              </Pressable>
+            {!!stageMoveBlockedMessage && (
+              <View style={localStyles.moveBlockedNotice}>
+                <InfoIcon color="#15863F" size={18} />
+                <Text style={localStyles.moveBlockedText}>{stageMoveBlockedMessage}</Text>
+              </View>
             )}
 
-            <Pressable
-              accessibilityRole="button"
-              testID="calendar-add-event"
-              onPress={onAddEvent}
-              style={({ pressed }) => [
-                styles.calendarAddEventButton,
-                pressed && styles.linkButtonPressed,
-              ]}
-            >
-              <Text style={styles.calendarAddEventButtonText}>+</Text>
-            </Pressable>
+            <View style={localStyles.bottomActionsRow}>
+              {!!stageMoveTarget && !stageMoveBlockedMessage && (
+                <Pressable
+                  accessibilityRole="button"
+                  testID="stage-move-button"
+                  onPress={onRequestStageMove}
+                  style={({ pressed }) => [
+                    styles.primaryButton,
+                    styles.calendarStageMoveButton,
+                    pressed && styles.pressedButton,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.primaryButtonText,
+                      styles.calendarStageMoveButtonText,
+                    ]}
+                  >
+                    {stageMoveButtonLabel}
+                  </Text>
+                </Pressable>
+              )}
+
+              <Pressable
+                accessibilityRole="button"
+                testID="calendar-add-event"
+                onPress={onAddEvent}
+                style={({ pressed }) => [
+                  styles.calendarAddEventButton,
+                  pressed && styles.linkButtonPressed,
+                ]}
+              >
+                <Text style={styles.calendarAddEventButtonText}>+</Text>
+              </Pressable>
+            </View>
           </View>
         )}
 
@@ -118,31 +128,53 @@ export default function CultureCalendarScreen({
                   <Text style={localStyles.moveHintText}>{stageMoveHint}</Text>
                 </View>
               )}
-              <View style={styles.confirmModalActions}>
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={onCancelStageMove}
-                  style={({ pressed }) => [
-                    styles.secondaryOutlineButton,
-                    styles.confirmModalButton,
-                    pressed && styles.linkButtonPressed,
-                  ]}
-                >
-                  <Text style={styles.secondaryOutlineButtonText}>Отмена</Text>
-                </Pressable>
-                <Pressable
-                  accessibilityRole="button"
-                  testID="confirm-stage-move"
-                  onPress={onConfirmStageMove}
-                  style={({ pressed }) => [
-                    styles.primaryButton,
-                    styles.confirmModalButton,
-                    pressed && styles.pressedButton,
-                  ]}
-                >
-                  <Text style={styles.primaryButtonText}>Перенести</Text>
-                </Pressable>
-              </View>
+              {!!stageActionError && (
+                <View style={localStyles.moveErrorNotice}>
+                  <InfoIcon color="#15863F" size={18} />
+                  <Text style={localStyles.moveErrorText}>{stageActionError}</Text>
+                </View>
+              )}
+              {stageMoveBlockedMessage || stageActionError ? (
+                <View style={styles.confirmModalActions}>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={onCancelStageMove}
+                    style={({ pressed }) => [
+                      styles.primaryButton,
+                      styles.confirmModalButton,
+                      pressed && styles.pressedButton,
+                    ]}
+                  >
+                    <Text style={styles.primaryButtonText}>Закрыть</Text>
+                  </Pressable>
+                </View>
+              ) : (
+                <View style={styles.confirmModalActions}>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={onCancelStageMove}
+                    style={({ pressed }) => [
+                      styles.secondaryOutlineButton,
+                      styles.confirmModalButton,
+                      pressed && styles.linkButtonPressed,
+                    ]}
+                  >
+                    <Text style={styles.secondaryOutlineButtonText}>Отмена</Text>
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    testID="confirm-stage-move"
+                    onPress={onConfirmStageMove}
+                    style={({ pressed }) => [
+                      styles.primaryButton,
+                      styles.confirmModalButton,
+                      pressed && styles.pressedButton,
+                    ]}
+                  >
+                    <Text style={styles.primaryButtonText}>Перенести</Text>
+                  </Pressable>
+                </View>
+              )}
             </View>
           </View>
         </Modal>
@@ -247,6 +279,40 @@ const localStyles = {
   },
   moveHintText: {
     color: "#6B7280",
+    flex: 1,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  bottomActionsColumn: {
+    alignItems: "stretch",
+    flexDirection: "column",
+    gap: 12,
+  },
+  bottomActionsRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 12,
+  },
+  moveBlockedNotice: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 10,
+    width: "100%",
+  },
+  moveBlockedText: {
+    color: "#15863F",
+    flex: 1,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  moveErrorNotice: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 2,
+  },
+  moveErrorText: {
+    color: "#15863F",
     flex: 1,
     fontSize: 14,
     lineHeight: 20,

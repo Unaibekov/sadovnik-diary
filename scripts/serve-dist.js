@@ -4,7 +4,9 @@ const path = require('path');
 const fs = require('fs');
 
 const port = Number(process.env.PORT || 4173);
-const root = path.resolve(__dirname, '..', 'dist');
+const root = process.env.WEB_DIST_DIR
+  ? path.resolve(process.env.WEB_DIST_DIR)
+  : path.resolve(__dirname, '..', 'dist');
 
 const contentTypes = {
   '.html': 'text/html; charset=utf-8',

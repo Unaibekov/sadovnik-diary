@@ -23,7 +23,6 @@ export const INTRO_STAGE = 'Введение в культуру';
 
 export const BATCH_STATUS_LABELS = {
   active: 'Активная',
-  draft: 'Черновик',
   quarantine: 'Карантин',
   partial: 'Частично реализована',
   problem: 'Проблема',

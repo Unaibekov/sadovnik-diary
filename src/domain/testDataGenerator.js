@@ -135,6 +135,22 @@ function buildUniqueId({ existingIds, stage, index }) {
 }
 
 export function buildDevelopmentTestCultureCards(existingCards, { now = new Date(), user = currentUser } = {}) {
+  return buildDevelopmentTestCultureCardsWithMode(existingCards, {
+    now,
+    user,
+    mode: 'full',
+  });
+}
+
+export function buildDevelopmentIntroTestCultureCards(existingCards, { now = new Date(), user = currentUser } = {}) {
+  return buildDevelopmentTestCultureCardsWithMode(existingCards, {
+    now,
+    user,
+    mode: 'intro',
+  });
+}
+
+function buildDevelopmentTestCultureCardsWithMode(existingCards, { now = new Date(), user = currentUser, mode }) {
   const nextCards = [...(existingCards || [])];
   const existingIds = new Set(nextCards.map((card) => `${card.id || ''}`));
   const existingCodes = new Set(
@@ -143,7 +159,7 @@ export function buildDevelopmentTestCultureCards(existingCards, { now = new Date
       .filter(Boolean),
   );
   const createdCards = [];
-  const stagesToSeed = STAGE_ORDER;
+  const stagesToSeed = mode === 'intro' ? [INTRO_STAGE] : STAGE_ORDER;
   const updatedWindowStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
   const creationWindowStart = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
 
@@ -154,12 +170,15 @@ export function buildDevelopmentTestCultureCards(existingCards, { now = new Date
         new Date(Math.max(createdAt.getTime(), updatedWindowStart.getTime())),
         now,
       );
-      const profile = buildProfileForCulture(stageIndex * 10 + index);
-      const cardId = buildUniqueId({ existingIds, stage, index: stageIndex * 10 + index });
+      const cardSeedIndex = mode === 'intro'
+        ? index
+        : stageIndex * 100 + index;
+      const profile = buildProfileForCulture(cardSeedIndex);
+      const cardId = buildUniqueId({ existingIds, stage, index: cardSeedIndex });
       const code = buildUniqueCode({
         createdAt,
         existingCodes,
-        index: stageIndex * 10 + index,
+        index: cardSeedIndex,
         stage,
       });
       const quantity = randomInt(50, 5000);

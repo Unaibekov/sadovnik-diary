@@ -23,6 +23,19 @@ import {
 import { hasProblemOperation } from '../domain/statusProblemValidation';
 import { BATCH_STATUS_LABELS, stages } from '../domain/constants';
 
+function getCardStatusAccessibilityLabel(statusDots) {
+  const labelMap = {
+    active: 'Активная',
+    partial: 'Частично реализована',
+    draft: 'Черновик',
+    contamination: 'Контаминация',
+    quarantine: 'Карантин',
+    problem: 'Проблема',
+  };
+
+  return statusDots.map((statusDot) => labelMap[statusDot]).filter(Boolean).join(', ');
+}
+
 export default function CultureListScreen({
   allVisibleStageCardsCount,
   batchStatusFilter,
@@ -53,14 +66,15 @@ export default function CultureListScreen({
   const showHardeningStatusFilters = isHardeningStage || isHardeningStageSelected;
   const showPlantingStatusFilters = isPlantingStage || isPlantingStageSelected;
   const showStatusFilters = isCultureIntroStage || isCloneStage || isAdaptationStage || isGreenhouseStage || showHardeningStatusFilters || showPlantingStatusFilters;
-  const visibleBatchStatusFilter = batchStatusFilter === 'quarantine'
-    ? 'problem'
-    : batchStatusFilter;
+  const visibleBatchStatusFilter = batchStatusFilter === 'draft'
+    ? 'all'
+    : batchStatusFilter === 'quarantine'
+      ? 'problem'
+      : batchStatusFilter;
   const searchQuery = cardSearch.trim();
   const selectedFilterLabel = {
     all: 'Все',
     active: 'Активная',
-    draft: 'Черновик',
     problem: 'Проблема',
   }[visibleBatchStatusFilter] || 'Все';
   const getEmptyStateCopy = () => {
@@ -68,30 +82,6 @@ export default function CultureListScreen({
       return {
         title: 'Ничего не найдено',
         text: `По запросу «${searchQuery}» карточек нет.\nОчистите поиск или смените фильтр.`,
-      };
-    }
-
-    if (visibleBatchStatusFilter === 'draft') {
-      if (isCultureIntroStage) {
-        return {
-          title: 'Черновиков пока нет',
-          text: 'Нажмите «Создать партию», чтобы создать первую.',
-        };
-      }
-
-      return {
-        title: 'Карточек пока нет',
-        text: isCloneStage
-          ? 'Переведите растение из введения в культуру.'
-          : isAdaptationStage
-            ? 'Переведите растение из клонирования.'
-            : isGreenhouseStage
-              ? 'Переведите растение из адаптации.'
-              : isHardeningStage
-                ? 'Переведите растение из теплицы.'
-                : isPlantingStage
-                  ? 'Переведите растение из закалки.'
-                  : 'Переведите растение из предыдущей стадии.',
       };
     }
 
@@ -146,7 +136,6 @@ export default function CultureListScreen({
     : [
       ['all', 'Все'],
       ['active', 'Активная'],
-      ['draft', 'Черновик'],
       ['problem', 'Проблема'],
     ];
   const formatDaysInStage = (days) => {
@@ -235,6 +224,7 @@ export default function CultureListScreen({
                 };
               const cardDaysInStage = getDaysInCurrentStage(card);
               const isContaminated = card.sterilityStatus === 'contaminated';
+              const isQuarantine = batchStatus === 'quarantine';
               const isCriticalLossRisk = (
                 (isCultureIntroStage && introStats.riskStatus === 'Критический') ||
                 (isCloneStage && cloneStats.riskStatus === 'Критический') ||
@@ -243,18 +233,34 @@ export default function CultureListScreen({
                 (isHardeningStage && hardeningStats.riskStatus === 'Критический') ||
                 (isPlantingStage && plantingStats.riskStatus === 'Критический')
               );
-              const isProblemStatus = hasProblemOperation(card) || batchStatus === 'problem' || batchStatus === 'quarantine' || isContaminated || isCriticalLossRisk;
-              const statusDots = [];
-
-              if (batchStatus === 'partial') {
-                statusDots.push('active', 'partial');
-              } else {
-                statusDots.push(batchStatus === 'draft' ? 'draft' : 'active');
-              }
-
-              if (isProblemStatus) {
-                statusDots.push('problem');
-              }
+              const isProblemStatus = hasProblemOperation(card) || batchStatus === 'problem' || isCriticalLossRisk;
+              const problemStatusMeta = isContaminated
+                ? [{
+                  key: 'contamination',
+                  icon: <InfoIcon color="#D92D20" size={14} />,
+                  text: 'Контаминация',
+                  textStyle: { color: '#D92D20' },
+                }]
+                : isQuarantine
+                  ? [{
+                    key: 'quarantine',
+                    icon: <InfoIcon color="#D92D20" size={14} />,
+                    text: 'Карантин',
+                    textStyle: { color: '#D92D20' },
+                  }]
+                  : isProblemStatus
+                    ? [{
+                      key: 'problem',
+                      icon: <InfoIcon color="#D92D20" size={14} />,
+                      text: 'Проблема',
+                      textStyle: { color: '#D92D20' },
+                    }]
+                    : [];
+              const statusDots = [
+                ...(batchStatus === 'partial' ? ['active', 'partial'] : [batchStatus === 'draft' ? 'draft' : 'active']),
+                ...(problemStatusMeta.length ? [problemStatusMeta[0].key] : []),
+              ];
+              const baseStatuses = problemStatusMeta;
               const introMeta = [
                 {
                   key: 'quantity',
@@ -280,15 +286,8 @@ export default function CultureListScreen({
                 },
               ];
               const introStatuses = [
-                ...(isProblemStatus
-                  ? [{
-                    key: 'problem',
-                    icon: <InfoIcon color="#D92D20" size={14} />,
-                    text: 'Проблема',
-                    textStyle: { color: '#D92D20' },
-                  }]
-                  : []),
-                ...(cardDaysInStage >= 14 && !isContaminated && batchStatus !== 'quarantine' && !isProblemStatus
+                ...baseStatuses,
+                ...(cardDaysInStage >= 14 && !problemStatusMeta.length
                   ? [{
                     key: 'stage-ready',
                     icon: <TimeIcon color="#F59E0B" size={14} />,
@@ -297,9 +296,7 @@ export default function CultureListScreen({
                   : []),
                 ...(cardDaysInStage < 14 &&
                   getQrStatus(card) === 'pending_print' &&
-                  !isContaminated &&
-                  batchStatus !== 'quarantine' &&
-                  !isProblemStatus
+                  !problemStatusMeta.length
                   ? [{
                     key: 'qr-pending',
                     icon: <InfoIcon color="#9AA3AF" size={14} />,
@@ -308,14 +305,7 @@ export default function CultureListScreen({
                   : []),
               ];
               const stageStatuses = [
-                ...(isProblemStatus
-                  ? [{
-                    key: 'problem',
-                    icon: <InfoIcon color="#D92D20" size={14} />,
-                    text: 'Проблема',
-                    textStyle: { color: '#D92D20' },
-                  }]
-                  : []),
+                ...baseStatuses,
                 ...(isCloneStage && cloneStats.riskStatus !== 'Нормальный'
                   ? [{
                     key: 'clone-risk',
@@ -381,11 +371,7 @@ export default function CultureListScreen({
                 >
                   {statusDots.length > 1 ? (
                     <View
-                      accessibilityLabel={
-                        statusDots.includes('problem')
-                          ? (batchStatus === 'partial' ? 'Активная, частично реализована, проблема' : 'Активная, проблема')
-                          : 'Активная, частично реализована'
-                      }
+                      accessibilityLabel={getCardStatusAccessibilityLabel(statusDots) || 'Активная'}
                       style={styles.plantCardStatusDotGroup}
                     >
                       {statusDots.map((statusDot) => (
@@ -396,6 +382,8 @@ export default function CultureListScreen({
                             statusDot === 'active' && styles.plantCardStatusDotActive,
                             statusDot === 'draft' && styles.plantCardStatusDotDraft,
                             statusDot === 'partial' && styles.plantCardStatusDotPartial,
+                            statusDot === 'contamination' && styles.plantCardStatusDotContamination,
+                            statusDot === 'quarantine' && styles.plantCardStatusDotProblem,
                             statusDot === 'problem' && styles.plantCardStatusDotProblem,
                           ]}
                         />

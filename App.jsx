@@ -36,7 +36,6 @@ import {
   getDaysInCurrentStage,
   getGreenhouseStats,
   getNextStage,
-  getOperationSummaryItems,
   getQrStatus,
 } from "./src/domain/batch";
 import {
@@ -44,7 +43,6 @@ import {
   getPlantCardStatusDotStyle,
 } from "./src/domain/cardSelectors";
 import {
-  cultureCreateBatchStatuses,
   introOperationFields,
   protectedOperationTypes,
   stageHomeItems as stageHomeItemsConfig,
@@ -78,7 +76,10 @@ import {
   buildCultureCardCancelResult,
   buildCultureCardSaveResult,
 } from "./src/domain/cultureCardSave";
-import { buildDevelopmentTestCultureCards } from "./src/domain/testDataGenerator";
+import {
+  buildDevelopmentIntroTestCultureCards,
+  buildDevelopmentTestCultureCards,
+} from "./src/domain/testDataGenerator";
 import { validateCultureCardInput } from "./src/domain/cultureFormValidation";
 import { updateFormField } from "./src/domain/formState";
 import { isRenderablePhotoUri } from "./src/domain/photoUri";
@@ -93,7 +94,7 @@ import {
   scheduleWateringReminder,
 } from "./src/services/localNotifications";
 import { shareQrCode } from "./src/services/shareQrCodeService";
-import { shareCultureCardsReport } from "./src/services/shareReportService";
+import { shareAdminReportZip } from "./src/services/shareZipReportService";
 import {
   authenticateWithBiometrics,
   loadEmployeeProfile,
@@ -146,7 +147,7 @@ import {
 import { buildTaskCardOpenState } from "./src/domain/tasks";
 import {
   getShareQrNotice,
-  getShareReportNotice,
+  getShareZipReportNotice,
 } from "./src/domain/shareNotice";
 import { getWateringReminderNotice } from "./src/domain/notificationNotice";
 import {
@@ -931,16 +932,16 @@ function AppContent() {
     openCultureCalendar(taskCard);
   }
 
-  async function handleShareData() {
+  async function handleShareZipData() {
     try {
-      const shareResult = await shareCultureCardsReport(cultureCards, {
-        getCardCurrentQuantity,
-        getOperationSummaryItems,
-        getResolvedBatchStatus,
+      const shareResult = await shareAdminReportZip(cultureCards, {
+        currentEmployee,
+        currentUser,
+        testLocation: "",
       });
-      setNotice(getShareReportNotice(shareResult));
+      setNotice(getShareZipReportNotice(shareResult));
     } catch (shareError) {
-      setNotice("Не удалось подготовить Excel-отчет.");
+      setNotice("Не удалось подготовить ZIP-отчет.");
     }
   }
   async function handleScheduleWateringReminder() {
@@ -1039,6 +1040,20 @@ function AppContent() {
   async function handleGenerateTestData() {
     try {
       const result = buildDevelopmentTestCultureCards(cultureCards);
+      await saveCultureCardsToStorage(result.nextCards);
+      setCultureCards(result.nextCards);
+      setStorageError("");
+      setNotice(
+        `Создано ${result.createdCardsCount} карточек и ${result.journalRecordsCount} записей журнала.`,
+      );
+    } catch (generateError) {
+      setStorageError("Не удалось заполнить тестовыми данными");
+    }
+  }
+
+  async function handleGenerateIntroTestData() {
+    try {
+      const result = buildDevelopmentIntroTestCultureCards(cultureCards);
       await saveCultureCardsToStorage(result.nextCards);
       setCultureCards(result.nextCards);
       setStorageError("");
@@ -2200,6 +2215,7 @@ function AppContent() {
     handleAddStageChange,
     handleClearTestData,
     handleGenerateTestData,
+    handleGenerateIntroTestData,
     handleDateChange,
     handleGenerateCode,
     handleLogout,
@@ -2219,7 +2235,7 @@ function AppContent() {
     handleReplaceStatusPhoto,
     handleScanPress,
     handleScheduleWateringReminder,
-    handleShareData,
+    handleShareZipData,
     handleShareQrPress,
     handleChangePermanentPassword,
     handleStagePress,

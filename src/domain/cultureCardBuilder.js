@@ -55,7 +55,9 @@ export function buildCultureCardPayload({
     qrPrintedAt: cultureForm.qrPrintedAt || null,
     qrPrintedBy: cultureForm.qrPrintedBy || null,
     qrStatus,
-    batchStatus: cultureForm.batchStatus || 'active',
+    batchStatus: editingCardId
+      ? (cultureForm.batchStatus === 'draft' ? 'active' : (cultureForm.batchStatus || 'active'))
+      : 'active',
     status: cultureForm.status || 'active',
     cancelledAt: cultureForm.cancelledAt || null,
     cancelledBy: cultureForm.cancelledBy || null,
