@@ -260,29 +260,36 @@ export default function PlantCatalogBottomSheet({ visible, onClose }) {
                   <View style={localStyles.metaRow}>
                     <View style={localStyles.metaBlock}>
                       <Text style={localStyles.metaLabel}>Клонирование</Text>
-                      <Text style={localStyles.metaValue} numberOfLines={2}>
-                        {[item.cloneTemperatureRequirement, item.cloneLightRequirement]
-                          .filter(Boolean)
-                          .join(' · ') || 'Нет данных'}
-                      </Text>
+                      <LabeledValueList
+                        emptyText="Нет данных"
+                        items={[
+                          { label: 'Температура', value: item.cloneTemperatureRequirement },
+                          { label: 'Освещение', value: item.cloneLightRequirement },
+                        ]}
+                      />
                     </View>
                     <View style={localStyles.metaBlock}>
                       <Text style={localStyles.metaLabel}>Адаптация</Text>
-                      <Text style={localStyles.metaValue} numberOfLines={2}>
-                        {[item.adaptationTemperatureRequirement, item.adaptationLightRequirement]
-                          .filter(Boolean)
-                          .join(' · ') || 'Нет данных'}
-                      </Text>
+                      <LabeledValueList
+                        emptyText="Нет данных"
+                        items={[
+                          { label: 'Температура', value: item.adaptationTemperatureRequirement },
+                          { label: 'Освещение', value: item.adaptationLightRequirement },
+                        ]}
+                      />
                     </View>
                   </View>
 
                   <View style={localStyles.recommendationBlock}>
                     <Text style={localStyles.recommendationLabel}>Профилактика</Text>
-                    <Text style={localStyles.recommendationText} numberOfLines={3}>
-                      {[item.preventionFertilizers, item.preventionChemicals, item.preventionStimulators]
-                        .filter(Boolean)
-                        .join(' · ') || 'Нет данных'}
-                    </Text>
+                    <LabeledValueList
+                      emptyText="Нет данных"
+                      items={[
+                        { label: 'Подкормки', value: item.preventionFertilizers },
+                        { label: 'Препараты', value: item.preventionChemicals },
+                        { label: 'Стимуляторы', value: item.preventionStimulators },
+                      ]}
+                    />
                   </View>
                 </View>
               )}
@@ -291,6 +298,25 @@ export default function PlantCatalogBottomSheet({ visible, onClose }) {
         </KeyboardAvoidingView>
       </View>
     </Modal>
+  );
+}
+
+function LabeledValueList({ items = [], emptyText }) {
+  const visibleItems = items.filter((item) => Boolean(item?.value));
+
+  if (!visibleItems.length) {
+    return <Text style={localStyles.metaValue}>{emptyText}</Text>;
+  }
+
+  return (
+    <View style={localStyles.valueList}>
+      {visibleItems.map((item) => (
+        <View key={item.label} style={localStyles.valueRow}>
+          <Text style={localStyles.valueLabel}>{item.label}</Text>
+          <Text style={localStyles.metaValue}>{item.value}</Text>
+        </View>
+      ))}
+    </View>
   );
 }
 
@@ -402,6 +428,19 @@ const localStyles = StyleSheet.create({
     fontWeight: '700',
     lineHeight: 16,
   },
+  valueLabel: {
+    color: '#4B5A51',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.1,
+    textTransform: 'uppercase',
+  },
+  valueList: {
+    gap: 4,
+  },
+  valueRow: {
+    gap: 1,
+  },
   recommendationBlock: {
     backgroundColor: '#F4FAF6',
     borderColor: '#DDE9E1',
@@ -416,11 +455,6 @@ const localStyles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 0.2,
     textTransform: 'uppercase',
-  },
-  recommendationText: {
-    color: '#355143',
-    fontSize: 12,
-    lineHeight: 17,
   },
   searchBox: {
     alignItems: 'center',
