@@ -1,4 +1,4 @@
-// Экран списка культур выбранной стадии.
+﻿// Экран списка культур выбранной стадии.
 import { StatusBar } from 'expo-status-bar';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -21,20 +21,10 @@ import {
   formatQuantityDisplay,
 } from '../domain/batch';
 import { hasProblemOperation } from '../domain/statusProblemValidation';
-import { BATCH_STATUS_LABELS, stages } from '../domain/constants';
+import { getStageStatusFilterItems } from '../domain/cultureSelectors';
+import { stages } from '../domain/constants';
 
-function getCardStatusAccessibilityLabel(statusDots) {
-  const labelMap = {
-    active: 'Активная',
-    partial: 'Частично реализована',
-    draft: 'Черновик',
-    contamination: 'Контаминация',
-    quarantine: 'Карантин',
-    problem: 'Проблема',
-  };
 
-  return statusDots.map((statusDot) => labelMap[statusDot]).filter(Boolean).join(', ');
-}
 
 export default function CultureListScreen({
   allVisibleStageCardsCount,
@@ -42,7 +32,6 @@ export default function CultureListScreen({
   bottomInset,
   cardSearch,
   cards,
-  getPlantCardStatusDotStyle,
   getResolvedBatchStatus,
   isAdaptationStage,
   isCardsLoading,
@@ -51,14 +40,13 @@ export default function CultureListScreen({
   isGreenhouseStage,
   isHardeningStage,
   isPlantingStage,
-  selectedStageCardsCount,
   onBack,
   onChangeBatchStatusFilter,
   onChangeSearch,
   onCreateCulture,
-  onEditCulture,
   onOpenCultureCalendar,
   selectedStage,
+  stageStatusFilterCounts = {},
   storageError,
 }) {
   const isHardeningStageSelected = selectedStage === stages[4];
@@ -66,17 +54,17 @@ export default function CultureListScreen({
   const showHardeningStatusFilters = isHardeningStage || isHardeningStageSelected;
   const showPlantingStatusFilters = isPlantingStage || isPlantingStageSelected;
   const showStatusFilters = isCultureIntroStage || isCloneStage || isAdaptationStage || isGreenhouseStage || showHardeningStatusFilters || showPlantingStatusFilters;
-  const visibleBatchStatusFilter = batchStatusFilter === 'draft'
+  const visibleBatchStatusFilter = batchStatusFilter === 'draft' || batchStatusFilter === 'active'
     ? 'all'
     : batchStatusFilter === 'quarantine'
       ? 'problem'
       : batchStatusFilter;
+  const statusFilterItems = getStageStatusFilterItems(selectedStage);
+  const visibleStatusFilterItems = statusFilterItems.filter(([value]) => (
+    value === 'all' || (stageStatusFilterCounts[value] || 0) > 0
+  ));
+  const selectedFilterLabel = statusFilterItems.find(([value]) => value === visibleBatchStatusFilter)?.[1] || 'Все';
   const searchQuery = cardSearch.trim();
-  const selectedFilterLabel = {
-    all: 'Все',
-    active: 'Активная',
-    problem: 'Проблема',
-  }[visibleBatchStatusFilter] || 'Все';
   const getEmptyStateCopy = () => {
     if (searchQuery) {
       return {
@@ -85,26 +73,17 @@ export default function CultureListScreen({
       };
     }
 
-    if (visibleBatchStatusFilter === 'active') {
-      return {
-        title: 'Активных карточек пока нет',
-        text: isCultureIntroStage
-          ? 'Нажмите «Создать партию», чтобы добавить первую карточку.'
-          : `Переведите растение из предыдущей стадии, чтобы оно появилось в фильтре «${selectedFilterLabel}».`,
-      };
-    }
-
-    if (visibleBatchStatusFilter === 'partial') {
-      return {
-        title: 'Частично реализованных карточек пока нет',
-        text: 'Когда часть партии будет реализована, карточка появится здесь.',
-      };
-    }
-
     if (visibleBatchStatusFilter === 'problem') {
       return {
         title: 'Проблемных карточек пока нет',
         text: 'Это хороший знак. Если появятся отклонения, они отобразятся здесь.',
+      };
+    }
+
+    if (visibleBatchStatusFilter !== 'all') {
+      return {
+        title: `${selectedFilterLabel} пока нет`,
+        text: `Карточки для фильтра «${selectedFilterLabel}» появятся здесь.`,
       };
     }
 
@@ -126,18 +105,6 @@ export default function CultureListScreen({
     };
   };
   const emptyStateCopy = getEmptyStateCopy();
-  const statusFilterItems = isCloneStage || isAdaptationStage || isGreenhouseStage || showHardeningStatusFilters || showPlantingStatusFilters
-    ? [
-      ['all', 'Все'],
-      ['active', 'Активная'],
-      ['partial', 'Частично реализована'],
-      ['problem', 'Проблема'],
-    ]
-    : [
-      ['all', 'Все'],
-      ['active', 'Активная'],
-      ['problem', 'Проблема'],
-    ];
   const formatDaysInStage = (days) => {
     const value = Math.max(days, 1);
     const lastDigit = value % 10;
@@ -159,8 +126,11 @@ export default function CultureListScreen({
       <View style={styles.fixedCardsScreen}>
         <StageHeader
           onBack={onBack}
+          subtitle={null}
           title={selectedStage}
-        >
+        />
+
+        <View style={localStyles.filterBlock}>
           <View style={localStyles.searchRow}>
             <View style={localStyles.searchBox}>
               <Text style={localStyles.searchIcon}>{'\u2315'}</Text>
@@ -176,15 +146,15 @@ export default function CultureListScreen({
             </View>
           </View>
 
-          {showStatusFilters && (
+          {showStatusFilters && visibleStatusFilterItems.length > 1 && (
             <StatusFilterTabs
               activeValue={visibleBatchStatusFilter}
-              count={allVisibleStageCardsCount}
-              items={statusFilterItems}
+              countsByValue={stageStatusFilterCounts}
+              items={visibleStatusFilterItems}
               onChange={onChangeBatchStatusFilter}
             />
           )}
-        </StageHeader>
+        </View>
 
         <ScrollView
           contentContainerStyle={[
@@ -255,11 +225,8 @@ export default function CultureListScreen({
                       text: 'Проблема',
                       textStyle: { color: '#D92D20' },
                     }]
-                    : [];
-              const statusDots = [
-                ...(batchStatus === 'partial' ? ['active', 'partial'] : [batchStatus === 'draft' ? 'draft' : 'active']),
-                ...(problemStatusMeta.length ? [problemStatusMeta[0].key] : []),
-              ];
+                  : [];
+              const hasProblemMarker = problemStatusMeta.length > 0 || isCriticalLossRisk;
               const baseStatuses = problemStatusMeta;
               const introMeta = [
                 {
@@ -369,37 +336,12 @@ export default function CultureListScreen({
                     pressed && styles.stageCardPressed,
                   ]}
                 >
-                  {statusDots.length > 1 ? (
+                  {hasProblemMarker && (
                     <View
-                      accessibilityLabel={getCardStatusAccessibilityLabel(statusDots) || 'Активная'}
-                      style={styles.plantCardStatusDotGroup}
-                    >
-                      {statusDots.map((statusDot) => (
-                        <View
-                          key={statusDot}
-                          style={[
-                            styles.plantCardStatusDotInline,
-                            statusDot === 'active' && styles.plantCardStatusDotActive,
-                            statusDot === 'draft' && styles.plantCardStatusDotDraft,
-                            statusDot === 'partial' && styles.plantCardStatusDotPartial,
-                            statusDot === 'contamination' && styles.plantCardStatusDotContamination,
-                            statusDot === 'quarantine' && styles.plantCardStatusDotProblem,
-                            statusDot === 'problem' && styles.plantCardStatusDotProblem,
-                          ]}
-                        />
-                      ))}
-                    </View>
-                  ) : (
-                    <View
-                      accessibilityLabel={
-                        BATCH_STATUS_LABELS[batchStatus] ||
-                        (isCriticalLossRisk ? 'Проблема' : '') ||
-                        batchStatus ||
-                        'Активная'
-                      }
+                      accessibilityLabel={problemStatusMeta[0]?.text || 'Проблема'}
                       style={[
                         styles.plantCardStatusDot,
-                        getPlantCardStatusDotStyle(batchStatus, card.sterilityStatus, isCriticalLossRisk),
+                        styles.plantCardStatusDotProblem,
                       ]}
                     />
                   )}
@@ -413,23 +355,6 @@ export default function CultureListScreen({
                           </Text>
                         </View>
                         <CultureCardInfo meta={introMeta} statuses={introStatuses} />
-                        {batchStatus === 'draft' && (
-                          <View style={styles.plantCardActions}>
-                            <Pressable
-                              accessibilityRole="button"
-                              onPress={(event) => {
-                                event?.stopPropagation?.();
-                                onEditCulture(card);
-                              }}
-                              style={({ pressed }) => [
-                                styles.plantCardActionButton,
-                                pressed && styles.linkButtonPressed,
-                              ]}
-                            >
-                              <Text style={styles.plantCardActionButtonText}>Редактировать</Text>
-                            </Pressable>
-                          </View>
-                        )}
                       </>
                     ) : (
                       <>
@@ -476,27 +401,27 @@ export default function CultureListScreen({
 }
 
 const localStyles = StyleSheet.create({
+  filterBlock: {
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    paddingTop: 0,
+  },
   searchRow: {
     alignItems: 'center',
     flexDirection: 'row',
-    marginBottom: 12,
   },
   searchBox: {
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderColor: '#EEF2F0',
+    borderColor: '#D1D5DB',
     borderRadius: 40,
     borderWidth: 1,
-    elevation: 2,
     flex: 1,
     flexDirection: 'row',
     gap: 9,
     height: 52,
     paddingHorizontal: 14,
-    shadowColor: '#101828',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
   },
   searchIcon: {
     color: '#9AA3AF',

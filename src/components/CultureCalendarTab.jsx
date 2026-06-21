@@ -37,6 +37,10 @@ export default function CultureCalendarTab({
     setIsViewerVisible(true);
   }
 
+  function getOperationKey(operation, index) {
+    return operation.id || `${operation.type || 'operation'}-${operation.createdAt || operation.date || 'unknown'}-${index}`;
+  }
+
   return (
     <View style={localStyles.container}>
       <PhotoViewerModal
@@ -101,7 +105,7 @@ export default function CultureCalendarTab({
 
             return (
               <View
-                key={operation.id}
+                key={getOperationKey(operation, index)}
                 style={[
                   styles.statusSummary,
                   index === 0 && styles.statusSummaryFirst,

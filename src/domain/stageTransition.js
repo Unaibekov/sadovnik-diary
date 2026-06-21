@@ -4,13 +4,14 @@ import { removeRecommendationFields } from './recommendations';
 export function buildStageChangeOperation({
   currentQuantity,
   cloneTransitionStats,
+  operationId,
   nextStage,
   nowIso,
   selectedCard,
   selectedCalendarDate,
 }) {
   return {
-    id: `${Date.now()}`,
+    id: operationId || `${Date.now()}`,
     type: 'stageChange',
     title: '\u0418\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u0435 \u0441\u0442\u0430\u0434\u0438\u0438',
     fromStage: selectedCard.stage,

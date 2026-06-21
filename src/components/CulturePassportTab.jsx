@@ -29,6 +29,9 @@ export default function CulturePassportTab({
     survivalRate: 'Не указана',
   };
   const batchStatus = getResolvedBatchStatus(card);
+  const batchStatusLabel = batchStatus === 'active'
+    ? 'Без отклонений'
+    : (BATCH_STATUS_LABELS[batchStatus] || batchStatus || 'Не указан');
 
   return (
     <View style={styles.passportBlocks}>
@@ -36,9 +39,7 @@ export default function CulturePassportTab({
         <Text style={styles.passportSectionTitle}>Сводка</Text>
         <View style={[styles.passportRow, styles.passportRowFirst]}>
           <Text style={styles.passportLabel}>Статус партии</Text>
-          <Text style={styles.passportValue}>
-            {BATCH_STATUS_LABELS[batchStatus] || batchStatus || 'Активная'}
-          </Text>
+          <Text style={styles.passportValue}>{batchStatusLabel}</Text>
         </View>
         {card.stage === 'Клонирование' && (
           <View style={styles.passportRow}>

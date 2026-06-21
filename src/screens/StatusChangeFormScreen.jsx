@@ -289,7 +289,6 @@ export default function StatusChangeFormScreen({
                   activeValue={eventType}
                   items={eventOptions}
                   onChange={onSelectEventType}
-                  showDots={false}
                 />
               </View>
             )}

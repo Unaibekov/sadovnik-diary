@@ -29,11 +29,7 @@ export function getFallbackBatchStatus(card, introActionType, nextQuantity, stat
       card.stage,
     );
 
-    if (problemBatchStatus === 'quarantine') {
-      return problemBatchStatus;
-    }
-
-    return card.batchStatus || 'active';
+    return problemBatchStatus || card.batchStatus || 'active';
   }
 
   const isCriticalAdaptationStress = (

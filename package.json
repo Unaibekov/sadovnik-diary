@@ -17,7 +17,8 @@
     "test:e2e": "set PWTEST_OUTPUT_DIR=%TEMP%\\sadovnik-playwright-%RANDOM%&& npx playwright test",
     "test:e2e:allure": "npm run test:e2e && npm run allure:generate",
     "allure:open": "allure open allure-report",
-    "allure:generate": "allure generate allure-results -o allure-report --clean"
+    "allure:generate": "allure generate allure-results -o allure-report --clean",
+    "generate:demo-reports": "node scripts/generateDemoAdminReports.js"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",

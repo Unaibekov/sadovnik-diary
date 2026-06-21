@@ -8,6 +8,7 @@ import {
   filterCultureCards,
   getAllVisibleStageCardsCount,
   getSelectedStageCardsCount,
+  getStageStatusFilterCounts,
 } from './cultureSelectors';
 import { getMonthDays } from './dates';
 import { buildRecommendationEntries } from './recommendations';
@@ -15,6 +16,7 @@ import {
   buildSelectedCardJournalData,
   doesJournalEventMatchFilters,
   getGlobalJournalEvents,
+  getJournalSubFilterCounts,
 } from './journal';
 import { buildCareTasks } from './tasks';
 import {
@@ -85,6 +87,10 @@ export function buildAppDerivedState({
     journalSubFilter,
     doesJournalEventMatchFilters,
   );
+  const journalSubFilterCounts = getJournalSubFilterCounts(
+    globalJournalEvents,
+    journalFilter,
+  );
 
   const { cultureOptions, speciesOptions, varietyOptions } =
     buildCultureFormOptions(plantsCatalog, cultureForm);
@@ -113,6 +119,20 @@ export function buildAppDerivedState({
     cultureCards,
     selectedStage,
     getResolvedBatchStatus,
+  );
+  const stageStatusFilterCounts = getStageStatusFilterCounts(
+    cultureCards,
+    {
+      getCardDisplayName,
+      getResolvedBatchStatus,
+      isAdaptationStage: selectedStageFlags.isAdaptationStage,
+      isCloneStage: selectedStageFlags.isCloneStage,
+      isCultureIntroStage: selectedStageFlags.isCultureIntroStage,
+      isGreenhouseStage: selectedStageFlags.isGreenhouseStage,
+      isHardeningStage: selectedStageFlags.isHardeningStage,
+      isPlantingStage: selectedStageFlags.isPlantingStage,
+      selectedStage,
+    },
   );
   const recommendationStage = getRecommendationStage(
     recommendationsContext,
@@ -148,6 +168,7 @@ export function buildAppDerivedState({
     filteredCultureCards,
     globalJournalEvents,
     groupedGlobalJournalCards,
+    journalSubFilterCounts,
     isSelectedCloneCard,
     isSupportedPlantingStage,
     recommendationCard,
@@ -168,6 +189,7 @@ export function buildAppDerivedState({
     selectedCardOperations: selectedCardJournalData.selectedCardOperations,
     selectedDateOperations: selectedCardJournalData.selectedDateOperations,
     selectedStageCardsCount,
+    stageStatusFilterCounts,
     selectedStageFlags,
     showIdentityAsText,
     speciesOptions,

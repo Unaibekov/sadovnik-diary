@@ -144,7 +144,6 @@ export default function IntroActionFormScreen({
                   activeValue={actionType}
                   items={introActionCommands}
                   onChange={onSelectActionType}
-                  showDots={false}
                 />
               </View>
             )}

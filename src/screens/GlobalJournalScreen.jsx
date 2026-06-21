@@ -1,4 +1,4 @@
-// Экран общего журнала растений.
+﻿// Экран общего журнала растений.
 import { StatusBar } from 'expo-status-bar';
 import { Fragment, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import styles from '../../styles';
 import BottomTabBar from '../components/BottomTabBar';
 import PhotoGallery from '../components/PhotoGallery';
+import StatusFilterTabs from '../components/StatusFilterTabs';
 import SelectBottomSheet from '../components/SelectBottomSheet';
 import { CalendarIcon, FilterIcon, LeaveIcon, TimeIcon } from '../components/icons';
 import { INTRO_STAGE, stages } from '../domain/constants';
@@ -15,7 +16,7 @@ import {
   getDaysInCurrentStage,
   getOperationSummaryItems,
 } from '../domain/batch';
-import { formatDisplayDate, formatDisplayTime } from '../domain/dates';
+import { formatDisplayTime } from '../domain/dates';
 import { getJournalSubFilters } from '../domain/journal';
 
 const journalMainFilters = [
@@ -35,14 +36,28 @@ function formatDaysInStage(days) {
   const lastTwoDigits = value % 100;
 
   const suffix = lastTwoDigits >= 11 && lastTwoDigits <= 14
-    ? 'дней в стадии'
+    ? 'дн. в стадии'
     : lastDigit === 1
-      ? 'день в стадии'
+      ? 'дн. в стадии'
       : lastDigit >= 2 && lastDigit <= 4
-        ? 'дня в стадии'
-        : 'дней в стадии';
+        ? 'дн. в стадии'
+        : 'дн. в стадии';
 
   return `${value} ${suffix}`;
+}
+
+function formatShortDisplayDate(isoDate) {
+  if (!isoDate) {
+    return '';
+  }
+
+  const [year, month, day] = isoDate.split('-');
+
+  if (!year || !month || !day) {
+    return '';
+  }
+
+  return `${day}.${month}.${year.slice(-2)}`;
 }
 
 export default function GlobalJournalScreen({
@@ -53,6 +68,7 @@ export default function GlobalJournalScreen({
   groupedCards = [],
   journalFilter,
   journalSubFilter,
+  journalSubFilterCounts = {},
   onChangeJournalFilter,
   onChangeJournalSubFilter,
   onHomePress,
@@ -66,24 +82,47 @@ export default function GlobalJournalScreen({
 }) {
   const [isFilterSheetVisible, setIsFilterSheetVisible] = useState(false);
 
+  function getEventKey(event, index) {
+    return event.id || `${event.cardId || 'card'}-${event.type || 'event'}-${event.createdAt || event.date || 'unknown'}-${index}`;
+  }
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar style="dark" />
       <View style={styles.fixedCardsScreen}>
-        <View style={localStyles.headerShell}>
-          <View style={localStyles.journalHeaderRow}>
-            <Text style={localStyles.journalHeaderTitle}>Журнал</Text>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => setIsFilterSheetVisible(true)}
-              style={({ pressed }) => [
-                localStyles.filterPill,
-                pressed && styles.linkButtonPressed,
-              ]}
-            >
-              <FilterIcon size={18} />
-              <Text numberOfLines={1} style={localStyles.filterPillText}>Фильтр</Text>
-            </Pressable>
+        <View style={localStyles.journalTopBlock}>
+          <View style={localStyles.headerShell}>
+            <View style={localStyles.journalHeaderRow}>
+              <Text style={localStyles.journalHeaderTitle}>Журнал</Text>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => setIsFilterSheetVisible(true)}
+                style={({ pressed }) => [
+                  localStyles.filterPill,
+                  pressed && styles.linkButtonPressed,
+                ]}
+              >
+                <FilterIcon size={18} />
+                <Text numberOfLines={1} style={localStyles.filterPillText}>Фильтр</Text>
+              </Pressable>
+            </View>
+          </View>
+
+          <View style={localStyles.journalPanel}>
+            <Text style={styles.journalTitle}>
+              {journalFilter === 'all'
+                ? 'Все события'
+                : journalFilter === 'important'
+                  ? 'Важные события'
+                  : getJournalFilterLabel(journalFilter)}
+            </Text>
+
+            <StatusFilterTabs
+              activeValue={journalSubFilter}
+              countsByValue={journalSubFilterCounts}
+              items={getJournalSubFilters(journalFilter).map((filter) => [filter, getJournalFilterLabel(filter)])}
+              onChange={onChangeJournalSubFilter}
+            />
           </View>
         </View>
 
@@ -93,52 +132,11 @@ export default function GlobalJournalScreen({
             styles.fixedCardsScrollContentWithActions,
           ]}
         >
-          <View style={styles.journalPanel}>
-            <Text style={styles.journalTitle}>
-              {journalFilter === 'all'
-                ? 'Все события'
-                : journalFilter === 'important'
-                  ? 'Важные события'
-                  : getJournalFilterLabel(journalFilter)}
-            </Text>
+          {groupedCards.length === 0 && (
+            <Text style={styles.journalEmpty}>Событий пока нет</Text>
+          )}
 
-            <ScrollView
-              contentContainerStyle={styles.globalJournalFilterRow}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.globalJournalFilterScroll}
-            >
-              {getJournalSubFilters(journalFilter).map((filter) => {
-                const selected = filter === journalSubFilter;
-
-                return (
-                  <Pressable
-                    accessibilityRole="button"
-                    key={filter}
-                    onPress={() => onChangeJournalSubFilter(filter)}
-                    style={({ pressed }) => [
-                      styles.filterButton,
-                      selected && styles.filterButtonActive,
-                      pressed && styles.linkButtonPressed,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.filterButtonText,
-                        selected && styles.filterButtonTextActive,
-                      ]}
-                    >
-                      {getJournalFilterLabel(filter)}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-
-            {groupedCards.length === 0 && (
-              <Text style={styles.journalEmpty}>Событий пока нет</Text>
-            )}
-
+          <View style={localStyles.cardList}>
             {groupedCards.map(({ card, events }) => {
               const isExpanded = expandedCardIds.includes(card.id);
               const resolvedStatus = getResolvedBatchStatus(card);
@@ -147,7 +145,7 @@ export default function GlobalJournalScreen({
                 {
                   key: 'date',
                   icon: <CalendarIcon color="#15863F" size={16} />,
-                  value: formatDisplayDate(card.stageChangedAt || card.createdAt) || '-',
+                  value: formatShortDisplayDate(card.stageChangedAt || card.createdAt) || '-',
                 },
                 {
                   key: 'quantity',
@@ -226,9 +224,9 @@ export default function GlobalJournalScreen({
                         const isTextOnlyOperation = ['comment', 'contamination', 'quarantine'].includes(event.type);
                         const actionTitle = event.title || (event.type === 'comment' ? 'Комментарий' : 'Событие');
 
-                        return (
-                          <Fragment key={`${event.cardId}-${event.id}`}>
-                            <View
+                          return (
+                            <Fragment key={getEventKey(event, index)}>
+                              <View
                               style={[
                                 styles.journalItem,
                                 (['contamination', 'quarantine'].includes(event.type) ||
@@ -319,6 +317,11 @@ export default function GlobalJournalScreen({
 }
 
 const localStyles = {
+  journalTopBlock: {
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
   filterPill: {
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
@@ -343,15 +346,12 @@ const localStyles = {
     flexShrink: 1,
   },
   headerShell: {
-    paddingBottom: 8,
-    paddingHorizontal: 16,
-    paddingTop: 12,
+    padding: 0,
   },
   journalHeaderRow: {
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 12,
   },
   journalHeaderTitle: {
     color: '#111827',
@@ -365,10 +365,13 @@ const localStyles = {
     gap: 14,
     marginTop: 4,
   },
+  cardList: {
+    gap: 14,
+  },
   cardMetaItem: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: 6,
+    gap: 4,
   },
   cardMetaText: {
     color: '#66756B',

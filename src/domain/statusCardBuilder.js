@@ -59,7 +59,7 @@ export function buildUpdatedStatusCard(card, {
 
   return {
     ...nextCardWithStatus,
-    batchStatus: getResolvedBatchStatus(nextCardWithStatus),
+    batchStatus: nextBatchStatus,
     status: ['sold', 'archived'].includes(getResolvedBatchStatus(nextCardWithStatus))
       ? 'archived'
       : 'active',

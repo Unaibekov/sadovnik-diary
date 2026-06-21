@@ -276,6 +276,23 @@ export function getJournalSubFilters(mainFilter) {
   return STAGE_SUB_FILTERS[mainFilter] || STAGE_SUB_FILTERS.all;
 }
 
+export function getJournalSubFilterCounts(events, mainFilter) {
+  return getJournalSubFilters(mainFilter).reduce((counts, subFilter) => {
+    if (subFilter === 'all') {
+      counts[subFilter] = events.filter((event) => (
+        doesJournalEventMatchMainFilter(event, mainFilter)
+      )).length;
+      return counts;
+    }
+
+    counts[subFilter] = events.filter((event) => (
+      doesJournalEventMatchMainFilter(event, mainFilter) &&
+      doesJournalEventMatchSubFilter(event, subFilter, mainFilter)
+    )).length;
+    return counts;
+  }, {});
+}
+
 export function doesJournalEventMatchMainFilter(event, filter) {
   if (filter === 'all') {
     return true;

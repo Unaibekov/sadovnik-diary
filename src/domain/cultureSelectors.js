@@ -7,8 +7,61 @@ import {
   getIntroStats,
   getPlantingStats,
 } from './batch';
-import { INTRO_STAGE } from './constants';
+import { INTRO_STAGE, stages } from './constants';
 import { hasProblemOperation } from './statusProblemValidation';
+
+function hasOperationType(card, operationTypes) {
+  const types = Array.isArray(operationTypes) ? operationTypes : [operationTypes];
+  return (card?.operations || []).some((operation) => types.includes(operation.type));
+}
+
+function isIntroStageFilterMatch(card, batchStatus, filter, isProblemStatus, isCriticalProblemVisual) {
+  if (filter === 'problem') {
+    return isProblemStatus || isCriticalProblemVisual;
+  }
+
+  if (filter === 'movement') {
+    return hasOperationType(card, 'movement');
+  }
+
+  if (filter === 'losses') {
+    return hasOperationType(card, 'introLoss');
+  }
+
+  return batchStatus === filter;
+}
+
+function isProductionStageFilterMatch(card, batchStatus, filter, isProblemStatus, isCriticalProblemVisual) {
+  if (filter === 'problem') {
+    return isProblemStatus || isCriticalProblemVisual;
+  }
+
+  const filterToOperationTypes = {
+    rooting: 'rooting',
+    propagation: 'propagation',
+    movement: 'movement',
+    losses: 'introLoss',
+    sale: 'sale',
+    adaptationStress: 'adaptationStress',
+    adaptationCare: 'adaptationCare',
+    greenhouseObservation: 'greenhouseObservation',
+    greenhouseCare: 'greenhouseCare',
+    transplant: 'transplant',
+    hardeningObservation: 'hardeningObservation',
+    hardeningCare: 'hardeningCare',
+    planting: 'planting',
+    plantingObservation: 'plantingObservation',
+    plantingCare: 'plantingCare',
+    plantingCompletion: 'plantingCompletion',
+  };
+
+  const operationType = filterToOperationTypes[filter];
+  if (operationType) {
+    return hasOperationType(card, operationType);
+  }
+
+  return batchStatus === filter;
+}
 
 function hasCriticalProblemVisual(card, {
   isAdaptationStage,
@@ -46,6 +99,69 @@ function hasCriticalProblemVisual(card, {
   }
 
   return false;
+}
+
+export function getStageStatusFilterItems(selectedStage) {
+  if (selectedStage === stages[1]) {
+    return [
+      ['all', 'Все'],
+      ['rooting', 'Укоренение'],
+      ['propagation', 'Размножение'],
+      ['problem', 'Проблема'],
+      ['movement', 'Перемещение'],
+      ['losses', 'Потери'],
+      ['sale', 'Продажа'],
+    ];
+  }
+
+  if (selectedStage === stages[2]) {
+    return [
+      ['all', 'Все'],
+      ['problem', 'Проблема'],
+      ['movement', 'Перемещение'],
+      ['losses', 'Потери'],
+      ['sale', 'Продажа'],
+    ];
+  }
+
+  if (selectedStage === stages[3]) {
+    return [
+      ['all', 'Все'],
+      ['problem', 'Проблема'],
+      ['transplant', 'Пересадка'],
+      ['movement', 'Перемещение'],
+      ['losses', 'Потери'],
+      ['sale', 'Продажа'],
+    ];
+  }
+
+  if (selectedStage === stages[4]) {
+    return [
+      ['all', 'Все'],
+      ['problem', 'Проблема'],
+      ['movement', 'Перемещение'],
+      ['losses', 'Потери'],
+      ['sale', 'Продажа'],
+    ];
+  }
+
+  if (selectedStage === stages[5]) {
+    return [
+      ['all', 'Все'],
+      ['planting', 'Высадка'],
+      ['problem', 'Проблема'],
+      ['losses', 'Потери'],
+      ['sale', 'Продажа'],
+      ['plantingCompletion', 'Завершение'],
+    ];
+  }
+
+  return [
+    ['all', 'Все'],
+    ['problem', 'Проблема'],
+    ['movement', 'Перемещение'],
+    ['losses', 'Потери'],
+  ];
 }
 
 export function buildGroupedGlobalJournalCards(
@@ -88,14 +204,15 @@ export function filterCultureCards(cultureCards, options) {
     isPlantingStage,
     selectedStage,
   } = options;
+  const normalizedBatchStatusFilter = batchStatusFilter === 'active'
+    ? 'all'
+    : batchStatusFilter;
 
   return cultureCards.filter((card) => {
     const query = cardSearch.trim().toLowerCase();
     const cardStage = card.stage || INTRO_STAGE;
     const batchStatus = getResolvedBatchStatus(card);
     const isProblemStatus = hasProblemOperation(card) || batchStatus === 'problem' || batchStatus === 'quarantine' || card.sterilityStatus === 'contaminated';
-    const isProblemFilter = batchStatusFilter === 'problem' || batchStatusFilter === 'quarantine';
-    const isActiveFilter = batchStatusFilter === 'active';
     const isCriticalProblemVisual = hasCriticalProblemVisual(card, {
       isAdaptationStage,
       isCloneStage,
@@ -115,12 +232,24 @@ export function filterCultureCards(cultureCards, options) {
 
     if (
       (isCultureIntroStage || isCloneStage || isAdaptationStage || isGreenhouseStage || isHardeningStage || isPlantingStage) &&
-      batchStatusFilter !== 'all' &&
-      !((isProblemFilter)
-        ? (isProblemStatus || isCriticalProblemVisual)
-        : isActiveFilter
-          ? (batchStatus === 'active' || batchStatus === 'partial')
-          : batchStatus === batchStatusFilter)
+      normalizedBatchStatusFilter !== 'all' &&
+      !(
+        isCultureIntroStage
+          ? isIntroStageFilterMatch(
+            card,
+            batchStatus,
+            normalizedBatchStatusFilter,
+            isProblemStatus,
+            isCriticalProblemVisual,
+          )
+          : isProductionStageFilterMatch(
+            card,
+            batchStatus,
+            normalizedBatchStatusFilter,
+            isProblemStatus,
+            isCriticalProblemVisual,
+          )
+      )
     ) {
       return false;
     }
@@ -177,4 +306,52 @@ export function getSelectedStageCardsCount(cultureCards, selectedStage, getResol
 
     return cardStage === selectedStage;
   }).length;
+}
+
+export function getSelectedStageProblemCardsCount(cultureCards, options) {
+  return filterCultureCards(cultureCards, {
+    ...options,
+    batchStatusFilter: 'problem',
+  }).length;
+}
+
+export function getStageStatusFilterCounts(cultureCards, options) {
+  const {
+    getCardDisplayName,
+    getResolvedBatchStatus,
+    isAdaptationStage,
+    isCloneStage,
+    isCultureIntroStage,
+    isGreenhouseStage,
+    isHardeningStage,
+    isPlantingStage,
+    selectedStage,
+  } = options;
+  const stageStatusFilterItems = getStageStatusFilterItems(selectedStage);
+
+  return stageStatusFilterItems.reduce((acc, [value]) => {
+    if (value === 'all') {
+      acc[value] = getSelectedStageCardsCount(
+        cultureCards,
+        selectedStage,
+        getResolvedBatchStatus,
+      );
+      return acc;
+    }
+
+    acc[value] = filterCultureCards(cultureCards, {
+      batchStatusFilter: value,
+      cardSearch: '',
+      getCardDisplayName,
+      getResolvedBatchStatus,
+      isAdaptationStage,
+      isCloneStage,
+      isCultureIntroStage,
+      isGreenhouseStage,
+      isHardeningStage,
+      isPlantingStage,
+      selectedStage,
+    }).length;
+    return acc;
+  }, {});
 }

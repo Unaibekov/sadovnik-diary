@@ -779,26 +779,19 @@ export default StyleSheet.create({
   filterButton: {
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderColor: '#EEF2F0',
+    borderColor: '#D1D5DB',
     borderRadius: 999,
     borderWidth: 1,
-    elevation: 2,
     flexDirection: 'row',
     gap: 8,
     justifyContent: 'center',
     minHeight: 34,
     paddingHorizontal: 13,
     position: 'relative',
-    shadowColor: '#101828',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
   },
   filterButtonActive: {
     backgroundColor: '#15863F',
     borderColor: '#15863F',
-    shadowColor: '#15863F',
-    shadowOpacity: 0.18,
   },
   filterButtonText: {
     color: '#6B7280',
@@ -807,7 +800,7 @@ export default StyleSheet.create({
   },
   filterButtonTextActive: {
     color: '#FFFFFF',
-    fontWeight: '800',
+    fontWeight: '600',
   },
   codeInputRow: {
     alignItems: 'stretch',
@@ -1201,10 +1194,8 @@ export default StyleSheet.create({
     transform: [{ rotate: '90deg' }],
   },
   journalPanel: {
-    gap: 10,
-    paddingBottom: 16,
-    paddingHorizontal: 0,
-    paddingTop: 0,
+    gap: 12,
+    padding: 0,
   },
   journalTitle: {
     color: '#17251C',
@@ -1275,9 +1266,8 @@ export default StyleSheet.create({
     shadowRadius: 30,
   },
   globalJournalCardWarning: {
-    backgroundColor: '#FFF7F5',
     borderColor: '#D92D20',
-    borderWidth: 2,
+    borderWidth: 1,
   },
   globalJournalCardHeader: {
     alignItems: 'flex-start',
@@ -1297,16 +1287,21 @@ export default StyleSheet.create({
     gap: 4,
   },
   globalJournalBadge: {
-    backgroundColor: '#15863F',
+    alignItems: 'center',
+    backgroundColor: '#EAF4EE',
     borderRadius: 999,
-    color: '#FFFFFF',
-    fontSize: 13,
+    color: '#15863F',
+    fontSize: 12,
     fontWeight: '800',
-    minWidth: 30,
+    height: 22,
+    lineHeight: 22,
+    justifyContent: 'center',
+    minWidth: 22,
     overflow: 'hidden',
-    paddingHorizontal: 8,
-    paddingVertical: 5,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
     textAlign: 'center',
+    textAlignVertical: 'center',
   },
   globalJournalOpenCardButton: {
     alignItems: 'center',
@@ -1549,36 +1544,8 @@ export default StyleSheet.create({
     width: 10,
     zIndex: 1,
   },
-  plantCardStatusDotGroup: {
-    flexDirection: 'row',
-    gap: 6,
-    position: 'absolute',
-    right: 18,
-    top: 18,
-    zIndex: 1,
-  },
-  plantCardStatusDotInline: {
-    borderRadius: 5,
-    height: 10,
-    width: 10,
-  },
-  plantCardStatusDotActive: {
-    backgroundColor: '#15863F',
-  },
-  plantCardStatusDotContamination: {
-    backgroundColor: '#DC2626',
-  },
-  plantCardStatusDotDraft: {
-    backgroundColor: '#9CA3AF',
-  },
-  plantCardStatusDotQuarantine: {
-    backgroundColor: '#EF4444',
-  },
   plantCardStatusDotProblem: {
     backgroundColor: '#EF4444',
-  },
-  plantCardStatusDotPartial: {
-    backgroundColor: '#F59E0B',
   },
   plantCardMetaGrid: {
     flexDirection: 'row',

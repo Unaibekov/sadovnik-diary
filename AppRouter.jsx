@@ -13,7 +13,7 @@ import CultureListScreen from "./src/screens/CultureListScreen";
 import GlobalJournalScreen from "./src/screens/GlobalJournalScreen";
 import IntroActionFormScreen from "./src/screens/IntroActionFormScreen";
 import MenuScreen from "./src/screens/MenuScreen";
-import PlantCatalogBottomSheet from "./src/components/PlantCatalogBottomSheet";
+import PlantCatalogScreen from "./src/screens/PlantCatalogScreen";
 import RecommendationsScreen from "./src/screens/RecommendationsScreen";
 import StatusChangeFormScreen from "./src/screens/StatusChangeFormScreen";
 import TasksScreen from "./src/screens/TasksScreen";
@@ -48,14 +48,13 @@ export default function AppRouter({ actions, state }) {
     cultureForm,
     cultureOptions,
     currentScreen,
-    isDirectoriesSheetVisible,
     expandedJournalCardIds,
     filteredCultureCards,
     formError,
     getJournalFilterLabel,
-    getPlantCardStatusDotStyle,
     getResolvedBatchStatus,
     groupedGlobalJournalCards,
+    journalSubFilterCounts,
     isAdaptationStage,
     isCardsLoading,
     isCloneStage,
@@ -94,6 +93,7 @@ export default function AppRouter({ actions, state }) {
     selectedDateOperations,
     selectedStage,
     selectedStageCardsCount,
+    stageStatusFilterCounts,
     showDatePicker,
     showIdentityAsText,
     speciesOptions,
@@ -120,8 +120,7 @@ export default function AppRouter({ actions, state }) {
     confirmDeleteOperation,
     handleAddStageChange,
     handleClearTestData,
-    handleGenerateTestData,
-    handleGenerateIntroTestData,
+    handleGenerateCoverageTestData,
     handleDateChange,
     handleGenerateCode,
     handleLogout,
@@ -135,7 +134,6 @@ export default function AppRouter({ actions, state }) {
     handleShareQrPress,
     handleStagePress,
     openDirectories,
-    closeDirectories,
     openCultureCalendar,
     openCultureForm,
     openEditCultureForm,
@@ -499,7 +497,6 @@ export default function AppRouter({ actions, state }) {
         bottomInset={bottomInset}
         cardSearch={cardSearch}
         cards={filteredCultureCards}
-        getPlantCardStatusDotStyle={getPlantCardStatusDotStyle}
         getResolvedBatchStatus={getResolvedBatchStatus}
         isAdaptationStage={isAdaptationStage}
         isCardsLoading={isCardsLoading}
@@ -508,14 +505,13 @@ export default function AppRouter({ actions, state }) {
         isGreenhouseStage={isGreenhouseStage}
         isHardeningStage={isHardeningStage}
         isPlantingStage={isPlantingStage}
-        selectedStageCardsCount={selectedStageCardsCount}
         onBack={() => setSelectedStage("")}
         onChangeBatchStatusFilter={setBatchStatusFilter}
         onChangeSearch={setCardSearch}
         onCreateCulture={openCultureForm}
-        onEditCulture={openEditCultureForm}
         onOpenCultureCalendar={openCultureCalendar}
         selectedStage={selectedStage}
+        stageStatusFilterCounts={stageStatusFilterCounts}
         storageError={storageError}
       />
     );
@@ -529,6 +525,7 @@ export default function AppRouter({ actions, state }) {
         getJournalFilterLabel={getJournalFilterLabel}
         getResolvedBatchStatus={getResolvedBatchStatus}
         groupedCards={groupedGlobalJournalCards}
+        journalSubFilterCounts={journalSubFilterCounts}
         journalFilter={journalFilter}
         journalSubFilter={journalSubFilter}
         onChangeJournalFilter={setJournalFilter}
@@ -573,6 +570,19 @@ export default function AppRouter({ actions, state }) {
       screenNode = renderCultureListScreen();
     } else if (currentScreen === "globalJournal") {
       screenNode = renderGlobalJournalScreen();
+    } else if (currentScreen === "directories") {
+      screenNode = (
+        <PlantCatalogScreen
+          bottomInset={bottomInset}
+          onBack={openMenu}
+          onHomePress={() => setCurrentScreen("stages")}
+          onJournalPress={openGlobalJournal}
+          onMenuPress={openMenu}
+          onScanPress={handleScanPress}
+          onTasksPress={openTasks}
+          taskCount={taskCount}
+        />
+      );
     } else if (currentScreen === "menu") {
       screenNode = (
         <MenuScreen
@@ -591,8 +601,7 @@ export default function AppRouter({ actions, state }) {
           onLogout={handleLogout}
           onOpenDirectories={openDirectories}
           onClearCards={handleClearTestData}
-          onGenerateTestData={handleGenerateTestData}
-          onGenerateIntroTestData={handleGenerateIntroTestData}
+          onGenerateCoverageTestData={handleGenerateCoverageTestData}
           onChangePermanentPassword={handleChangePermanentPassword}
           onScheduleWateringReminder={handleScheduleWateringReminder}
           onShareZipData={handleShareZipData}
@@ -675,11 +684,6 @@ export default function AppRouter({ actions, state }) {
         <View style={styles.screenTransitionContainer}>
           {screenNode}
         </View>
-
-        <PlantCatalogBottomSheet
-          visible={isDirectoriesSheetVisible}
-          onClose={closeDirectories}
-        />
       </>
     );
   }

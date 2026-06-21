@@ -40,7 +40,6 @@ import {
 } from "./src/domain/batch";
 import {
   getResolvedBatchStatus,
-  getPlantCardStatusDotStyle,
 } from "./src/domain/cardSelectors";
 import {
   introOperationFields,
@@ -51,6 +50,7 @@ import {
 import { removeRecommendationFields } from "./src/domain/recommendations";
 import {
   buildCloseRecommendationsState,
+  buildDirectoriesNavigationState,
   buildGlobalJournalNavigationState,
   buildMenuNavigationState,
   buildSelectedCardRecommendationsNavigationState,
@@ -77,8 +77,7 @@ import {
   buildCultureCardSaveResult,
 } from "./src/domain/cultureCardSave";
 import {
-  buildDevelopmentIntroTestCultureCards,
-  buildDevelopmentTestCultureCards,
+  buildDevelopmentCoverageTestCultureCards,
 } from "./src/domain/testDataGenerator";
 import { validateCultureCardInput } from "./src/domain/cultureFormValidation";
 import { updateFormField } from "./src/domain/formState";
@@ -226,8 +225,6 @@ function AppContent() {
   const [isCardsLoading, setIsCardsLoading] = useState(true);
   const [storageError, setStorageError] = useState("");
   const [currentScreen, setCurrentScreen] = useState("stages");
-  const [isDirectoriesSheetVisible, setIsDirectoriesSheetVisible] =
-    useState(false);
   const [cultureForm, setCultureForm] = useState(createEmptyCultureForm);
   const [statusForm, setStatusForm] = useState(createEmptyStatusForm);
   const [introActionForm, setIntroActionForm] = useState(
@@ -272,6 +269,7 @@ function AppContent() {
     filteredCultureCards,
     globalJournalEvents,
     groupedGlobalJournalCards,
+    journalSubFilterCounts,
     isSelectedCloneCard,
     isSupportedPlantingStage,
     operationDates,
@@ -291,6 +289,7 @@ function AppContent() {
     selectedCardOperations,
     selectedDateOperations,
     selectedStageCardsCount,
+    stageStatusFilterCounts,
     selectedStageFlags,
     showIdentityAsText,
     speciesOptions,
@@ -376,12 +375,6 @@ function AppContent() {
       isActive = false;
     };
   }, []);
-
-  useEffect(() => {
-    if (currentScreen !== "menu" && isDirectoriesSheetVisible) {
-      setIsDirectoriesSheetVisible(false);
-    }
-  }, [currentScreen, isDirectoriesSheetVisible]);
 
   async function loadCultureCards() {
     try {
@@ -845,19 +838,15 @@ function AppContent() {
   function openMenu() {
     const nextState = buildMenuNavigationState();
     resetSelectedCardContext();
-    setIsDirectoriesSheetVisible(false);
     setCurrentScreen(nextState.currentScreen);
     setNotice(nextState.notice);
   }
 
   function openDirectories() {
+    const nextState = buildDirectoriesNavigationState();
     resetSelectedCardContext();
-    setCurrentScreen("menu");
-    setIsDirectoriesSheetVisible(true);
-  }
-
-  function closeDirectories() {
-    setIsDirectoriesSheetVisible(false);
+    setCurrentScreen(nextState.currentScreen);
+    setNotice(nextState.notice);
   }
 
   async function handleScanPress() {
@@ -1037,30 +1026,20 @@ function AppContent() {
     }
   }
 
-  async function handleGenerateTestData() {
+  async function handleGenerateCoverageTestData() {
     try {
-      const result = buildDevelopmentTestCultureCards(cultureCards);
+      const result = buildDevelopmentCoverageTestCultureCards(cultureCards, {
+        seed: 'coverage-seed-v1',
+      });
       await saveCultureCardsToStorage(result.nextCards);
       setCultureCards(result.nextCards);
       setStorageError("");
+      setCurrentScreen("stages");
       setNotice(
         `Создано ${result.createdCardsCount} карточек и ${result.journalRecordsCount} записей журнала.`,
       );
     } catch (generateError) {
-      setStorageError("Не удалось заполнить тестовыми данными");
-    }
-  }
-
-  async function handleGenerateIntroTestData() {
-    try {
-      const result = buildDevelopmentIntroTestCultureCards(cultureCards);
-      await saveCultureCardsToStorage(result.nextCards);
-      setCultureCards(result.nextCards);
-      setStorageError("");
-      setNotice(
-        `Создано ${result.createdCardsCount} карточек и ${result.journalRecordsCount} записей журнала.`,
-      );
-    } catch (generateError) {
+      console.error("handleGenerateCoverageTestData failed", generateError);
       setStorageError("Не удалось заполнить тестовыми данными");
     }
   }
@@ -2140,15 +2119,14 @@ function AppContent() {
     cultureForm,
     cultureOptions,
     currentScreen,
-    isDirectoriesSheetVisible,
     editingOperationId,
     expandedJournalCardIds,
     filteredCultureCards,
     formError,
     getJournalFilterLabel,
-    getPlantCardStatusDotStyle,
     getResolvedBatchStatus,
     groupedGlobalJournalCards,
+    journalSubFilterCounts,
     introActionForm,
     introActionType,
     isAdaptationStage,
@@ -2188,6 +2166,7 @@ function AppContent() {
     selectedDateOperations,
     selectedStage,
     selectedStageCardsCount,
+    stageStatusFilterCounts,
     showDatePicker,
     showIdentityAsText,
     speciesOptions,
@@ -2214,13 +2193,11 @@ function AppContent() {
     confirmDeleteOperation,
     handleAddStageChange,
     handleClearTestData,
-    handleGenerateTestData,
-    handleGenerateIntroTestData,
+    handleGenerateCoverageTestData,
     handleDateChange,
     handleGenerateCode,
     handleLogout,
     openDirectories,
-    closeDirectories,
     handleSaveCultureCard,
     handleSaveIntroAction,
     handleSaveStatusChange,

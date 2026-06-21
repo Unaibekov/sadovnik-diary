@@ -28,6 +28,10 @@ export default function CultureJournalTab({
     setIsViewerVisible(true);
   }
 
+  function getOperationKey(operation, index) {
+    return operation.id || `${operation.type || 'operation'}-${operation.createdAt || operation.date || 'unknown'}-${index}`;
+  }
+
   const stageOrder = [INTRO_STAGE, ...stages.filter((stage) => stage !== INTRO_STAGE)];
   const getStageRank = (stage) => {
     const index = stageOrder.indexOf(stage);
@@ -122,7 +126,7 @@ export default function CultureJournalTab({
                     const actionTitle = operation.title || (operation.type === 'comment' ? 'Комментарий' : 'Событие');
 
                     return (
-                      <Fragment key={operation.id}>
+                      <Fragment key={getOperationKey(operation, index)}>
                         <View
                           style={[
                             styles.journalItem,

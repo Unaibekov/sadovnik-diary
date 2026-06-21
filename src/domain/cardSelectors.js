@@ -2,6 +2,7 @@
 import styles from '../../styles';
 import { getCardCurrentQuantity } from './batch';
 import { EMPTY_CATALOG_VALUE } from './constants';
+import { getProblemBatchStatusFromOperations } from './statusProblemValidation';
 
 export function getUniqueOptions(items, field) {
   return [...new Set(items.map((item) => item[field] || EMPTY_CATALOG_VALUE))]
@@ -31,26 +32,6 @@ export function buildCultureFormOptions(plantsCatalog, cultureForm) {
   };
 }
 
-export function getPlantCardStatusDotStyle(batchStatus, sterilityStatus, isProblemVisual = false) {
-  if (sterilityStatus === 'contaminated') {
-    return styles.plantCardStatusDotContamination;
-  }
-
-  if (batchStatus === 'quarantine') {
-    return styles.plantCardStatusDotQuarantine;
-  }
-
-  if (isProblemVisual || batchStatus === 'problem') {
-    return styles.plantCardStatusDotProblem;
-  }
-
-  if (batchStatus === 'partial') {
-    return styles.plantCardStatusDotPartial;
-  }
-
-  return styles.plantCardStatusDotActive;
-}
-
 export function hasSaleOperation(card) {
   return (card?.operations || []).some((operation) => (
     (operation.type === 'sale' && Number(operation.count) > 0) ||
@@ -65,6 +46,18 @@ export function getResolvedBatchStatus(card) {
   const currentQuantity = getCardCurrentQuantity(card);
   const hasSale = hasSaleOperation(card);
   const totalQuantity = Number(card?.quantity) || 0;
+  const problemBatchStatus = getProblemBatchStatusFromOperations(
+    card?.operations || [],
+    card?.stage || '',
+  );
+
+  if (problemBatchStatus) {
+    return problemBatchStatus;
+  }
+
+  if (batchStatus === 'problem') {
+    return 'problem';
+  }
 
   if (batchStatus === 'quarantine') {
     return 'quarantine';
@@ -79,10 +72,6 @@ export function getResolvedBatchStatus(card) {
   }
 
   if (batchStatus === 'partial') {
-    return hasSale || currentQuantity < totalQuantity ? 'partial' : 'active';
-  }
-
-  if (batchStatus === 'problem') {
     return hasSale || currentQuantity < totalQuantity ? 'partial' : 'active';
   }
 

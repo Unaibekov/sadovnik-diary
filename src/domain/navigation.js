@@ -22,6 +22,13 @@ export function buildMenuNavigationState() {
   };
 }
 
+export function buildDirectoriesNavigationState() {
+  return {
+    currentScreen: 'directories',
+    notice: '',
+  };
+}
+
 export function buildStagePressNavigationState(stage) {
   return {
     selectedStage: stage,

@@ -8,6 +8,7 @@ import {
   stages,
 } from './constants';
 import { dateFromIso, getTodayIsoDate, isoFromDate } from './dates';
+import { getProblemBatchStatusFromOperations } from './statusProblemValidation';
 
 export function generatePlantingCode(createdAt, stage) {
   const prefix = stage === 'Клонирование'
@@ -90,16 +91,16 @@ export function normalizeCultureCard(card) {
     startPhotoUri: normalizedStartPhotoUris[0] || '',
     startPhotoUris: normalizedStartPhotoUris,
   };
-  const normalizedOperations = [
-    ...(!hasBatchCreatedOperation
-      ? [createBatchCreatedOperation(normalizedCard, normalizedCard.createdAt || new Date().toISOString())]
-      : []),
-    ...operations,
-  ];
-
-  if (hasBatchCreatedOperation) {
-    return normalizedCard;
-  }
+  const normalizedExistingOperations = operations.map((operation, index) => ({
+    ...operation,
+    id: operation.id || `${normalizedCard.id || 'card'}-${operation.type || 'operation'}-${operation.createdAt || operation.date || 'unknown'}-${index}`,
+  }));
+  const normalizedOperations = hasBatchCreatedOperation
+    ? normalizedExistingOperations
+    : [
+      createBatchCreatedOperation(normalizedCard, normalizedCard.createdAt || new Date().toISOString()),
+      ...normalizedExistingOperations,
+    ];
 
   return {
     ...normalizedCard,
@@ -405,6 +406,8 @@ export function getCardCurrentQuantity(card) {
 export function getCloneStats(card) {
   const initialQuantity = Number(card?.quantity) || 0;
   const operations = card?.operations || [];
+  const isProblemCard = card?.batchStatus === 'problem' ||
+    getProblemBatchStatusFromOperations(operations, card?.stage || '') === 'problem';
   const rootedCount = operations.reduce((sum, operation) => {
     if (operation.type === 'rooting') {
       return sum + (Number(operation.count) || 0);
@@ -439,7 +442,7 @@ export function getCloneStats(card) {
     ? Math.round((lossCount / initialQuantity) * 100)
     : 0;
   const currentQuantity = getCardCurrentQuantity(card);
-  const riskStatus = (card?.batchStatus === 'problem' || lossPercent >= 30)
+  const riskStatus = (isProblemCard || lossPercent >= 30)
     ? 'Критический'
     : lossPercent >= 15
       ? 'Повышенный'
@@ -463,6 +466,8 @@ export function getCloneStats(card) {
 export function getIntroStats(card) {
   const operations = card?.operations || [];
   const initialQuantity = Number(card?.quantity) || 0;
+  const isProblemCard = card?.batchStatus === 'problem' ||
+    getProblemBatchStatusFromOperations(operations, card?.stage || '') === 'problem';
   const deathCount = operations.reduce((sum, operation) => (
     sum + (operation.type === 'death' ? Number(operation.count) || 0 : 0)
   ), 0);
@@ -476,7 +481,7 @@ export function getIntroStats(card) {
   const lossPercent = initialQuantity > 0
     ? Math.round((lossCount / initialQuantity) * 100)
     : 0;
-  const riskStatus = lossPercent >= 30
+  const riskStatus = isProblemCard || lossPercent >= 30
     ? 'Критический'
     : lossPercent >= 15
       ? 'Повышенный'
@@ -500,6 +505,8 @@ export function getAdaptationStats(card) {
   const operations = card?.operations || [];
   const currentQuantity = getCardCurrentQuantity(card);
   const initialQuantity = Number(card?.quantity) || 0;
+  const isProblemCard = card?.batchStatus === 'problem' ||
+    getProblemBatchStatusFromOperations(operations, card?.stage || '') === 'problem';
   const survivalPercent = initialQuantity > 0
     ? Math.round((currentQuantity / initialQuantity) * 100)
     : 0;
@@ -518,7 +525,7 @@ export function getAdaptationStats(card) {
   const stressLevel = getLatestOperationValue(operations, ['adaptationStress'], 'stressLevel') || 'Не указан';
   const turgor = getLatestOperationValue(operations, ['adaptationStress', 'adaptationEnvironment', 'adaptationHumidityReduction'], 'turgor') || 'Не указан';
   const stability = getLatestOperationValue(operations, ['adaptationStress', 'adaptationEnvironment', 'adaptationHumidityReduction'], 'stability') || 'Не указана';
-  const riskStatus = stressLevel === 'Критический' || card?.batchStatus === 'problem'
+  const riskStatus = stressLevel === 'Критический' || isProblemCard
     ? 'Критический'
     : stressLevel === 'Высокий'
       ? 'Повышенный'
@@ -543,6 +550,8 @@ export function getGreenhouseStats(card) {
   const operations = card?.operations || [];
   const currentQuantity = getCardCurrentQuantity(card);
   const initialQuantity = Number(card?.quantity) || 0;
+  const isProblemCard = card?.batchStatus === 'problem' ||
+    getProblemBatchStatusFromOperations(operations, card?.stage || '') === 'problem';
   const careSchedules = getGreenhouseCareSchedules(card);
   const wateringSchedule = careSchedules.find((schedule) => schedule.careType === 'Полив');
   const overdueCareSchedules = careSchedules.filter((schedule) => schedule.isOverdue);
@@ -592,7 +601,7 @@ export function getGreenhouseStats(card) {
   const riskStatus = criticalDiseaseOperation ||
     riskLevel === 'Критический' ||
     stressLevel === 'Критический' ||
-    card?.batchStatus === 'problem' ||
+    isProblemCard ||
     lossPercent >= 30
     ? 'Критический'
     : riskLevel === 'Высокий' || stressLevel === 'Высокий' || lossPercent >= 15
@@ -630,6 +639,8 @@ export function getHardeningStats(card) {
   const operations = card?.operations || [];
   const currentQuantity = getCardCurrentQuantity(card);
   const initialQuantity = Number(card?.quantity) || 0;
+  const isProblemCard = card?.batchStatus === 'problem' ||
+    getProblemBatchStatusFromOperations(operations, card?.stage || '') === 'problem';
   const deathCount = operations.reduce((sum, operation) => (
     sum + (operation.type === 'death' ? Number(operation.count) || 0 : 0)
   ), 0);
@@ -653,7 +664,7 @@ export function getHardeningStats(card) {
   const lossPercent = initialQuantity > 0
     ? Math.round((lossCount / initialQuantity) * 100)
     : 0;
-  const riskStatus = stressLevel === 'Критический' || card?.batchStatus === 'problem' || lossPercent >= 30
+  const riskStatus = stressLevel === 'Критический' || isProblemCard || lossPercent >= 30
     ? 'Критический'
     : stressLevel === 'Высокий'
       ? 'Повышенный'
@@ -883,6 +894,8 @@ export function getPlantingStats(card) {
   const operations = card?.operations || [];
   const currentQuantity = getCardCurrentQuantity(card);
   const initialQuantity = Number(card?.quantity) || 0;
+  const isProblemCard = card?.batchStatus === 'problem' ||
+    getProblemBatchStatusFromOperations(operations, card?.stage || '') === 'problem';
   const deathCount = operations.reduce((sum, operation) => (
     sum + (operation.type === 'death' ? Number(operation.count) || 0 : 0)
   ), 0);
@@ -907,7 +920,7 @@ export function getPlantingStats(card) {
   const lossPercent = initialQuantity > 0
     ? Math.round((lossCount / initialQuantity) * 100)
     : 0;
-  const riskStatus = survivalRate === 'Низкая' || stressLevel === 'Критический' || completionResult === 'Не прижилась' || card?.batchStatus === 'problem' || lossPercent >= 30
+  const riskStatus = survivalRate === 'Низкая' || stressLevel === 'Критический' || completionResult === 'Не прижилась' || isProblemCard || lossPercent >= 30
     ? 'Критический'
     : survivalRate === 'Средняя' || stressLevel === 'Высокий' || completionResult === 'Частично прижилась' || lossPercent >= 15
       ? 'Повышенный'

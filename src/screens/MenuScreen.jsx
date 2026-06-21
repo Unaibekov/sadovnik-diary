@@ -36,8 +36,7 @@ export default function MenuScreen({
   onJournalPress,
   onLogout,
   onClearCards,
-  onGenerateTestData,
-  onGenerateIntroTestData,
+  onGenerateCoverageTestData,
   onScheduleWateringReminder,
   onShareZipData,
   onScanPress,
@@ -63,16 +62,10 @@ export default function MenuScreen({
   ];
   const testMenuItems = [
     {
-      key: 'generateIntroTestData',
-      onPress: onGenerateIntroTestData,
-      subtitle: 'Добавить 10 карточек только во введении в культуру',
-      title: '10 карточек в культуре',
-    },
-    {
-      key: 'generateTestData',
-      onPress: onGenerateTestData,
-      subtitle: 'Добавить 10 карточек в каждой стадии',
-      title: 'Заполнить всеми стадиями',
+      key: 'generateCoverageTestData',
+      onPress: onGenerateCoverageTestData,
+      subtitle: 'Создать матрицу событий с полным покрытием полей',
+      title: 'Покрытие событий',
     },
   ];
   const menuItems = [
