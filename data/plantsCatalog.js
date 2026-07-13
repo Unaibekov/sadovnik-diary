@@ -918,9 +918,36 @@ const plantsCatalog = [
         ]
     },
     {
-        "originalName": "Береза белая",
-        "cultureName": "Береза",
+        "originalName": "Берёза белая",
+        "cultureName": "Берёза",
         "speciesName": "белая",
+        "varietyName": "",
+        "cloneTemperatureRange": "22–25",
+        "cloneHumidityRange": "80–95",
+        "cloneLightPpfdRange": "50–120",
+        "clonePhotoperiodRange": "14–16",
+        "adaptationHumidityRequirement": "80–90%",
+        "preventionFertilizers": "Комплексное удобрение NPK",
+        "preventionChemicals": "Фитоспорин",
+        "preventionStimulators": "Корневин",
+        "preventionApplicationRate": "1 раз в 7–14 дней",
+        "preventionFrequency": "До укоренения",
+        "cloneTemperatureRequirement": "22–25 °C",
+        "cloneLightRequirement": "50–120 µmol/m²/s, 14–16 ч/сутки",
+        "adaptationTemperatureRequirement": "22–25 °C",
+        "adaptationLightRequirement": "50–120 µmol/m²/s, 14–16 ч/сутки",
+        "adaptationPreventionItems": [
+            {
+                "name": "Подкормки: Комплексное удобрение NPK; Химикаты: Фитоспорин; Стимуляторы: Корневин",
+                "applicationRate": "1 раз в 7–14 дней",
+                "frequency": "До укоренения"
+            }
+        ]
+    },
+    {
+        "originalName": "Берёза Красная",
+        "cultureName": "Берёза",
+        "speciesName": "Красная",
         "varietyName": "",
         "cloneTemperatureRange": "22–25",
         "cloneHumidityRange": "80–95",
