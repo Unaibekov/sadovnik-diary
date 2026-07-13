@@ -1,1425 +1,545 @@
-﻿const fs = require('fs');
+const fs = require('fs');
 const path = require('path');
 const JSZip = require('jszip');
 
 const projectRoot = path.resolve(__dirname, '..');
 const photoDir = path.join(projectRoot, 'docs', 'photo');
 const reportsDir = path.join(projectRoot, 'docs', 'reports');
-const packageJsonPath = path.join(projectRoot, 'package.json');
-const appVersion = require(packageJsonPath).version || '';
+const appVersion = require(path.join(projectRoot, 'package.json')).version || '';
+const catalogPath = path.join(projectRoot, 'data', 'plantsCatalog.js');
 
-const DAY_MS = 24 * 60 * 60 * 1000;
 const INTRO_STAGE = 'Введение в культуру';
-const STAGES = [
-  INTRO_STAGE,
-  'Клонирование',
-  'Адаптация',
-  'Теплица',
-  'Закалка',
-  'Высадка',
-];
-const CARDS_PER_REPORT = 10;
+const STAGES = [INTRO_STAGE, 'Клонирование', 'Адаптация', 'Теплица', 'Закалка', 'Высадка'];
+const BATCHES_PER_STAGE = 10;
+const TOTAL_BATCHES = STAGES.length * BATCHES_PER_STAGE;
+const REPORT_DATES = Array.from({ length: 10 }, (_, index) => new Date(Date.UTC(2026, 5, 10 + index, 18, 45)));
 
-const EVENT_DETAIL_FIELDS = [
-  'reason',
-  'lossReason',
-  'quarantineReason',
-  'contaminationNote',
-  'saleType',
-  'recipient',
-  'saleAmount',
-  'propagationMethod',
-  'fromStage',
-  'toStage',
-  'stageChangedAt',
-  'rootedCount',
-  'rootingPercent',
-  'stressLevel',
-  'turgor',
-  'stability',
-  'environmentTemperature',
-  'environmentAirHumidity',
-  'environmentHumidity',
-  'substrateHumidity',
-  'environmentLight',
-  'ventilation',
-  'humidityReduction',
-  'careType',
-  'growthRate',
-  'conditionDescription',
-  'readinessForPlanting',
-  'survivalRate',
-  'careIntervalDays',
-  'wateringIntervalDays',
-  'waterVolume',
-  'productName',
-  'dosage',
-  'applicationMethod',
-  'plantReaction',
-  'diseaseName',
-  'pestName',
-  'diseaseSeverity',
-  'placement',
-  'densityChange',
-  'problemType',
-  'riskLevel',
-  'problemDescription',
-  'previousLocation',
-  'nextLocation',
-  'greenhouseName',
-  'rackName',
-  'shelfName',
-  'plantingLocation',
-  'plantingScheme',
-  'plotArea',
-  'soilType',
-  'completionResult',
-];
+const USERS = [
+  ['demo-user-001', 'Иван', 'Петров', 'Агроном'],
+  ['demo-user-002', 'Мария', 'Иванова', 'Лаборант'],
+  ['demo-user-003', 'Алексей', 'Сидоров', 'Технолог'],
+  ['demo-user-004', 'Елена', 'Смирнова', 'Сотрудник теплицы'],
+  ['demo-user-005', 'Ильдар', 'Унайбеков', 'Администратор'],
+  ['demo-user-006', 'Анна', 'Ковалева', 'Агроном'],
+  ['demo-user-007', 'Сергей', 'Мельников', 'Лаборант'],
+  ['demo-user-008', 'Ирина', 'Федорова', 'Технолог'],
+  ['demo-user-009', 'Павел', 'Соколов', 'Сотрудник теплицы'],
+  ['demo-user-010', 'Светлана', 'Николаева', 'Администратор'],
+].map(([userId, firstName, lastName, role]) => ({ userId, firstName, lastName, displayName: `${firstName} ${lastName}`, role }));
 
-function buildStageSequence(extraStages = []) {
-  const stageSequence = [...STAGES, ...extraStages];
+const STAGE_LOCATIONS = {
+  [INTRO_STAGE]: ['Лаборатория, стеллаж Л-1', 'Лаборатория, стеллаж Л-2'],
+  Клонирование: ['Лаборатория клонирования, стеллаж К-3'],
+  Адаптация: ['Зона адаптации, стеллаж А-2'],
+  Теплица: ['Теплица 1, стеллаж B, полка 3'],
+  Закалка: ['Площадка закалки, сектор 2'],
+  Высадка: ['Участок 1, грядка A-3'],
+};
+const LOSS_TYPES = new Set(['death', 'discard', 'introLoss']);
+const QUANTITY_DECREASE_TYPES = new Set(['sale', ...LOSS_TYPES]);
+const PROBLEM_TYPES = new Set(['problem', 'contamination', 'quarantine', 'greenhouseDisease']);
 
-  while (stageSequence.length < CARDS_PER_REPORT) {
-    stageSequence.push(STAGES[stageSequence.length % STAGES.length]);
+function assert(condition, message) {
+  if (!condition) {
+    throw new Error(`Demo report validation failed: ${message}`);
   }
-
-  return stageSequence.slice(0, CARDS_PER_REPORT);
 }
 
-const CULTURES = [
-  {
-    cultureName: 'Монстера',
-    speciesName: 'Monstera deliciosa',
-    varietyName: 'Borsigiana',
-  },
-  {
-    cultureName: 'Алоказия',
-    speciesName: 'Alocasia cucullata',
-    varietyName: 'Polly',
-  },
-  {
-    cultureName: 'Антуриум',
-    speciesName: 'Anthurium andraeanum',
-    varietyName: 'Pink Champion',
-  },
-  {
-    cultureName: 'Филодендрон',
-    speciesName: 'Philodendron hederaceum',
-    varietyName: 'Brasil',
-  },
-  {
-    cultureName: 'Сингониум',
-    speciesName: 'Syngonium podophyllum',
-    varietyName: 'White Butterfly',
-  },
-  {
-    cultureName: 'Спатифиллум',
-    speciesName: 'Spathiphyllum wallisii',
-    varietyName: 'Sensation',
-  },
-  {
-    cultureName: 'Калатея',
-    speciesName: 'Calathea lancifolia',
-    varietyName: 'Rattlesnake',
-  },
-  {
-    cultureName: 'Фикус',
-    speciesName: 'Ficus elastica',
-    varietyName: 'Robusta',
-  },
-  {
-    cultureName: 'Драцена',
-    speciesName: 'Dracaena marginata',
-    varietyName: 'Tricolor',
-  },
-  {
-    cultureName: 'Пеперомия',
-    speciesName: 'Peperomia obtusifolia',
-    varietyName: 'Green Gold',
-  },
-];
-
-const REPORT_USERS = [
-  {
-    userId: 'demo-user-001',
-    firstName: 'Иван',
-    lastName: 'Петров',
-    displayName: 'Иван Петров',
-    role: 'Агроном',
-  },
-  {
-    userId: 'demo-user-002',
-    firstName: 'Мария',
-    lastName: 'Иванова',
-    displayName: 'Мария Иванова',
-    role: 'Лаборант',
-  },
-  {
-    userId: 'demo-user-003',
-    firstName: 'Алексей',
-    lastName: 'Сидоров',
-    displayName: 'Алексей Сидоров',
-    role: 'Технолог',
-  },
-  {
-    userId: 'demo-user-004',
-    firstName: 'Елена',
-    lastName: 'Смирнова',
-    displayName: 'Елена Смирнова',
-    role: 'Сотрудник теплицы',
-  },
-  {
-    userId: 'demo-user-005',
-    firstName: 'Ильдар',
-    lastName: 'Унайбеков',
-    displayName: 'Ильдар Унайбеков',
-    role: 'Администратор',
-  },
-];
-
-const EXTRA_REPORT_USERS = [
-  {
-    userId: 'demo-user-006',
-    firstName: 'Анна',
-    lastName: 'Ковалева',
-    displayName: 'Анна Ковалева',
-    role: 'Агроном',
-  },
-  {
-    userId: 'demo-user-007',
-    firstName: 'Сергей',
-    lastName: 'Мельников',
-    displayName: 'Сергей Мельников',
-    role: 'Лаборант',
-  },
-  {
-    userId: 'demo-user-008',
-    firstName: 'Ирина',
-    lastName: 'Федорова',
-    displayName: 'Ирина Федорова',
-    role: 'Технолог',
-  },
-  {
-    userId: 'demo-user-009',
-    firstName: 'Павел',
-    lastName: 'Соколов',
-    displayName: 'Павел Соколов',
-    role: 'Сотрудник теплицы',
-  },
-  {
-    userId: 'demo-user-010',
-    firstName: 'Светлана',
-    lastName: 'Николаева',
-    displayName: 'Светлана Николаева',
-    role: 'Администратор',
-  },
-];
-
-function normalizeText(value) {
-  if (value === undefined || value === null) {
-    return '';
-  }
-
-  return String(value).replace(/\r?\n/g, ' ').trim();
+function clone(value) {
+  return JSON.parse(JSON.stringify(value));
 }
 
 function iso(value) {
   return new Date(value).toISOString();
 }
 
-function daysAgo(baseDate, days) {
-  return new Date(baseDate.getTime() - days * DAY_MS);
+function reportDayTime(dayIndex, hour, minute = 0) {
+  return iso(Date.UTC(2026, 5, 10 + dayIndex, hour, minute));
 }
 
-function hoursAfter(baseDate, hours) {
-  return new Date(baseDate.getTime() + hours * 60 * 60 * 1000);
+function historyTime(dayOffset, hour, minute = 0) {
+  return iso(Date.UTC(2026, 4, 28 + dayOffset, hour, minute));
 }
 
-function slugify(value) {
-  return normalizeText(value)
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '') || 'report';
-}
-
-function ensureDir(dirPath) {
-  fs.mkdirSync(dirPath, { recursive: true });
+function ensureDir(directory) {
+  fs.mkdirSync(directory, { recursive: true });
 }
 
 function cleanupOldDemoReports() {
   if (!fs.existsSync(reportsDir)) {
     return;
   }
-
-  for (const entry of fs.readdirSync(reportsDir)) {
-    if (/^sadovnik-demo-report-.*\.zip$/i.test(entry)) {
-      try {
-        fs.unlinkSync(path.join(reportsDir, entry));
-      } catch {
-        // Keep going. On Windows the file can be briefly locked by shell tools.
-      }
-    }
-  }
+  fs.readdirSync(reportsDir)
+    .filter((name) => /^sadovnik-demo-report-.*\.zip$/i.test(name))
+    .forEach((name) => fs.unlinkSync(path.join(reportsDir, name)));
 }
 
 function loadPhotoPool() {
-  if (!fs.existsSync(photoDir)) {
-    throw new Error(`Photo directory not found: ${photoDir}`);
-  }
-
-  return fs
-    .readdirSync(photoDir)
-    .map((fileName) => path.join(photoDir, fileName))
+  assert(fs.existsSync(photoDir), `photo directory is missing: ${photoDir}`);
+  const files = fs.readdirSync(photoDir)
+    .map((name) => path.join(photoDir, name))
     .filter((filePath) => /\.(jpe?g|png|webp)$/i.test(filePath))
     .sort((left, right) => left.localeCompare(right));
+  assert(files.length > 0, 'no source photos were found');
+  return files;
 }
 
-function stagePrefix(stage) {
-  switch (stage) {
-    case 'Клонирование':
-      return 'KL';
-    case 'Адаптация':
-      return 'AD';
-    case 'Теплица':
-      return 'TP';
-    case 'Закалка':
-      return 'ZK';
-    case 'Высадка':
-      return 'VH';
-    case INTRO_STAGE:
-    default:
-      return 'IV';
-  }
+function loadUniqueCultures() {
+  const source = fs.readFileSync(catalogPath, 'utf8')
+    .replace(/export default plantsCatalog;?\s*$/, '');
+  const catalog = new Function(`${source}\nreturn plantsCatalog;`)();
+  const seen = new Set();
+  const cultures = catalog.filter((plant) => {
+    const key = [plant.cultureName, plant.speciesName, plant.varietyName].map((value) => `${value || ''}`.trim()).join('|');
+    if (!plant.cultureName || seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
+  assert(cultures.length >= TOTAL_BATCHES, `catalog has only ${cultures.length} unique cultures`);
+  return cultures.slice(0, TOTAL_BATCHES);
 }
 
-const RACK_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-
-function formatStorageLocation(greenhouseNumber, rackIndex, shelfNumber) {
-  const rackLetter = RACK_LETTERS[rackIndex % RACK_LETTERS.length];
-  return `Теплица ${greenhouseNumber}, Стеллаж ${rackLetter}, полка ${shelfNumber}`;
-}
-
-function locationByStage(stage, reportIndex, cardIndex) {
-  const greenhouseNumber = reportIndex + 1;
-  const rackIndex = reportIndex + cardIndex;
-  const shelfNumber = (cardIndex % 8) + 1;
-
-  return formatStorageLocation(greenhouseNumber, rackIndex, shelfNumber);
-}
-
-function createCardBlueprint(reportIndex, cardIndex, reportStageSequence, reportCreatedAt) {
-  const culture = CULTURES[(reportIndex + cardIndex) % CULTURES.length];
-  const stage = reportStageSequence[cardIndex];
-  const quantity = 120 + reportIndex * 30 + cardIndex * 9;
-  const batchStatus = 'active';
-  const currentQuantity = quantity;
-  const sterilityStatus = cardIndex % 3 === 0 ? 'sterile' : 'unchecked';
-
-  const createdAt = iso(daysAgo(reportCreatedAt, 24 - cardIndex * 2));
-  const updatedAt = iso(hoursAfter(new Date(createdAt), 12 + cardIndex * 4));
+function createWorld(photoPool, reportIndex) {
+  const idBase = Date.UTC(2026, 4, 20 + reportIndex, 8, 0, 0);
 
   return {
-    cardId: `demo-report-${reportIndex + 1}-card-${String(cardIndex + 1).padStart(2, '0')}`,
-    code: `${stagePrefix(stage)}-${String(reportIndex + 1).padStart(2, '0')}${String(cardIndex + 1).padStart(2, '0')}-${reportCreatedAt
-      .toISOString()
-      .slice(2, 10)
-      .replaceAll('-', '')}`,
-    cultureName: culture.cultureName,
-    speciesName: culture.speciesName,
-    varietyName: culture.varietyName,
-    stage,
-    batchStatus,
-    sterilityStatus,
-    quantity,
-    currentQuantity,
-    locationDescription: locationByStage(stage, reportIndex, cardIndex),
-    createdAt,
-    updatedAt,
-    extraFields: {},
-    events: [],
+    cards: new Map(),
+    cardIdBase: idBase,
+    deviceId: `device-${idBase}-dmo${String(reportIndex + 1).padStart(3, '0')}`,
+    eventIdBase: idBase + 100000,
+    eventSequence: 0,
+    photoCursor: 0,
+    photoPool,
+    reportIdBase: idBase + 200000,
+    reportIndex,
   };
 }
 
-function createBatchCreatedEvent(reportIndex, card, createdBy) {
-  return {
-    eventId: `${card.cardId}-event-01`,
-    type: 'batchCreated',
-    title: 'Создание партии',
-    stage: INTRO_STAGE,
-    date: card.createdAt,
-    createdAt: card.createdAt,
-    createdBy,
-    comment: '',
-    photoNote: '',
+function stageLocation(stage, index) {
+  const locations = STAGE_LOCATIONS[stage];
+  assert(locations, `unknown stage: ${stage}`);
+  return locations[index % locations.length];
+}
+
+function nextEventId(world, card, type) {
+  if (type === 'batchCreated') {
+    return `batch-created-${card.cardId}`;
+  }
+
+  if (type === 'qrGenerated') {
+    return `qr-generated-${card.cardId}`;
+  }
+
+  world.eventSequence += 1;
+  return `${world.eventIdBase + world.eventSequence}`;
+}
+
+function getProblemStatus(event) {
+  if (event.type === 'quarantine') {
+    return 'quarantine';
+  }
+  if (event.type === 'contamination') {
+    return 'problem';
+  }
+  if (event.type !== 'problem') {
+    return '';
+  }
+  if (event.problemType === 'Карантин') {
+    return 'quarantine';
+  }
+  return ['Контаминация', 'Болезнь', 'Вредители', 'Стресс', 'Ожоги', 'Увядание', 'Погодный стресс', 'Другое']
+    .includes(event.problemType) ? 'problem' : '';
+}
+
+// Mirrors the relevant rules from batch.js, statusProblemValidation.js and
+// statusCardStatusResolver.js. The mobile domain modules are ESM; this CLI is CJS.
+function applyEvent(world, card, spec) {
+  const event = {
+    eventId: nextEventId(world, card, spec.type),
+    type: spec.type,
+    title: spec.title || spec.type,
+    stage: spec.stage || card.stage,
+    date: spec.date,
+    createdAt: spec.date,
+    createdBy: spec.createdBy,
+    comment: spec.comment || '',
+    photoNote: spec.photoNote || '',
     photoFiles: [],
-    problemType: '',
-    riskLevel: '',
-    count: 0,
-    previousQuantity: 0,
-    currentQuantity: card.quantity,
-    extraFields: {
-      reportIndex: reportIndex + 1,
-    },
+    problemType: spec.problemType || '',
+    riskLevel: spec.riskLevel || '',
+    count: Number(spec.count) || 0,
+    previousQuantity: card.currentQuantity,
+    currentQuantity: card.currentQuantity,
+    fromStage: spec.fromStage,
+    toStage: spec.toStage,
+    extraFields: { ...(spec.extraFields || {}) },
   };
-}
+  Object.assign(event, spec.details || {});
 
-function buildPhotoEntryName(eventId, sourcePath, photoIndex) {
-  const extension = path.extname(sourcePath).toLowerCase() || '.jpg';
-  return `photos/${eventId}-${photoIndex + 1}${extension}`;
-}
-
-function attachPhotoFiles(zip, eventId, sourcePath, photoIndex, photoFiles) {
-  const entryName = buildPhotoEntryName(eventId, sourcePath, photoIndex);
-  const fileBuffer = fs.readFileSync(sourcePath);
-  zip.file(entryName, fileBuffer);
-  photoFiles.push(entryName);
-}
-
-function foldLegacyPhotoEvents(extraEvents) {
-  const normalizedEvents = [];
-
-  for (const eventSpec of extraEvents) {
-    if (eventSpec.type !== 'photo') {
-      normalizedEvents.push({ ...eventSpec });
-      continue;
-    }
-
-    const targetEvent = [...normalizedEvents]
-      .reverse()
-      .find((candidate) => candidate.cardIndex === eventSpec.cardIndex && candidate.type !== 'photo');
-
-    if (!targetEvent) {
-      continue;
-    }
-
-    targetEvent.photoNote = targetEvent.photoNote || eventSpec.photoNote || 'Фотофиксация события.';
-    targetEvent.attachPhoto = true;
+  if (spec.photo) {
+    event._photoSourceIndex = world.photoCursor % world.photoPool.length;
+    world.photoCursor += 1;
   }
 
-  return normalizedEvents;
-}
-
-function buildDefaultEventDetails(eventSpec, card) {
-  const defaults = {};
-  const stageChangedAt = eventSpec.date || card.updatedAt;
-
-  switch (eventSpec.type) {
-    case 'comment':
-      defaults.comment = eventSpec.comment || 'Рабочий комментарий по партии.';
-      break;
-    case 'contamination':
-      defaults.problemType = eventSpec.problemType || 'Контаминация';
-      defaults.riskLevel = eventSpec.riskLevel || 'Высокий';
-      break;
-    case 'quarantine':
-      defaults.reason = eventSpec.reason || eventSpec.quarantineReason || eventSpec.comment || 'Партия требует изоляции.';
-      defaults.quarantineReason = eventSpec.quarantineReason || defaults.reason;
-      defaults.problemType = eventSpec.problemType || 'Карантин';
-      defaults.riskLevel = eventSpec.riskLevel || 'Критический';
-      break;
-    case 'quarantineReleased':
-      defaults.reason = eventSpec.reason || 'Риски устранены, партия возвращена в работу.';
-      defaults.quarantineReason = eventSpec.quarantineReason || defaults.reason;
-      defaults.riskLevel = eventSpec.riskLevel || 'Низкий';
-      break;
-    case 'introLoss':
-      defaults.reason = eventSpec.reason || eventSpec.lossReason || eventSpec.comment || 'Потери зафиксированы при контрольном осмотре.';
-      defaults.lossReason = eventSpec.lossReason || defaults.reason;
-      break;
-    case 'death':
-      defaults.reason = eventSpec.reason || eventSpec.comment || 'Гибель растений после стрессового периода.';
-      break;
-    case 'discard':
-      defaults.reason = eventSpec.reason || eventSpec.comment || 'Выбраковка по результатам осмотра.';
-      break;
-    case 'sale':
-      defaults.saleType = eventSpec.saleType || 'Частичная реализация';
-      defaults.recipient = eventSpec.recipient || 'Демо-клиент';
-      defaults.saleAmount = eventSpec.saleAmount || '12500';
-      break;
-    case 'propagation':
-      defaults.propagationMethod = eventSpec.propagationMethod || 'Черенкование';
-      break;
-    case 'stageChange':
-      defaults.fromStage = eventSpec.fromStage || eventSpec.extraFields?.fromStage || INTRO_STAGE;
-      defaults.toStage = eventSpec.toStage || eventSpec.extraFields?.toStage || eventSpec.stage || card.stage;
-      defaults.stageChangedAt = eventSpec.stageChangedAt || stageChangedAt;
-      defaults.rootedCount = eventSpec.rootedCount || 42;
-      defaults.rootingPercent = eventSpec.rootingPercent || 86;
-      break;
-    case 'rooting':
-      defaults.rootedCount = eventSpec.rootedCount || eventSpec.count || 12;
-      defaults.rootingPercent = eventSpec.rootingPercent || 82;
-      break;
-    case 'adaptationStress':
-      defaults.stressLevel = eventSpec.stressLevel || 'Средний';
-      defaults.turgor = eventSpec.turgor || 'Сохранен';
-      defaults.stability = eventSpec.stability || 'Стабилизируется';
-      break;
-    case 'adaptationEnvironment':
-      defaults.environmentTemperature = eventSpec.environmentTemperature || '23 C';
-      defaults.environmentAirHumidity = eventSpec.environmentAirHumidity || '78%';
-      defaults.substrateHumidity = eventSpec.substrateHumidity || 'Умеренная';
-      defaults.environmentLight = eventSpec.environmentLight || 'Рассеянный свет';
-      defaults.ventilation = eventSpec.ventilation || 'Проветривание 2 раза в день';
-      defaults.humidityReduction = eventSpec.humidityReduction || 'Плавное снижение';
-      defaults.turgor = eventSpec.turgor || 'Хороший';
-      defaults.stability = eventSpec.stability || 'Стабильная';
-      break;
-    case 'adaptationHumidityReduction':
-      defaults.environmentAirHumidity = eventSpec.environmentAirHumidity || '70%';
-      defaults.substrateHumidity = eventSpec.substrateHumidity || 'Контролируемая';
-      defaults.humidityReduction = eventSpec.humidityReduction || 'Снижение на 5%';
-      defaults.turgor = eventSpec.turgor || 'Без потери тургора';
-      defaults.stability = eventSpec.stability || 'Стабильная';
-      break;
-    case 'adaptationCare':
-      defaults.careType = eventSpec.careType || 'Полив';
-      break;
-    case 'greenhouseObservation':
-      defaults.growthRate = eventSpec.growthRate || 'Активный рост';
-      defaults.stressLevel = eventSpec.stressLevel || 'Низкий';
-      defaults.stability = eventSpec.stability || 'Стабильная';
-      defaults.riskLevel = eventSpec.riskLevel || 'Низкий';
-      defaults.conditionDescription = eventSpec.conditionDescription || 'Листья плотные, прирост равномерный.';
-      break;
-    case 'greenhouseCare':
-      defaults.careType = eventSpec.careType || 'Полив';
-      defaults.careIntervalDays = eventSpec.careIntervalDays || '2';
-      defaults.wateringIntervalDays = eventSpec.wateringIntervalDays || '2';
-      defaults.waterVolume = eventSpec.waterVolume || '250 мл';
-      defaults.productName = eventSpec.productName || 'Комплексное удобрение';
-      defaults.dosage = eventSpec.dosage || '1 мл/л';
-      defaults.applicationMethod = eventSpec.applicationMethod || 'Полив под корень';
-      defaults.plantReaction = eventSpec.plantReaction || 'Реакция положительная';
-      defaults.riskLevel = eventSpec.riskLevel || 'Низкий';
-      break;
-    case 'greenhouseEnvironment':
-      defaults.environmentTemperature = eventSpec.environmentTemperature || '24 C';
-      defaults.environmentAirHumidity = eventSpec.environmentAirHumidity || '64%';
-      defaults.environmentLight = eventSpec.environmentLight || 'PPFD 160';
-      defaults.ventilation = eventSpec.ventilation || 'Автоматическая вентиляция';
-      defaults.placement = eventSpec.placement || 'Стеллаж верхний ярус';
-      defaults.densityChange = eventSpec.densityChange || 'Разрежение посадки';
-      defaults.growthRate = eventSpec.growthRate || 'Равномерный';
-      defaults.stability = eventSpec.stability || 'Стабильная';
-      defaults.riskLevel = eventSpec.riskLevel || 'Средний';
-      break;
-    case 'greenhouseDisease':
-      defaults.diseaseName = eventSpec.diseaseName || 'Пятнистость листьев';
-      defaults.pestName = eventSpec.pestName || 'Не выявлен';
-      defaults.diseaseSeverity = eventSpec.diseaseSeverity || 'Средняя';
-      defaults.productName = eventSpec.productName || 'Фунгицид';
-      defaults.dosage = eventSpec.dosage || '2 мл/л';
-      defaults.applicationMethod = eventSpec.applicationMethod || 'Опрыскивание';
-      defaults.plantReaction = eventSpec.plantReaction || 'Распространение остановлено';
-      defaults.riskLevel = eventSpec.riskLevel || 'Высокий';
-      break;
-    case 'hardeningObservation':
-      defaults.stressLevel = eventSpec.stressLevel || 'Средний';
-      defaults.turgor = eventSpec.turgor || 'Удовлетворительный';
-      defaults.readinessForPlanting = eventSpec.readinessForPlanting || 'Готова через 3 дня';
-      break;
-    case 'hardeningCare':
-      defaults.careType = eventSpec.careType || 'Профилактика';
-      defaults.productName = eventSpec.productName || 'Антистресс';
-      defaults.dosage = eventSpec.dosage || '1.5 мл/л';
-      defaults.applicationMethod = eventSpec.applicationMethod || 'Листовая обработка';
-      defaults.plantReaction = eventSpec.plantReaction || 'Тургор восстановлен';
-      break;
-    case 'planting':
-      defaults.plantingLocation = eventSpec.plantingLocation || 'Грядка A-3';
-      defaults.plantingScheme = eventSpec.plantingScheme || '30x40 см';
-      defaults.plotArea = eventSpec.plotArea || '12 м2';
-      defaults.soilType = eventSpec.soilType || 'Торфяной субстрат';
-      break;
-    case 'plantingObservation':
-      defaults.survivalRate = eventSpec.survivalRate || 'Высокая';
-      defaults.stressLevel = eventSpec.stressLevel || 'Низкий';
-      defaults.turgor = eventSpec.turgor || 'Хороший';
-      break;
-    case 'plantingCare':
-      defaults.careType = eventSpec.careType || 'Полив';
-      defaults.productName = eventSpec.productName || 'Укоренитель';
-      defaults.dosage = eventSpec.dosage || '1 г/л';
-      defaults.applicationMethod = eventSpec.applicationMethod || 'Полив в посадочную лунку';
-      defaults.plantReaction = eventSpec.plantReaction || 'Приживаемость без замечаний';
-      break;
-    case 'plantingCompletion':
-      defaults.completionResult = eventSpec.completionResult || 'Высадка завершена';
-      break;
-    case 'problem':
-      defaults.problemType = eventSpec.problemType || 'Отклонение состояния';
-      defaults.riskLevel = eventSpec.riskLevel || 'Средний';
-      defaults.problemDescription = eventSpec.problemDescription || eventSpec.comment || 'Проблема требует наблюдения.';
-      break;
-    case 'movement':
-      defaults.previousLocation = eventSpec.previousLocation || card.locationDescription;
-      defaults.greenhouseName = eventSpec.greenhouseName || `${card.cardId.slice(-2)}`;
-      defaults.rackName = eventSpec.rackName || 'B';
-      defaults.shelfName = eventSpec.shelfName || '2';
-      defaults.nextLocation = eventSpec.nextLocation || `Теплица ${defaults.greenhouseName} · Стеллаж ${defaults.rackName} · Полка ${defaults.shelfName}`;
-      break;
-    case 'transplant':
-      defaults.placement = eventSpec.placement || 'Контейнер 1.5 л';
-      defaults.densityChange = eventSpec.densityChange || 'Снижена плотность';
-      defaults.growthRate = eventSpec.growthRate || 'Активный рост после пересадки';
-      defaults.stability = eventSpec.stability || 'Стабильная';
-      break;
-    default:
-      break;
+  if (QUANTITY_DECREASE_TYPES.has(event.type)) {
+    event.count = Math.min(event.count, card.currentQuantity);
+    event.currentQuantity = card.currentQuantity - event.count;
+    card.currentQuantity = event.currentQuantity;
+    if (event.type === 'sale' && !['problem', 'quarantine'].includes(card.batchStatus)) {
+      card.batchStatus = card.currentQuantity === 0 ? 'sold' : 'partial';
+    }
+  } else if (event.type === 'propagation') {
+    event.currentQuantity = card.currentQuantity + event.count;
+    card.currentQuantity = event.currentQuantity;
+  } else if (event.type === 'stageChange') {
+    assert(event.fromStage === card.stage, `${card.cardId} has invalid source stage`);
+    assert(STAGES.indexOf(event.toStage) === STAGES.indexOf(card.stage) + 1, `${card.cardId} skips a stage`);
+    event.stage = event.toStage;
+    event.stageChangedAt = event.date;
+    card.stage = event.toStage;
+  } else if (event.type === 'movement') {
+    event.previousLocation = card.locationDescription;
+    event.nextLocation = spec.nextLocation || stageLocation(card.stage, card.index);
+    card.locationDescription = event.nextLocation;
+  } else if (event.type === 'plantingCompletion') {
+    card.batchStatus = 'archived';
+  } else {
+    const problemStatus = getProblemStatus(event);
+    if (problemStatus) {
+      card.batchStatus = problemStatus;
+    }
+    if (event.type === 'contamination' || (event.type === 'problem' && event.problemType === 'Контаминация')) {
+      card.sterilityStatus = 'contaminated';
+    }
   }
 
-  return defaults;
+  card.events.push(event);
+  card.updatedAt = event.createdAt;
 }
 
-function buildReportDefinitions() {
-  const definitions = [
-    {
-      reportIndex: 0,
-      createdAt: new Date('2026-06-10T09:20:00.000Z'),
-      user: REPORT_USERS[0],
-      testLocation: 'Тестовая теплица №1',
-      stageSequence: buildStageSequence([
-        'Клонирование',
-        INTRO_STAGE,
-      ]),
-      extraEvents: [
-        {
-          cardIndex: 1,
-          type: 'contamination',
-          title: 'Контаминация',
-          stage: INTRO_STAGE,
-          comment: 'На листьях замечены следы контаминации.',
-          problemType: 'Контаминация',
-          riskLevel: 'Высокий',
-        },
-        {
-          cardIndex: 2,
-          type: 'quarantine',
-          title: 'Карантин',
-          stage: INTRO_STAGE,
-          comment: 'Партия изолирована после первичного осмотра.',
-          problemType: 'Карантин',
-          riskLevel: 'Критический',
-        },
-        {
-          cardIndex: 2,
-          type: 'introLoss',
-          title: 'Потери',
-          stage: INTRO_STAGE,
-          comment: 'Часть растений выбыла после первичной проверки.',
-          count: 4,
-          previousQuantity: 118,
-          currentQuantity: 114,
-        },
-        {
-          cardIndex: 3,
-          type: 'rooting',
-          title: 'Укоренение',
-          stage: 'Клонирование',
-          comment: 'Зафиксировано укоренение после обработки.',
-          count: 12,
-        },
-        {
-          cardIndex: 4,
-          type: 'propagation',
-          title: 'Размножение',
-          stage: 'Клонирование',
-          comment: 'Запущено размножение на отдельных черенках.',
-          count: 18,
-        },
-        {
-          cardIndex: 5,
-          type: 'stageChange',
-          title: 'Переход стадии',
-          stage: 'Клонирование',
-          comment: 'Партия переведена в клонирование.',
-          extraFields: {
-            fromStage: INTRO_STAGE,
-            toStage: 'Клонирование',
-          },
-        },
-        {
-          cardIndex: 6,
-          type: 'comment',
-          title: 'Комментарий',
-          stage: INTRO_STAGE,
-          comment: 'Паспорт партии проверен перед дальнейшими операциями.',
-        },
-        {
-          cardIndex: 7,
-          type: 'death',
-          title: 'Гибель',
-          stage: 'Клонирование',
-          comment: 'Часть растений погибла после стрессового периода.',
-          count: 3,
-          previousQuantity: 147,
-          currentQuantity: 144,
-        },
-        {
-          cardIndex: 0,
-          type: 'photo',
-          title: 'Фото',
-          stage: INTRO_STAGE,
-          photoNote: 'Общий вид партии после контаминации.',
-        },
-        {
-          cardIndex: 3,
-          type: 'photo',
-          title: 'Фото',
-          stage: 'Клонирование',
-          photoNote: 'Укореняющиеся растения после обработки.',
-        },
-        {
-          cardIndex: 6,
-          type: 'photo',
-          title: 'Фото',
-          stage: 'Клонирование',
-          photoNote: 'Контрольный снимок партии перед переводом стадии.',
-        },
-      ],
-    },
-    {
-      reportIndex: 1,
-      createdAt: new Date('2026-06-11T09:20:00.000Z'),
-      user: REPORT_USERS[1],
-      testLocation: 'Лаборатория микроклонального размножения',
-      stageSequence: buildStageSequence([
-        'Адаптация',
-        'Клонирование',
-      ]),
-      extraEvents: [
-        {
-          cardIndex: 0,
-          type: 'adaptationStress',
-          title: 'Наблюдение',
-          stage: 'Адаптация',
-          comment: 'Растения показали легкий стресс после переноса.',
-        },
-        {
-          cardIndex: 1,
-          type: 'adaptationCare',
-          title: 'Уход',
-          stage: 'Адаптация',
-          comment: 'Полив в щадящем режиме после адаптации.',
-          careType: 'Полив',
-        },
-        {
-          cardIndex: 1,
-          type: 'adaptationCare',
-          title: 'Уход',
-          stage: 'Адаптация',
-          comment: 'Проведена подкормка по схеме адаптации.',
-          careType: 'Подкормка',
-        },
-        {
-          cardIndex: 6,
-          type: 'adaptationEnvironment',
-          title: 'Изменение среды',
-          stage: 'Адаптация',
-          comment: 'Скорректированы влажность и освещение в зоне адаптации.',
-        },
-        {
-          cardIndex: 7,
-          type: 'adaptationHumidityReduction',
-          title: 'Снижение влажности',
-          stage: 'Адаптация',
-          comment: 'Влажность снижена по плану адаптации.',
-        },
-        {
-          cardIndex: 2,
-          type: 'problem',
-          title: 'Проблема',
-          stage: 'Адаптация',
-          comment: 'Обнаружены симптомы болезни на нескольких экземплярах.',
-          problemType: 'Болезнь',
-          riskLevel: 'Высокий',
-        },
-        {
-          cardIndex: 3,
-          type: 'problem',
-          title: 'Проблема',
-          stage: 'Адаптация',
-          comment: 'Зафиксировано поражение вредителями.',
-          problemType: 'Вредители',
-          riskLevel: 'Критический',
-        },
-        {
-          cardIndex: 4,
-          type: 'movement',
-          title: 'Перемещение',
-          stage: 'Адаптация',
-          comment: 'Партия перемещена в более стабильную зону.',
-        },
-        {
-          cardIndex: 5,
-          type: 'introLoss',
-          title: 'Потери',
-          stage: 'Адаптация',
-          comment: 'Часть растений потеряна в ходе адаптации.',
-          count: 6,
-          previousQuantity: 165,
-          currentQuantity: 159,
-        },
-        {
-          cardIndex: 5,
-          type: 'sale',
-          title: 'Продажа',
-          stage: 'Адаптация',
-          comment: 'Часть партии реализована после стабилизации.',
-          count: 24,
-          previousQuantity: 159,
-          currentQuantity: 135,
-        },
-        {
-          cardIndex: 0,
-          type: 'photo',
-          title: 'Фото',
-          stage: 'Адаптация',
-          photoNote: 'Партия после утреннего полива в адаптации.',
-        },
-        {
-          cardIndex: 2,
-          type: 'photo',
-          title: 'Фото',
-          stage: 'Адаптация',
-          photoNote: 'Признаки заболевания на листьях.',
-        },
-        {
-          cardIndex: 4,
-          type: 'photo',
-          title: 'Фото',
-          stage: 'Адаптация',
-          photoNote: 'Контрольный снимок партии перед перемещением.',
-        },
-      ],
-    },
-    {
-      reportIndex: 2,
-      createdAt: new Date('2026-06-12T09:20:00.000Z'),
-      user: REPORT_USERS[2],
-      testLocation: 'Теплица микроклонального цеха',
-      stageSequence: buildStageSequence([
-        'Теплица',
-        'Адаптация',
-      ]),
-      extraEvents: [
-        {
-          cardIndex: 0,
-          type: 'greenhouseObservation',
-          title: 'Наблюдение',
-          stage: 'Теплица',
-          comment: 'Растения развиваются равномерно в тепличных условиях.',
-        },
-        {
-          cardIndex: 1,
-          type: 'greenhouseCare',
-          title: 'Уход',
-          stage: 'Теплица',
-          comment: 'Проведен полив по тепличному графику.',
-          careType: 'Полив',
-          careIntervalDays: '2',
-          wateringIntervalDays: '2',
-          waterVolume: '250 мл',
-        },
-        {
-          cardIndex: 1,
-          type: 'greenhouseCare',
-          title: 'Уход',
-          stage: 'Теплица',
-          comment: 'Внесено лечение по симптомам на листьях.',
-          careType: 'Лечение',
-          careIntervalDays: '7',
-          productName: 'Фунгицид',
-          dosage: '2 мл/л',
-          applicationMethod: 'Опрыскивание',
-          plantReaction: 'Состояние стабилизируется',
-        },
-        {
-          cardIndex: 2,
-          type: 'greenhouseEnvironment',
-          title: 'Среда',
-          stage: 'Теплица',
-          comment: 'Изменена плотность размещения и режим вентиляции.',
-        },
-        {
-          cardIndex: 2,
-          type: 'quarantine',
-          title: 'Карантин',
-          stage: 'Теплица',
-          comment: 'Партия переведена в карантинную секцию.',
-          problemType: 'Карантин',
-          riskLevel: 'Критический',
-        },
-        {
-          cardIndex: 3,
-          type: 'greenhouseDisease',
-          title: 'Болезни / вредители',
-          stage: 'Теплица',
-          comment: 'Зафиксированы признаки грибковой болезни.',
-          problemType: 'Болезнь',
-          riskLevel: 'Высокий',
-        },
-        {
-          cardIndex: 4,
-          type: 'movement',
-          title: 'Перемещение',
-          stage: 'Теплица',
-          comment: 'Партия перемещена на более светлую полку.',
-        },
-        {
-          cardIndex: 5,
-          type: 'transplant',
-          title: 'Пересадка',
-          stage: 'Теплица',
-          comment: 'Проведена пересадка в больший контейнер.',
-          count: 10,
-        },
-        {
-          cardIndex: 6,
-          type: 'introLoss',
-          title: 'Потери',
-          stage: 'Теплица',
-          comment: 'Несколько экземпляров не выдержали тепличную нагрузку.',
-          count: 3,
-          previousQuantity: 183,
-          currentQuantity: 180,
-        },
-        {
-          cardIndex: 7,
-          type: 'sale',
-          title: 'Продажа',
-          stage: 'Теплица',
-          comment: 'Партия полностью реализована клиенту.',
-          count: 22,
-          sellAll: true,
-          previousQuantity: 156,
-          currentQuantity: 134,
-        },
-        {
-          cardIndex: 0,
-          type: 'photo',
-          title: 'Фото',
-          stage: 'Теплица',
-          photoNote: 'Общий вид тепличной партии.',
-        },
-        {
-          cardIndex: 3,
-          type: 'photo',
-          title: 'Фото',
-          stage: 'Теплица',
-          photoNote: 'Фиксация пересадки и последующего контроля.',
-        },
-        {
-          cardIndex: 6,
-          type: 'photo',
-          title: 'Фото',
-          stage: 'Теплица',
-          photoNote: 'Снимок партии перед переводом на следующий этап.',
-        },
-      ],
-    },
-    {
-      reportIndex: 3,
-      createdAt: new Date('2026-06-13T09:20:00.000Z'),
-      user: REPORT_USERS[3],
-      testLocation: 'Закалочная площадка №2',
-      stageSequence: buildStageSequence([
-        'Закалка',
-        'Теплица',
-      ]),
-      extraEvents: [
-        {
-          cardIndex: 0,
-          type: 'hardeningObservation',
-          title: 'Наблюдение',
-          stage: 'Закалка',
-          comment: 'Партия показывает готовность к высадке.',
-        },
-        {
-          cardIndex: 1,
-          type: 'hardeningCare',
-          title: 'Уход',
-          stage: 'Закалка',
-          comment: 'Проведен поддерживающий уход на площадке закалки.',
-        },
-        {
-          cardIndex: 2,
-          type: 'problem',
-          title: 'Проблема',
-          stage: 'Закалка',
-          comment: 'Обнаружены ожоги на части листьев.',
-          problemType: 'Ожоги',
-          riskLevel: 'Средний',
-        },
-        {
-          cardIndex: 6,
-          type: 'quarantineReleased',
-          title: 'Снятие карантина',
-          stage: 'Закалка',
-          comment: 'После повторного осмотра карантин снят.',
-          reason: 'Признаки риска не подтверждены.',
-        },
-        {
-          cardIndex: 3,
-          type: 'problem',
-          title: 'Проблема',
-          stage: 'Закалка',
-          comment: 'Отмечено увядание в жаркий день.',
-          problemType: 'Увядание',
-          riskLevel: 'Высокий',
-        },
-        {
-          cardIndex: 4,
-          type: 'movement',
-          title: 'Перемещение',
-          stage: 'Закалка',
-          comment: 'Партия перемещена в затененный сектор.',
-        },
-        {
-          cardIndex: 5,
-          type: 'discard',
-          title: 'Выбраковка',
-          stage: 'Закалка',
-          comment: 'Непригодные экземпляры выбракованы после закалки.',
-          count: 5,
-          previousQuantity: 201,
-          currentQuantity: 196,
-        },
-        {
-          cardIndex: 5,
-          type: 'sale',
-          title: 'Продажа',
-          stage: 'Закалка',
-          comment: 'Часть подготовленной партии реализована.',
-          count: 18,
-          previousQuantity: 196,
-          currentQuantity: 178,
-        },
-        {
-          cardIndex: 0,
-          type: 'photo',
-          title: 'Фото',
-          stage: 'Закалка',
-          photoNote: 'Партия перед высадкой после закалки.',
-        },
-        {
-          cardIndex: 2,
-          type: 'photo',
-          title: 'Фото',
-          stage: 'Закалка',
-          photoNote: 'Симптомы ожогов на листьях после закалки.',
-        },
-        {
-          cardIndex: 4,
-          type: 'photo',
-          title: 'Фото',
-          stage: 'Закалка',
-          photoNote: 'Контрольный снимок партии перед перемещением.',
-        },
-      ],
-    },
-    {
-      reportIndex: 4,
-      createdAt: new Date('2026-06-14T09:20:00.000Z'),
-      user: REPORT_USERS[4],
-      testLocation: 'Участок высадки и смешанный журнал',
-      stageSequence: buildStageSequence([
-        'Высадка',
-        'Закалка',
-      ]),
-      extraEvents: [
-        {
-          cardIndex: 0,
-          type: 'planting',
-          title: 'Высадка',
-          stage: 'Высадка',
-          comment: 'Выполнена высадка в постоянный субстрат.',
-          count: 12,
-        },
-        {
-          cardIndex: 1,
-          type: 'plantingObservation',
-          title: 'Наблюдение',
-          stage: 'Высадка',
-          comment: 'Отмечена хорошая приживаемость после высадки.',
-        },
-        {
-          cardIndex: 1,
-          type: 'plantingCare',
-          title: 'Уход',
-          stage: 'Высадка',
-          comment: 'Проведен полив после высадки.',
-          careType: 'Полив',
-        },
-        {
-          cardIndex: 4,
-          type: 'problem',
-          title: 'Проблема',
-          stage: 'Высадка',
-          comment: 'Растения испытывают погодный стресс.',
-          problemType: 'Погодный стресс',
-          riskLevel: 'Высокий',
-        },
-        {
-          cardIndex: 7,
-          type: 'quarantine',
-          title: 'Карантин',
-          stage: 'Теплица',
-          comment: 'Отдельная партия из смешанного журнала переведена в карантин.',
-          problemType: 'Карантин',
-          riskLevel: 'Критический',
-        },
-        {
-          cardIndex: 5,
-          type: 'introLoss',
-          title: 'Потери',
-          stage: 'Высадка',
-          comment: 'Часть партии потеряна после пересадки.',
-          count: 2,
-          previousQuantity: 210,
-          currentQuantity: 208,
-        },
-        {
-          cardIndex: 5,
-          type: 'sale',
-          title: 'Продажа',
-          stage: 'Высадка',
-          comment: 'Часть высаженной партии реализована.',
-          count: 16,
-          previousQuantity: 208,
-          currentQuantity: 192,
-        },
-        {
-          cardIndex: 6,
-          type: 'plantingCompletion',
-          title: 'Завершение',
-          stage: 'Высадка',
-          comment: 'Высадка завершена без дополнительных замечаний.',
-        },
-        {
-          cardIndex: 0,
-          type: 'photo',
-          title: 'Фото',
-          stage: 'Высадка',
-          photoNote: 'Состояние партии сразу после высадки.',
-        },
-        {
-          cardIndex: 3,
-          type: 'photo',
-          title: 'Фото',
-          stage: 'Высадка',
-          photoNote: 'Снимок высадки на контрольном участке.',
-        },
-        {
-          cardIndex: 7,
-          type: 'photo',
-          title: 'Фото',
-          stage: 'Теплица',
-          photoNote: 'Смешанный контрольный снимок партии из разных стадий.',
-        },
-      ],
-    },
-  ];
-
-  const normalizedDefinitions = definitions.map((definition) => ({
-    ...definition,
-    extraEvents: foldLegacyPhotoEvents(definition.extraEvents),
-  }));
-
-  return [...normalizedDefinitions, ...buildExtraReportDefinitions(normalizedDefinitions)];
+function addHistoricalStageMove(world, card, stageIndex, user) {
+  const fromStage = card.stage;
+  const toStage = STAGES[stageIndex];
+  applyEvent(world, card, {
+    type: 'stageChange', title: 'Изменение стадии', fromStage, toStage,
+    date: historyTime(stageIndex + 1, 10, (card.index % 10) * 3), createdBy: user.userId,
+    photo: (card.index + stageIndex) % 2 === 0,
+    photoNote: (card.index + stageIndex) % 2 === 0 ? `Фотофиксация перехода в стадию «${toStage}».` : '',
+    details: { rootedCount: Math.round(card.currentQuantity * 0.8), rootingPercent: 80 },
+  });
+  applyEvent(world, card, {
+    type: 'movement', title: 'Перемещение', stage: card.stage,
+    date: historyTime(stageIndex + 1, 11, (card.index % 10) * 3), createdBy: user.userId,
+    comment: `Партия размещена на стадии «${card.stage}».`, nextLocation: stageLocation(card.stage, card.index),
+  });
 }
 
-function buildExtraReportDefinitions(definitions) {
-  return definitions.map((definition, index) => ({
-    reportIndex: index + 5,
-    createdAt: new Date(definition.createdAt.getTime() + 5 * DAY_MS),
-    user: EXTRA_REPORT_USERS[index],
-    testLocation: formatStorageLocation(index + 6, index + 5, 1),
-    stageSequence: [...definition.stageSequence],
-    extraEvents: definition.extraEvents.map((event) => ({
-      ...event,
-      extraFields: event.extraFields ? { ...event.extraFields } : undefined,
-    })),
-  }));
+function createInitialWorld(world, cultures) {
+  const user = USERS[world.reportIndex];
+  cultures.forEach((culture, index) => {
+    const targetStageIndex = Math.floor(index / BATCHES_PER_STAGE);
+    const createdAt = historyTime(0, 8, index % 50);
+    const quantity = 72 + (index % 8) * 11;
+    const card = {
+      cardId: `${world.cardIdBase + index}`,
+      code: `VK-202605${String(20 + world.reportIndex).padStart(2, '0')}-${String(world.reportIndex + 1).padStart(2, '0')}-${String(1000 + index)}`,
+      cultureName: culture.cultureName,
+      speciesName: culture.speciesName,
+      varietyName: culture.varietyName,
+      stage: INTRO_STAGE,
+      batchStatus: 'active',
+      sterilityStatus: 'unchecked',
+      quantity,
+      currentQuantity: quantity,
+      locationDescription: stageLocation(INTRO_STAGE, index),
+      createdAt,
+      updatedAt: createdAt,
+      events: [],
+      index,
+    };
+    world.cards.set(card.cardId, card);
+    applyEvent(world, card, {
+      type: 'batchCreated', title: 'Создание партии', stage: INTRO_STAGE, date: createdAt, createdBy: user.userId,
+      details: { quantity, qrStatus: 'pending_print' }, extraFields: { source: 'demo-world' },
+    });
+    applyEvent(world, card, {
+      type: 'qrGenerated', title: 'QR-код сформирован', stage: INTRO_STAGE,
+      date: historyTime(0, 9, index % 50), createdBy: user.userId, details: { code: card.code, qrStatus: 'pending_print' },
+    });
+    for (let stageIndex = 1; stageIndex <= targetStageIndex; stageIndex += 1) {
+      addHistoricalStageMove(world, card, stageIndex, user);
+    }
+  });
+}
+
+function getCard(world, stageIndex, dayIndex) {
+  return world.cards.get(`${world.cardIdBase + stageIndex * BATCHES_PER_STAGE + dayIndex}`);
+}
+
+function addDailyEvent(world, dayIndex, stageIndex, hour, minute, spec) {
+  const card = getCard(world, stageIndex, dayIndex);
+  assert(card, `daily card is missing for ${STAGES[stageIndex]}`);
+  applyEvent(world, card, {
+    ...spec,
+    stage: card.stage,
+    date: reportDayTime(dayIndex, hour, minute),
+    createdBy: USERS[world.reportIndex].userId,
+  });
+}
+
+function applyDayScenario(world, dayIndex) {
+  const photos = new Set([0, 3, 5]);
+  const withPhoto = (stageIndex, photoNote) => ({ photo: photos.has(stageIndex), photoNote: photos.has(stageIndex) ? photoNote : '' });
+
+  if (dayIndex === 0) {
+    addDailyEvent(world, dayIndex, 0, 9, 0, { type: 'contamination', title: 'Контаминация', ...withPhoto(0, 'Контрольная фиксация контаминации.'), details: { contaminationNote: 'Признаки бактериального заражения.' } });
+    addDailyEvent(world, dayIndex, 1, 10, 0, { type: 'rooting', title: 'Укоренение', count: 54, details: { rootedCount: 54, rootingPercent: 75 } });
+    addDailyEvent(world, dayIndex, 2, 11, 0, { type: 'adaptationStress', title: 'Наблюдение', details: { stressLevel: 'Средний', turgor: 'Снижен', stability: 'Стабилизируется' } });
+    addDailyEvent(world, dayIndex, 3, 12, 0, { type: 'greenhouseObservation', title: 'Наблюдение', ...withPhoto(3, 'Состояние партии в теплице.'), details: { growthRate: 'Равномерный', stressLevel: 'Низкий', stability: 'Стабильная', riskLevel: 'Низкий', conditionDescription: 'Листья плотные, прирост равномерный.' } });
+    addDailyEvent(world, dayIndex, 4, 13, 0, { type: 'hardeningObservation', title: 'Наблюдение', details: { stressLevel: 'Средний', turgor: 'Удовлетворительный', readinessForPlanting: 'Готова через 3 дня' } });
+    addDailyEvent(world, dayIndex, 5, 14, 0, { type: 'plantingObservation', title: 'Наблюдение', ...withPhoto(5, 'Контроль приживаемости на участке.'), details: { survivalRate: 'Высокая', stressLevel: 'Низкий', turgor: 'Хороший' } });
+    return;
+  }
+  if (dayIndex === 1) {
+    addDailyEvent(world, dayIndex, 0, 9, 0, { type: 'quarantine', title: 'Карантин', ...withPhoto(0, 'Партия в карантинной зоне.'), comment: 'Партия изолирована до повторного анализа.', details: { reason: 'Подозрение на инфекцию', quarantineReason: 'Подозрение на инфекцию' } });
+    addDailyEvent(world, dayIndex, 1, 10, 0, { type: 'propagation', title: 'Размножение', count: 12, details: { propagationMethod: 'Черенкование' } });
+    addDailyEvent(world, dayIndex, 2, 11, 0, { type: 'adaptationEnvironment', title: 'Изменение среды', details: { environmentTemperature: '23 C', environmentAirHumidity: '76%', substrateHumidity: 'Умеренная', environmentLight: 'Рассеянный свет', ventilation: 'Проветривание 2 раза в день', humidityReduction: 'Плавное снижение', turgor: 'Восстановлен', stability: 'Стабильная' } });
+    addDailyEvent(world, dayIndex, 3, 12, 0, { type: 'greenhouseCare', title: 'Уход', ...withPhoto(3, 'Подкормка в тепличной зоне.'), details: { careType: 'Подкормка', productName: 'Комплексное удобрение', dosage: '1 мл/л', applicationMethod: 'Полив под корень', plantReaction: 'Реакция положительная' } });
+    addDailyEvent(world, dayIndex, 4, 13, 0, { type: 'hardeningCare', title: 'Уход', details: { careType: 'Полив', productName: 'Антистресс', dosage: '1.5 мл/л', applicationMethod: 'Листовая обработка', plantReaction: 'Тургор восстановлен' } });
+    addDailyEvent(world, dayIndex, 5, 14, 0, { type: 'plantingCare', title: 'Уход', ...withPhoto(5, 'Полив после высадки.'), details: { careType: 'Полив', productName: 'Укоренитель', dosage: '1 г/л', applicationMethod: 'Полив в посадочную лунку', plantReaction: 'Реакция положительная' } });
+    return;
+  }
+  if (dayIndex === 2) {
+    addDailyEvent(world, dayIndex, 0, 9, 0, { type: 'movement', title: 'Перемещение', ...withPhoto(0, 'Новое размещение в лаборатории.'), comment: 'Партия переведена на резервный стеллаж.', nextLocation: 'Лаборатория, стеллаж Л-2' });
+    addDailyEvent(world, dayIndex, 1, 10, 0, { type: 'sale', title: 'Продажа', count: 10, details: { saleType: 'Частичная реализация', recipient: 'Цветочный салон', saleAmount: '8500' } });
+    addDailyEvent(world, dayIndex, 2, 11, 0, { type: 'adaptationCare', title: 'Уход', details: { careType: 'Увлажнение' } });
+    addDailyEvent(world, dayIndex, 3, 12, 0, { type: 'greenhouseEnvironment', title: 'Среда', ...withPhoto(3, 'Контроль параметров тепличной среды.'), details: { environmentTemperature: '24 C', environmentAirHumidity: '64%', environmentLight: 'PPFD 160', ventilation: 'Автоматическая вентиляция', placement: 'Стеллаж верхний ярус', densityChange: 'Разрежение посадки', growthRate: 'Активный рост', stability: 'Стабильная' } });
+    addDailyEvent(world, dayIndex, 4, 13, 0, { type: 'hardeningObservation', title: 'Наблюдение', details: { stressLevel: 'Низкий', turgor: 'Хороший', readinessForPlanting: 'Готова к высадке' } });
+    addDailyEvent(world, dayIndex, 5, 14, 0, { type: 'plantingObservation', title: 'Наблюдение', ...withPhoto(5, 'Проверка приживаемости после высадки.'), details: { survivalRate: 'Высокая', stressLevel: 'Низкий', turgor: 'Хороший' } });
+    return;
+  }
+  if (dayIndex === 3) {
+    addDailyEvent(world, dayIndex, 0, 9, 0, { type: 'comment', title: 'Комментарий', ...withPhoto(0, 'Фото контрольного осмотра.'), comment: 'Партия развивается в штатном режиме.' });
+    addDailyEvent(world, dayIndex, 1, 10, 0, { type: 'rooting', title: 'Укоренение', count: 48, details: { rootedCount: 48, rootingPercent: 72 } });
+    addDailyEvent(world, dayIndex, 2, 11, 0, { type: 'adaptationStress', title: 'Наблюдение', details: { stressLevel: 'Низкий', turgor: 'Хороший', stability: 'Стабильная' } });
+    addDailyEvent(world, dayIndex, 3, 12, 0, { type: 'greenhouseDisease', title: 'Болезни / вредители', ...withPhoto(3, 'Осмотр листовой пластины.'), riskLevel: 'Средний', details: { diseaseName: 'Пятнистость листьев', pestName: 'Не выявлен', diseaseSeverity: 'Средняя', productName: 'Фунгицид', dosage: '2 мл/л', applicationMethod: 'Опрыскивание', plantReaction: 'Распространение остановлено' } });
+    addDailyEvent(world, dayIndex, 4, 13, 0, { type: 'hardeningCare', title: 'Уход', details: { careType: 'Профилактика', productName: 'Антистресс', dosage: '1 мл/л', applicationMethod: 'Листовая обработка', plantReaction: 'Стабильная' } });
+    addDailyEvent(world, dayIndex, 5, 14, 0, { type: 'plantingCare', title: 'Уход', ...withPhoto(5, 'Полив в посадочной лунке.'), details: { careType: 'Полив', productName: 'Укоренитель', dosage: '1 г/л', applicationMethod: 'Полив', plantReaction: 'Состояние стабильное' } });
+    return;
+  }
+  if (dayIndex === 4) {
+    addDailyEvent(world, dayIndex, 0, 9, 0, { type: 'introLoss', title: 'Потери', count: 4, ...withPhoto(0, 'Контрольный снимок после ревизии.'), details: { reason: 'Некроз части эксплантов', lossReason: 'Некроз части эксплантов' } });
+    addDailyEvent(world, dayIndex, 1, 10, 0, { type: 'sale', title: 'Продажа', count: 14, details: { saleType: 'Частичная реализация', recipient: 'Питомник', saleAmount: '11200' } });
+    addDailyEvent(world, dayIndex, 2, 11, 0, { type: 'adaptationCare', title: 'Уход', details: { careType: 'Полив' } });
+    addDailyEvent(world, dayIndex, 3, 12, 0, { type: 'greenhouseObservation', title: 'Наблюдение', ...withPhoto(3, 'Рост партии в тепличной зоне.'), details: { growthRate: 'Равномерный', stressLevel: 'Низкий', stability: 'Стабильная', riskLevel: 'Низкий', conditionDescription: 'Новый прирост формируется равномерно.' } });
+    addDailyEvent(world, dayIndex, 4, 13, 0, { type: 'hardeningObservation', title: 'Наблюдение', details: { stressLevel: 'Средний', turgor: 'Удовлетворительный', readinessForPlanting: 'Нужен контроль через 2 дня' } });
+    addDailyEvent(world, dayIndex, 5, 14, 0, { type: 'sale', title: 'Продажа', ...withPhoto(5, 'Партия подготовлена к отгрузке.'), count: 16, details: { saleType: 'Частичная реализация', recipient: 'Садовый центр', saleAmount: '14400' } });
+    return;
+  }
+  if (dayIndex === 5) {
+    addDailyEvent(world, dayIndex, 0, 9, 0, { type: 'problem', title: 'Проблема', ...withPhoto(0, 'Температурный стресс в лаборатории.'), problemType: 'Стресс', riskLevel: 'Высокий', comment: 'Партия оставлена на дополнительном контроле.' });
+    addDailyEvent(world, dayIndex, 1, 10, 0, { type: 'propagation', title: 'Размножение', count: 10, details: { propagationMethod: 'Черенкование' } });
+    addDailyEvent(world, dayIndex, 2, 11, 0, { type: 'adaptationEnvironment', title: 'Изменение среды', details: { environmentTemperature: '23 C', environmentAirHumidity: '72%', substrateHumidity: 'Контролируемая', humidityReduction: 'Снижение на 5%', turgor: 'Без потери тургора', stability: 'Стабильная' } });
+    addDailyEvent(world, dayIndex, 3, 12, 0, { type: 'transplant', title: 'Пересадка', ...withPhoto(3, 'Партия после пересадки.'), count: 18, details: { placement: 'Стеллаж B, полка 3', densityChange: 'Разрежение посадки', growthRate: 'Равномерный', stability: 'Стабильная' } });
+    addDailyEvent(world, dayIndex, 4, 13, 0, { type: 'hardeningCare', title: 'Уход', details: { careType: 'Полив', productName: 'Антистресс', dosage: '1.5 мл/л', applicationMethod: 'Листовая обработка', plantReaction: 'Тургор восстановлен' } });
+    addDailyEvent(world, dayIndex, 5, 14, 0, { type: 'plantingObservation', title: 'Наблюдение', ...withPhoto(5, 'Состояние растений после высадки.'), details: { survivalRate: 'Высокая', stressLevel: 'Низкий', turgor: 'Хороший' } });
+    return;
+  }
+  if (dayIndex === 6) {
+    addDailyEvent(world, dayIndex, 0, 9, 0, { type: 'comment', title: 'Комментарий', ...withPhoto(0, 'Контрольное фото лабораторной партии.'), comment: 'Рост стабилен, назначен следующий контроль.' });
+    addDailyEvent(world, dayIndex, 1, 10, 0, { type: 'death', title: 'Гибель', count: 3, details: { reason: 'Потери после стрессового периода' } });
+    addDailyEvent(world, dayIndex, 2, 11, 0, { type: 'adaptationStress', title: 'Наблюдение', details: { stressLevel: 'Средний', turgor: 'Снижен', stability: 'Стабилизируется' } });
+    addDailyEvent(world, dayIndex, 3, 12, 0, { type: 'greenhouseCare', title: 'Уход', ...withPhoto(3, 'Полив и подкормка в теплице.'), details: { careType: 'Полив', wateringIntervalDays: '2', waterVolume: '250 мл' } });
+    addDailyEvent(world, dayIndex, 4, 13, 0, { type: 'problem', title: 'Проблема', problemType: 'Ожоги', riskLevel: 'Высокий', comment: 'Партия переведена в затененный сектор.' });
+    addDailyEvent(world, dayIndex, 5, 14, 0, { type: 'plantingCare', title: 'Уход', ...withPhoto(5, 'Уход после высадки.'), details: { careType: 'Полив', productName: 'Укоренитель', dosage: '1 г/л', applicationMethod: 'Полив', plantReaction: 'Состояние стабильное' } });
+    return;
+  }
+  if (dayIndex === 7) {
+    addDailyEvent(world, dayIndex, 0, 9, 0, { type: 'movement', title: 'Перемещение', ...withPhoto(0, 'Новое размещение партии в лаборатории.'), comment: 'Партия переведена на освещенный стеллаж.', nextLocation: 'Лаборатория, стеллаж Л-1' });
+    addDailyEvent(world, dayIndex, 1, 10, 0, { type: 'sale', title: 'Продажа', count: 12, details: { saleType: 'Частичная реализация', recipient: 'Ландшафтная студия', saleAmount: '9600' } });
+    addDailyEvent(world, dayIndex, 2, 11, 0, { type: 'adaptationCare', title: 'Уход', details: { careType: 'Увлажнение' } });
+    addDailyEvent(world, dayIndex, 3, 12, 0, { type: 'greenhouseObservation', title: 'Наблюдение', ...withPhoto(3, 'Проверка состояния тепличной партии.'), details: { growthRate: 'Активный рост', stressLevel: 'Низкий', stability: 'Стабильная', riskLevel: 'Низкий', conditionDescription: 'Растения готовы к дальнейшему развитию.' } });
+    addDailyEvent(world, dayIndex, 4, 13, 0, { type: 'hardeningCare', title: 'Уход', details: { careType: 'Профилактика', productName: 'Антистресс', dosage: '1 мл/л', applicationMethod: 'Листовая обработка', plantReaction: 'Стабильная' } });
+    addDailyEvent(world, dayIndex, 5, 14, 0, { type: 'problem', title: 'Проблема', ...withPhoto(5, 'Погодный стресс после высадки.'), problemType: 'Погодный стресс', riskLevel: 'Высокий', comment: 'Партия оставлена под ежедневным наблюдением.' });
+    return;
+  }
+  if (dayIndex === 8) {
+    addDailyEvent(world, dayIndex, 0, 9, 0, { type: 'introLoss', title: 'Потери', count: 2, ...withPhoto(0, 'Ревизия лабораторной партии.'), details: { reason: 'Потери при контрольном осмотре', lossReason: 'Потери при контрольном осмотре' } });
+    addDailyEvent(world, dayIndex, 1, 10, 0, { type: 'propagation', title: 'Размножение', count: 8, details: { propagationMethod: 'Черенкование' } });
+    addDailyEvent(world, dayIndex, 2, 11, 0, { type: 'adaptationCare', title: 'Уход', details: { careType: 'Полив' } });
+    addDailyEvent(world, dayIndex, 3, 12, 0, { type: 'greenhouseCare', title: 'Уход', ...withPhoto(3, 'Плановый уход в теплице.'), details: { careType: 'Подкормка', productName: 'Комплексное удобрение', dosage: '1 мл/л', applicationMethod: 'Полив под корень', plantReaction: 'Реакция положительная' } });
+    addDailyEvent(world, dayIndex, 4, 13, 0, { type: 'hardeningObservation', title: 'Наблюдение', details: { stressLevel: 'Низкий', turgor: 'Хороший', readinessForPlanting: 'Готова к высадке' } });
+    addDailyEvent(world, dayIndex, 5, 14, 0, { type: 'sale', title: 'Продажа', ...withPhoto(5, 'Частичная отгрузка посадочного материала.'), count: 18, details: { saleType: 'Частичная реализация', recipient: 'Оптовый покупатель', saleAmount: '16200' } });
+    return;
+  }
+  addDailyEvent(world, dayIndex, 0, 9, 0, { type: 'comment', title: 'Комментарий', ...withPhoto(0, 'Итоговый осмотр лабораторной партии.'), comment: 'Партия оставлена на текущей стадии.' });
+  addDailyEvent(world, dayIndex, 1, 10, 0, { type: 'rooting', title: 'Укоренение', count: 46, details: { rootedCount: 46, rootingPercent: 70 } });
+  addDailyEvent(world, dayIndex, 2, 11, 0, { type: 'problem', title: 'Проблема', problemType: 'Стресс', riskLevel: 'Высокий', comment: 'Требуется продлить адаптационный период.' });
+  addDailyEvent(world, dayIndex, 3, 12, 0, { type: 'greenhouseDisease', title: 'Болезни / вредители', ...withPhoto(3, 'Финальный осмотр листьев.'), riskLevel: 'Средний', details: { diseaseName: 'Пятнистость листьев', pestName: 'Не выявлен', diseaseSeverity: 'Средняя', productName: 'Фунгицид', dosage: '2 мл/л', applicationMethod: 'Опрыскивание', plantReaction: 'Распространение остановлено' } });
+  addDailyEvent(world, dayIndex, 4, 13, 0, { type: 'hardeningCare', title: 'Уход', details: { careType: 'Полив', productName: 'Антистресс', dosage: '1 мл/л', applicationMethod: 'Листовая обработка', plantReaction: 'Стабильная' } });
+  addDailyEvent(world, dayIndex, 5, 14, 0, { type: 'plantingCompletion', title: 'Завершение', ...withPhoto(5, 'Финальное состояние высаженной партии.'), details: { completionResult: 'Высадка завершена, партия передана в архив.' } });
+}
+
+function publicEvent(event, photoPool) {
+  const { _photoSourceIndex, ...sourceEvent } = clone(event);
+  const result = {
+    eventId: sourceEvent.eventId,
+    type: sourceEvent.type,
+    title: sourceEvent.title,
+    stage: sourceEvent.stage,
+    date: sourceEvent.date,
+    createdAt: sourceEvent.createdAt,
+    createdBy: sourceEvent.createdBy,
+    comment: sourceEvent.comment,
+    photoNote: sourceEvent.photoNote,
+    photoFiles: sourceEvent.photoFiles,
+    problemType: sourceEvent.problemType,
+    riskLevel: sourceEvent.riskLevel,
+    count: sourceEvent.count,
+    previousQuantity: sourceEvent.previousQuantity,
+    currentQuantity: sourceEvent.currentQuantity,
+    // The mobile exporter publishes a fixed event schema; operation-specific
+    // fields remain local to the source card and are not included in report.json.
+    extraFields: {},
+  };
+  if (_photoSourceIndex !== undefined) {
+    const extension = path.extname(photoPool[_photoSourceIndex]).toLowerCase() || '.jpg';
+    result.photoFiles = [`photos/${result.eventId}${extension}`];
+  }
+  return result;
 }
 
 function buildSummary(cards) {
-  const summary = {
-    cardsCount: cards.length,
-    eventsCount: 0,
-    photosCount: 0,
-    problemsCount: 0,
-    activeCount: 0,
-    soldCount: 0,
-    quarantineCount: 0,
-    problemCount: 0,
-    partialCount: 0,
-    archivedCount: 0,
-  };
-
-  for (const card of cards) {
+  const summary = { cardsCount: cards.length, eventsCount: 0, photosCount: 0, problemsCount: 0, activeCount: 0, soldCount: 0, quarantineCount: 0, problemCount: 0, partialCount: 0, archivedCount: 0 };
+  cards.forEach((card) => {
     summary.eventsCount += card.events.length;
-    summary.problemCount += card.batchStatus === 'problem' ? 1 : 0;
-    summary.activeCount += card.batchStatus === 'active' ? 1 : 0;
-    summary.soldCount += card.batchStatus === 'sold' ? 1 : 0;
-    summary.quarantineCount += card.batchStatus === 'quarantine' ? 1 : 0;
-    summary.partialCount += card.batchStatus === 'partial' ? 1 : 0;
-    summary.archivedCount += card.batchStatus === 'archived' ? 1 : 0;
-
-    for (const event of card.events) {
-      summary.photosCount += event.photoFiles.length;
-      if (['problem', 'contamination', 'quarantine', 'greenhouseDisease'].includes(event.type)) {
+    summary.photosCount += card.events.reduce((total, event) => total + event.photoFiles.length, 0);
+    summary[`${card.batchStatus}Count`] += 1;
+    card.events.forEach((event) => {
+      if (PROBLEM_TYPES.has(event.type)) {
         summary.problemsCount += 1;
       }
-    }
-  }
-
+    });
+  });
   return summary;
 }
 
-function applyEventToCardState(card, event) {
-  const count = Number(event.count) || 0;
-  const previousQuantity = Number(card.currentQuantity) || 0;
-
-  if (['sale', 'death', 'discard', 'introLoss'].includes(event.type)) {
-    event.previousQuantity = previousQuantity;
-    event.currentQuantity = Math.max(previousQuantity - count, 0);
-    card.currentQuantity = event.currentQuantity;
-
-    if (event.type === 'sale') {
-      card.batchStatus = card.currentQuantity === 0 ? 'sold' : 'partial';
-    }
-
-    return;
-  }
-
-  if (event.type === 'propagation') {
-    event.previousQuantity = previousQuantity;
-    event.currentQuantity = previousQuantity + count;
-    card.currentQuantity = event.currentQuantity;
-    return;
-  }
-
-  if (event.type === 'quarantine') {
-    card.batchStatus = 'quarantine';
-    card.sterilityStatus = 'contaminated';
-    return;
-  }
-
-  if (event.type === 'quarantineReleased') {
-    card.batchStatus = card.currentQuantity > 0 ? 'active' : card.batchStatus;
-    return;
-  }
-
-  if (['problem', 'contamination', 'greenhouseDisease'].includes(event.type)) {
-    card.batchStatus = 'problem';
-    card.sterilityStatus = 'contaminated';
-    return;
-  }
-
-  if (event.type === 'plantingCompletion') {
-    card.batchStatus = 'archived';
-  }
-}
-
-function buildEventFromSpec({
-  reportIndex,
-  card,
-  createdBy,
-  eventSpec,
-  eventNumber,
-  sourcePhotoPath,
-}) {
-  const eventDate = eventSpec.date || card.createdAt;
-  const eventId = eventSpec.eventId || `${card.cardId}-event-${String(eventNumber).padStart(2, '0')}`;
-  const photoFiles = [];
-  const eventDetails = {
-    ...buildDefaultEventDetails(eventSpec, card),
-    ...eventSpec,
-  };
-
-  if (eventSpec.attachPhoto && sourcePhotoPath) {
-    attachPhotoFiles(eventSpec.zip, eventId, sourcePhotoPath, 0, photoFiles);
-  }
-
-  const event = {
-    eventId,
-    type: eventSpec.type,
-    title: eventSpec.title || eventSpec.type,
-    stage: eventSpec.stage || card.stage,
-    date: eventDate,
-    createdAt: eventDate,
-    createdBy,
-    comment: normalizeText(eventSpec.comment),
-    photoNote: normalizeText(eventSpec.photoNote),
-    photoFiles,
-    problemType: normalizeText(eventSpec.problemType),
-    riskLevel: normalizeText(eventSpec.riskLevel),
-    count: eventSpec.sellAll
-      ? Number(card.currentQuantity) || 0
-      : Number.isFinite(Number(eventSpec.count))
-        ? Number(eventSpec.count)
-        : 0,
-    previousQuantity: Number.isFinite(Number(eventSpec.previousQuantity))
-      ? Number(eventSpec.previousQuantity)
-      : card.currentQuantity,
-    currentQuantity: Number.isFinite(Number(eventSpec.currentQuantity))
-      ? Number(eventSpec.currentQuantity)
-      : card.currentQuantity,
-    extraFields: {
-      ...(eventSpec.extraFields || {}),
-      reportIndex: reportIndex + 1,
-    },
-  };
-
-  for (const field of EVENT_DETAIL_FIELDS) {
-    if (eventDetails[field] !== undefined && eventDetails[field] !== null) {
-      event[field] = typeof eventDetails[field] === 'string'
-        ? normalizeText(eventDetails[field])
-        : eventDetails[field];
-    }
-  }
-
-  return event;
-}
-
-async function buildReportZip(definition, photoPool) {
-  const zip = new JSZip();
-  const reportCreatedAt = definition.createdAt;
-  const createdBy = definition.user.userId;
-  let photoCursor = 0;
-
-  const cards = definition.stageSequence.map((stage, cardIndex) => {
-    const card = createCardBlueprint(
-      definition.reportIndex,
-      cardIndex,
-      definition.stageSequence,
-      reportCreatedAt,
-    );
-
-    const batchCreatedEvent = createBatchCreatedEvent(definition.reportIndex, card, createdBy);
-    card.events.push(batchCreatedEvent);
-
-    const cardExtraEvents = [];
-    definition.extraEvents
-      .filter((event) => event.cardIndex === cardIndex)
-      .forEach((eventSpec, eventIndex) => {
-        const eventDate = iso(hoursAfter(new Date(card.createdAt), 6 + eventIndex * 6));
-        const eventWithDate = {
-          ...eventSpec,
-          date: eventDate,
-        };
-
-        let nextEvent;
-        if (eventSpec.attachPhoto) {
-          const sourcePhotoPath = photoPool[photoCursor % photoPool.length];
-          photoCursor += 1;
-          eventWithDate.zip = zip;
-          nextEvent = buildEventFromSpec({
-            reportIndex: definition.reportIndex,
-            card,
-            createdBy,
-            eventSpec: eventWithDate,
-            eventNumber: eventIndex + 2,
-            sourcePhotoPath,
-          });
-        } else {
-          nextEvent = buildEventFromSpec({
-            reportIndex: definition.reportIndex,
-            card,
-            createdBy,
-            eventSpec: eventWithDate,
-            eventNumber: eventIndex + 2,
-          });
-        }
-
-        applyEventToCardState(card, nextEvent);
-        cardExtraEvents.push(nextEvent);
-      });
-
-    card.events.push(...cardExtraEvents);
-    card.events.sort((left, right) => left.createdAt.localeCompare(right.createdAt));
-
-    const lastEventDate = card.events[card.events.length - 1]?.createdAt || card.updatedAt;
-    card.updatedAt = iso(hoursAfter(new Date(lastEventDate), 3));
+function createSnapshot(world, reportIndex) {
+  const cards = [...world.cards.values()].map((sourceCard) => {
+    const { index, ...card } = clone(sourceCard);
+    card.events = sourceCard.events.map((event) => publicEvent(event, world.photoPool));
+    card.extraFields = {};
     return card;
   });
-
+  const user = USERS[reportIndex];
   const report = {
-    reportId: `demo-report-${definition.reportIndex + 1}-${definition.createdAt.toISOString().slice(0, 10)}-${definition.user.userId}`,
-    createdAt: iso(definition.createdAt),
-    appVersion,
-    deviceId: `demo-device-${String(definition.reportIndex + 1).padStart(2, '0')}`,
-    user: {
-      userId: definition.user.userId,
-      firstName: definition.user.firstName,
-      lastName: definition.user.lastName,
-      displayName: definition.user.displayName,
-      role: definition.user.role,
-    },
-    testLocation: formatStorageLocation(definition.reportIndex + 1, definition.reportIndex, 1),
-    summary: buildSummary(cards),
-    cards: cards.map((card) => ({
-      ...card,
-      extraFields: card.extraFields || {},
-      events: card.events.map((event) => ({
-        ...event,
-        extraFields: event.extraFields || {},
-      })),
-    })),
+    reportId: `report-${world.reportIdBase}-dmo${String(reportIndex + 1).padStart(3, '0')}`,
+    createdAt: iso(REPORT_DATES[reportIndex]), appVersion, deviceId: world.deviceId,
+    user, testLocation: 'Демо-площадка Sadovnik Diary', summary: buildSummary(cards), cards,
   };
+  Object.defineProperty(report, '_sourceCards', { value: world.cards, enumerable: false });
+  return report;
+}
 
+async function buildZip(report, photoPool, filePath) {
+  const zip = new JSZip();
+  zip.folder('photos');
+  report.cards.forEach((card) => card.events.forEach((event) => event.photoFiles.forEach((fileName) => {
+    const originalEvent = report._sourceCards.get(card.cardId).events.find((item) => item.eventId === event.eventId);
+    if (originalEvent?._photoSourceIndex !== undefined) {
+      zip.file(fileName, fs.readFileSync(photoPool[originalEvent._photoSourceIndex]));
+    }
+  })));
   zip.file('report.json', JSON.stringify(report, null, 2));
+  fs.writeFileSync(filePath, await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE', compressionOptions: { level: 9 } }));
+}
 
-  const zipBuffer = await zip.generateAsync({
-    type: 'nodebuffer',
-    compression: 'DEFLATE',
-    compressionOptions: {
-      level: 9,
-    },
+function recalculateQuantity(card) {
+  return card.events.reduce((quantity, event) => {
+    if (QUANTITY_DECREASE_TYPES.has(event.type)) return Math.max(quantity - event.count, 0);
+    return event.type === 'propagation' ? quantity + event.count : quantity;
+  }, card.quantity);
+}
+
+function validateReports(reports) {
+  assert(reports.length === 10, 'expected 10 reports');
+  const seenCardIds = new Set();
+  const seenCodes = new Set();
+  const seenDeviceIds = new Set();
+  const seenEventIds = new Set();
+  let previousCreatedAt = '';
+  reports.forEach((report, reportIndex) => {
+    assert(report.cards.length === TOTAL_BATCHES, `report ${reportIndex + 1} must have ${TOTAL_BATCHES} cards`);
+    assert(new Date(report.createdAt) > new Date(previousCreatedAt || 0), 'report timestamps are not sequential');
+    assert(!seenDeviceIds.has(report.deviceId), `duplicate deviceId in report ${reportIndex + 1}`);
+    seenDeviceIds.add(report.deviceId);
+    const stageCounts = report.cards.reduce((counts, card) => ({ ...counts, [card.stage]: (counts[card.stage] || 0) + 1 }), {});
+    STAGES.forEach((stage) => assert(stageCounts[stage] === BATCHES_PER_STAGE, `report ${reportIndex + 1} has invalid ${stage} count`));
+    const cultureKeys = new Set(report.cards.map((card) => `${card.cultureName}|${card.speciesName}|${card.varietyName}`));
+    assert(cultureKeys.size === TOTAL_BATCHES, `report ${reportIndex + 1} repeats a plant`);
+    report.cards.forEach((card) => {
+      assert(card.events.every((event) => event.createdBy && event.createdAt <= report.createdAt), `${card.cardId} has invalid event author or date`);
+      assert(recalculateQuantity(card) === card.currentQuantity, `${card.cardId} has invalid quantity`);
+      const sourceCard = report._sourceCards?.get(card.cardId);
+      if (sourceCard) {
+        const history = sourceCard.events.filter((event) => event.type === 'stageChange');
+        let stage = INTRO_STAGE;
+        history.forEach((event) => {
+          assert(event.fromStage === stage && STAGES.indexOf(event.toStage) === STAGES.indexOf(stage) + 1, `${card.cardId} has invalid stage history`);
+          stage = event.toStage;
+        });
+        assert(stage === card.stage, `${card.cardId} stage is not backed by events`);
+      }
+      assert(!seenCardIds.has(card.cardId), `duplicate cardId: ${card.cardId}`);
+      assert(!seenCodes.has(card.code), `duplicate code: ${card.code}`);
+      seenCardIds.add(card.cardId);
+      seenCodes.add(card.code);
+      card.events.forEach((event) => {
+        assert(!seenEventIds.has(event.eventId), `duplicate eventId: ${event.eventId}`);
+        seenEventIds.add(event.eventId);
+      });
+    });
+    assert(JSON.stringify(report.summary) === JSON.stringify(buildSummary(report.cards)), `summary mismatch in report ${reportIndex + 1}`);
+    previousCreatedAt = report.createdAt;
   });
+}
 
-  const datePart = report.createdAt.slice(0, 10);
-  const userSlug = slugify(definition.user.userId);
-  const fileName = `sadovnik-demo-report-${String(definition.reportIndex + 1).padStart(2, '0')}-${datePart}-${userSlug}.zip`;
-  const filePath = path.join(reportsDir, fileName);
-
-  fs.writeFileSync(filePath, zipBuffer);
-
-  return {
-    fileName,
-    filePath,
-    report,
-  };
+async function readAndValidateArchives(filePaths) {
+  const reports = [];
+  for (const filePath of filePaths) {
+    const zip = await JSZip.loadAsync(fs.readFileSync(filePath));
+    assert(zip.file('report.json'), `${path.basename(filePath)} has no report.json`);
+    assert(Object.keys(zip.files).some((name) => name.startsWith('photos/')), `${path.basename(filePath)} has no photos directory`);
+    const report = JSON.parse(await zip.file('report.json').async('string'));
+    report.cards.forEach((card) => card.events.forEach((event) => event.photoFiles.forEach((photoPath) => assert(zip.file(photoPath), `${photoPath} is missing`))));
+    reports.push(report);
+  }
+  validateReports(reports);
 }
 
 async function main() {
   ensureDir(reportsDir);
-
+  cleanupOldDemoReports();
   const photoPool = loadPhotoPool();
-  if (photoPool.length === 0) {
-    throw new Error(`No source photos found in ${photoDir}`);
+  const cultures = loadUniqueCultures();
+  const filePaths = [];
+  for (let index = 0; index < REPORT_DATES.length; index += 1) {
+    const world = createWorld(photoPool, index);
+    createInitialWorld(world, cultures);
+    applyDayScenario(world, index);
+    const report = createSnapshot(world, index);
+    const fileName = `sadovnik-demo-report-${String(index + 1).padStart(2, '0')}-${report.createdAt.slice(0, 10)}-${report.user.userId}.zip`;
+    const filePath = path.join(reportsDir, fileName);
+    await buildZip(report, photoPool, filePath);
+    filePaths.push(filePath);
   }
-
-  const definitions = buildReportDefinitions();
-  const results = [];
-
-  for (const definition of definitions) {
-    results.push(await buildReportZip(definition, photoPool));
-  }
-
-  const generatedCount = results.filter((result) => !result.skipped).length;
-  console.log(`Generated ${generatedCount} demo ZIP reports in ${reportsDir}`);
-  for (const result of results) {
-    console.log(`${result.skipped ? 'skipped' : 'created'} ${result.fileName}`);
-  }
+  await readAndValidateArchives(filePaths);
+  console.log(`Generated and validated ${filePaths.length} demo ZIP reports in ${reportsDir}`);
 }
 
 main().catch((error) => {
   console.error(error);
   process.exit(1);
 });
-

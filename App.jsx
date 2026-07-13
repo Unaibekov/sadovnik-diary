@@ -900,7 +900,10 @@ function AppContent() {
 
   async function handleShareQrPress(card) {
     try {
-      const shareResult = await shareQrCode(card?.code);
+      const shareResult = await shareQrCode(card?.code, {
+        title: getCardDisplayName(card || {}),
+        generatedAt: new Date(),
+      });
       setNotice(getShareQrNotice(shareResult));
     } catch (shareError) {
       setNotice("Не удалось отправить QR-код.");

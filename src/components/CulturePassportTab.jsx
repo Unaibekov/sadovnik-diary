@@ -127,16 +127,16 @@ export default function CulturePassportTab({
             </View>
           </>
         )}
-        {card.stage === INTRO_STAGE && (
+        {!!card.code && (
           <View style={styles.passportQrRow}>
             <View style={styles.passportQrTextBlock}>
-              <Text style={styles.passportLabel}>QR</Text>
+              <Text style={styles.passportLabel}>QR-код</Text>
               <Text ellipsizeMode="tail" numberOfLines={1} style={styles.passportValue}>
                 {QR_STATUS_LABELS[getQrStatus(card)] || getQrStatus(card)}
               </Text>
             </View>
             <Pressable
-              accessibilityLabel="Поделиться QR-кодом"
+              accessibilityLabel="Скачать QR-код"
               accessibilityRole="button"
               onPress={onShareQrPress}
               style={({ pressed }) => [

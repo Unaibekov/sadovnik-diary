@@ -1,5 +1,9 @@
 // Тексты уведомлений для обмена QR-кодом.
 export function getShareQrNotice(shareResult) {
+  if (shareResult === 'web_downloaded') {
+    return 'QR-код скачан.';
+  }
+
   if (shareResult === 'web_ready') {
     return 'QR-код подготовлен для отправки.';
   }
