@@ -1,8 +1,13 @@
-import { createBatchCreatedOperation, normalizeCultureCard } from './batch.js';
+import {
+  buildProblemQuantityPatch,
+  createBatchCreatedOperation,
+  getCardActiveProblemQuantity,
+  getCardCurrentQuantity,
+  normalizeCultureCard,
+} from './batch.js';
 import plantsCatalog from '../../data/plantsCatalog.js';
 import { currentUser, INTRO_STAGE, SOURCE_MATERIAL_OPTIONS, stages } from './constants.js';
 import { isoFromDate } from './dates.js';
-import { getCardCurrentQuantity } from './batch.js';
 import { buildStageChangeOperation, buildStageTransitionCard } from './stageTransition.js';
 
 const TRANSPARENT_PIXEL_DATA_URI =
@@ -91,6 +96,28 @@ function buildProfileForCulture(seedIndex) {
   };
 }
 
+function getUniqueIntroPlantProfiles(existingCards, count) {
+  const uniquePlants = [];
+  const usedKeys = new Set();
+
+  for (const plant of plantsCatalog) {
+    const key = [plant.cultureName, plant.speciesName, plant.varietyName].join(' | ').trim();
+
+    if (!key || usedKeys.has(key)) {
+      continue;
+    }
+
+    usedKeys.add(key);
+    uniquePlants.push(plant);
+
+    if (uniquePlants.length >= count) {
+      break;
+    }
+  }
+
+  return uniquePlants;
+}
+
 function buildOperationBase({
   cardId,
   createdAt,
@@ -124,6 +151,7 @@ function buildTransitionOperation({
   toStage,
   quantity,
   operationId,
+  userId,
 }) {
   return buildStageChangeOperation({
     currentQuantity: quantity,
@@ -135,6 +163,7 @@ function buildTransitionOperation({
       quantity,
     },
     selectedCalendarDate: toIsoDate(createdAt),
+    userId,
   });
 }
 
@@ -192,7 +221,6 @@ function buildStageEventSpec(stage, stageIndex, cardIndex, card, createdAt, upda
         type: 'comment',
         title: 'Комментарий',
         comment: 'Карточка создана и подготовлена к работе.',
-        photoNote: 'Фото базовой партии.',
       },
       {
         type: 'rooting',
@@ -200,7 +228,6 @@ function buildStageEventSpec(stage, stageIndex, cardIndex, card, createdAt, upda
         rootedCount: Math.max(1, Math.round(card.quantity * 0.35)),
         rootingPercent: 35,
         comment: 'Фиксация части укорененных растений.',
-        photoNote: 'Фото укоренения.',
       },
       {
         type: 'introLoss',
@@ -209,7 +236,6 @@ function buildStageEventSpec(stage, stageIndex, cardIndex, card, createdAt, upda
         lossReason: 'Единичные потери при первичном осмотре.',
         reason: 'Единичные потери при первичном осмотре.',
         comment: 'Потери зафиксированы и списаны.',
-        photoNote: 'Фото потерь.',
       },
       {
         type: 'propagation',
@@ -217,7 +243,6 @@ function buildStageEventSpec(stage, stageIndex, cardIndex, card, createdAt, upda
         count: 6,
         propagationMethod: 'Черенкование',
         comment: 'Запущено вегетативное размножение.',
-        photoNote: 'Фото размножения.',
       },
       {
         type: 'quarantine',
@@ -225,7 +250,6 @@ function buildStageEventSpec(stage, stageIndex, cardIndex, card, createdAt, upda
         quarantineReason: 'Требуется изоляция партии после осмотра.',
         reason: 'Требуется изоляция партии после осмотра.',
         comment: 'Карточка переведена в карантин.',
-        photoNote: 'Фото карантина.',
       },
       {
         type: 'problem',
@@ -234,7 +258,6 @@ function buildStageEventSpec(stage, stageIndex, cardIndex, card, createdAt, upda
         riskLevel: 'Высокий',
         problemDescription: 'Обнаружено отклонение при проверке партии.',
         comment: 'Проблема требует наблюдения.',
-        photoNote: 'Фото проблемы.',
       },
       {
         type: 'movement',
@@ -243,7 +266,6 @@ function buildStageEventSpec(stage, stageIndex, cardIndex, card, createdAt, upda
         rackName: `Стеллаж ${cardIndex + 1}`,
         shelfName: `${(cardIndex % 8) + 1}`,
         comment: 'Карточка перемещена на новое место.',
-        photoNote: 'Фото перемещения.',
       },
     ],
     [stages[1]]: [
@@ -253,7 +275,6 @@ function buildStageEventSpec(stage, stageIndex, cardIndex, card, createdAt, upda
         rootedCount: Math.max(1, Math.round(card.quantity * 0.42)),
         rootingPercent: 42,
         comment: 'Укоренение в норме.',
-        photoNote: 'Фото укоренения.',
       },
       {
         type: 'propagation',
@@ -261,7 +282,6 @@ function buildStageEventSpec(stage, stageIndex, cardIndex, card, createdAt, upda
         count: 8,
         propagationMethod: 'Деление куста',
         comment: 'Размножение по стандартной схеме.',
-        photoNote: 'Фото размножения.',
       },
       {
         type: 'sale',
@@ -271,7 +291,6 @@ function buildStageEventSpec(stage, stageIndex, cardIndex, card, createdAt, upda
         recipient: 'Демо-клиент',
         saleAmount: '12',
         comment: 'Часть партии реализована.',
-        photoNote: 'Фото продажи.',
       },
       {
         type: 'death',
@@ -279,7 +298,6 @@ function buildStageEventSpec(stage, stageIndex, cardIndex, card, createdAt, upda
         count: 3,
         reason: 'Потери после стресса укоренения.',
         comment: 'Фиксация гибели части растений.',
-        photoNote: 'Фото гибели.',
       },
       {
         type: 'discard',
@@ -287,7 +305,6 @@ function buildStageEventSpec(stage, stageIndex, cardIndex, card, createdAt, upda
         count: 2,
         reason: 'Отбраковка слабых экземпляров.',
         comment: 'Выбраковка выполнена.',
-        photoNote: 'Фото выбраковки.',
       },
       {
         type: 'problem',
@@ -296,7 +313,6 @@ function buildStageEventSpec(stage, stageIndex, cardIndex, card, createdAt, upda
         riskLevel: 'Критический',
         problemDescription: 'Зафиксированы вредители на части партии.',
         comment: 'Требуется обработка.',
-        photoNote: 'Фото проблемы.',
       },
       {
         type: 'movement',
@@ -305,7 +321,6 @@ function buildStageEventSpec(stage, stageIndex, cardIndex, card, createdAt, upda
         rackName: `Стеллаж ${cardIndex + 2}`,
         shelfName: `${((cardIndex + 1) % 8) + 1}`,
         comment: 'Перевод на следующую локацию.',
-        photoNote: 'Фото перемещения.',
       },
     ],
     [stages[2]]: [
@@ -321,10 +336,9 @@ function buildStageEventSpec(stage, stageIndex, cardIndex, card, createdAt, upda
         environmentLight: 'Яркий рассеянный',
         ventilation: 'Нормальная',
         comment: 'Карточка находится под наблюдением.',
-        photoNote: 'Фото наблюдения.',
       },
       {
-        type: 'adaptationEnvironment',
+        type: 'adaptationStress',
         title: 'Изменение среды',
         environmentTemperature: '23',
         environmentAirHumidity: '68',
@@ -335,10 +349,9 @@ function buildStageEventSpec(stage, stageIndex, cardIndex, card, createdAt, upda
         turgor: 'Стабильный',
         stability: 'Хорошая',
         comment: 'Среда скорректирована.',
-        photoNote: 'Фото среды.',
       },
       {
-        type: 'adaptationHumidityReduction',
+        type: 'adaptationCare',
         title: 'Снижение влажности',
         environmentAirHumidity: '65',
         substrateHumidity: 'Умеренная',
@@ -346,14 +359,12 @@ function buildStageEventSpec(stage, stageIndex, cardIndex, card, createdAt, upda
         turgor: 'Стабильный',
         stability: 'Хорошая',
         comment: 'Влажность снижена по плану.',
-        photoNote: 'Фото влажности.',
       },
       {
         type: 'adaptationCare',
         title: 'Уход',
         careType: 'Полив',
         comment: 'Выполнен плановый уход.',
-        photoNote: 'Фото ухода.',
       },
       {
         type: 'problem',
@@ -362,7 +373,6 @@ function buildStageEventSpec(stage, stageIndex, cardIndex, card, createdAt, upda
         riskLevel: 'Высокий',
         problemDescription: 'Стресс после смены условий.',
         comment: 'Нужен контроль состояния.',
-        photoNote: 'Фото проблемы.',
       },
       {
         type: 'movement',
@@ -371,7 +381,6 @@ function buildStageEventSpec(stage, stageIndex, cardIndex, card, createdAt, upda
         rackName: `Стеллаж ${cardIndex + 3}`,
         shelfName: `${((cardIndex + 2) % 8) + 1}`,
         comment: 'Перенос в более стабильную зону.',
-        photoNote: 'Фото перемещения.',
       },
     ],
     [stages[3]]: [
@@ -384,7 +393,6 @@ function buildStageEventSpec(stage, stageIndex, cardIndex, card, createdAt, upda
         riskLevel: 'Низкий',
         conditionDescription: 'Состояние партии стабильное.',
         comment: 'Плановое наблюдение.',
-        photoNote: 'Фото наблюдения.',
       },
       {
         type: 'greenhouseCare',
@@ -399,10 +407,9 @@ function buildStageEventSpec(stage, stageIndex, cardIndex, card, createdAt, upda
         plantReaction: 'Положительная',
         riskLevel: 'Низкий',
         comment: 'Регулярный уход выполнен.',
-        photoNote: 'Фото ухода.',
       },
       {
-        type: 'greenhouseEnvironment',
+        type: 'greenhouseObservation',
         title: 'Среда',
         environmentTemperature: '25',
         environmentAirHumidity: '70',
@@ -414,10 +421,9 @@ function buildStageEventSpec(stage, stageIndex, cardIndex, card, createdAt, upda
         stability: 'Стабильная',
         riskLevel: 'Средний',
         comment: 'Среда контролируется.',
-        photoNote: 'Фото среды.',
       },
       {
-        type: 'greenhouseDisease',
+        type: 'problem',
         title: 'Болезни / вредители',
         diseaseName: 'Пятнистость листьев',
         pestName: 'Трипсы',
@@ -428,7 +434,6 @@ function buildStageEventSpec(stage, stageIndex, cardIndex, card, createdAt, upda
         applicationMethod: 'Опрыскивание',
         plantReaction: 'Нейтральная',
         comment: 'Требуется обработка.',
-        photoNote: 'Фото болезни.',
       },
       {
         type: 'problem',
@@ -437,7 +442,6 @@ function buildStageEventSpec(stage, stageIndex, cardIndex, card, createdAt, upda
         riskLevel: 'Критический',
         problemDescription: 'Риск распространения вредителей.',
         comment: 'Партия требует внимания.',
-        photoNote: 'Фото проблемы.',
       },
       {
         type: 'movement',
@@ -446,7 +450,6 @@ function buildStageEventSpec(stage, stageIndex, cardIndex, card, createdAt, upda
         rackName: `Стеллаж ${cardIndex + 4}`,
         shelfName: `${((cardIndex + 3) % 8) + 1}`,
         comment: 'Перемещение внутри теплицы.',
-        photoNote: 'Фото перемещения.',
       },
     ],
     [stages[4]]: [
@@ -457,7 +460,6 @@ function buildStageEventSpec(stage, stageIndex, cardIndex, card, createdAt, upda
         turgor: 'Хороший',
         readinessForPlanting: 'Частично готова',
         comment: 'Контроль приживаемости после закалки.',
-        photoNote: 'Фото наблюдения.',
       },
       {
         type: 'hardeningCare',
@@ -468,7 +470,6 @@ function buildStageEventSpec(stage, stageIndex, cardIndex, card, createdAt, upda
         applicationMethod: 'Полив',
         plantReaction: 'Положительная',
         comment: 'Уход проведен согласно плану.',
-        photoNote: 'Фото ухода.',
       },
       {
         type: 'problem',
@@ -477,7 +478,6 @@ function buildStageEventSpec(stage, stageIndex, cardIndex, card, createdAt, upda
         riskLevel: 'Высокий',
         problemDescription: 'Партия реагирует на перепады условий.',
         comment: 'Нужен дополнительный контроль.',
-        photoNote: 'Фото проблемы.',
       },
       {
         type: 'movement',
@@ -486,7 +486,6 @@ function buildStageEventSpec(stage, stageIndex, cardIndex, card, createdAt, upda
         rackName: `Стеллаж ${cardIndex + 5}`,
         shelfName: `${((cardIndex + 4) % 8) + 1}`,
         comment: 'Перемещение на более светлое место.',
-        photoNote: 'Фото перемещения.',
       },
     ],
     [stages[5]]: [
@@ -498,7 +497,6 @@ function buildStageEventSpec(stage, stageIndex, cardIndex, card, createdAt, upda
         plotArea: 'Участок 1',
         soilType: 'Субстрат A',
         comment: 'Высадка выполнена по схеме.',
-        photoNote: 'Фото высадки.',
       },
       {
         type: 'plantingObservation',
@@ -507,7 +505,6 @@ function buildStageEventSpec(stage, stageIndex, cardIndex, card, createdAt, upda
         stressLevel: 'Низкий',
         turgor: 'Хороший',
         comment: 'Приживаемость в норме.',
-        photoNote: 'Фото наблюдения.',
       },
       {
         type: 'plantingCare',
@@ -518,14 +515,12 @@ function buildStageEventSpec(stage, stageIndex, cardIndex, card, createdAt, upda
         applicationMethod: 'Полив',
         plantReaction: 'Положительная',
         comment: 'После высадки выполнен уход.',
-        photoNote: 'Фото ухода.',
       },
       {
         type: 'plantingCompletion',
         title: 'Завершение',
         completionResult: 'Частично прижилась',
         comment: 'Высадка завершена, результат зафиксирован.',
-        photoNote: 'Фото завершения.',
       },
       {
         type: 'problem',
@@ -534,7 +529,6 @@ function buildStageEventSpec(stage, stageIndex, cardIndex, card, createdAt, upda
         riskLevel: 'Средний',
         problemDescription: 'Солнечный стресс после высадки.',
         comment: 'Нужен контроль состояния.',
-        photoNote: 'Фото проблемы.',
       },
       {
         type: 'movement',
@@ -543,7 +537,6 @@ function buildStageEventSpec(stage, stageIndex, cardIndex, card, createdAt, upda
         rackName: `Ряд ${cardIndex + 1}`,
         shelfName: `${((cardIndex + 5) % 8) + 1}`,
         comment: 'Перенос в зону высадки.',
-        photoNote: 'Фото перемещения.',
       },
     ],
   };
@@ -561,7 +554,14 @@ function buildStageEventSpec(stage, stageIndex, cardIndex, card, createdAt, upda
 
 function buildTestEventFromSpec(card, eventSpec, eventIndex, user) {
   const previousQuantity = getCardCurrentQuantity(card);
+  const availableHealthyQuantity = Math.max(previousQuantity - getCardActiveProblemQuantity(card), 0);
   const count = Number(eventSpec.count || eventSpec.rootedCount || eventSpec.saleAmount || 0) || 0;
+  const affectedQuantity = eventSpec.type === 'problem'
+    ? Math.min(
+      Number(eventSpec.affectedQuantity) || Math.max(1, Math.round(previousQuantity * 0.08)),
+      availableHealthyQuantity,
+    )
+    : 0;
   const createdAt = eventSpec.date ? new Date(eventSpec.date) : new Date(card.updatedAt || card.createdAt);
   const currentQuantity = eventSpec.type === 'statusChange'
     ? Math.max(
@@ -589,7 +589,6 @@ function buildTestEventFromSpec(card, eventSpec, eventIndex, user) {
     createdBy: user.id,
     createdByName: user.fullName || user.id,
     comment: eventSpec.comment || '',
-    photoNote: eventSpec.photoNote || '',
     ...(eventSpec.photoUri ? { photoUri: eventSpec.photoUri } : {}),
     ...(Array.isArray(eventSpec.photoUris) && eventSpec.photoUris.length
       ? { photoUris: eventSpec.photoUris.filter(Boolean) }
@@ -597,6 +596,9 @@ function buildTestEventFromSpec(card, eventSpec, eventIndex, user) {
     count,
     previousQuantity,
     currentQuantity,
+    ...(eventSpec.type === 'problem' && affectedQuantity > 0
+      ? { affectedQuantity }
+      : {}),
     ...eventSpec,
     extraFields: {
       ...(eventSpec.extraFields || {}),
@@ -610,6 +612,7 @@ function applyEventToCardState(card, event) {
 
   if (['sale', 'death', 'discard', 'introLoss'].includes(event.type)) {
     card.currentQuantity = Math.max(previousQuantity - count, 0);
+    Object.assign(card, buildProblemQuantityPatch(card));
 
     if (event.type === 'sale') {
       card.batchStatus = card.currentQuantity === 0 ? 'sold' : 'partial';
@@ -620,6 +623,7 @@ function applyEventToCardState(card, event) {
 
   if (event.type === 'propagation') {
     card.currentQuantity = previousQuantity + count;
+    Object.assign(card, buildProblemQuantityPatch(card));
     return;
   }
 
@@ -638,6 +642,7 @@ function applyEventToCardState(card, event) {
       card.batchStatus = card.currentQuantity === 0 ? 'sold' : 'partial';
     }
 
+    Object.assign(card, buildProblemQuantityPatch(card));
     return;
   }
 
@@ -655,14 +660,10 @@ function applyEventToCardState(card, event) {
     return;
   }
 
-  if (event.type === 'quarantineReleased') {
-    card.batchStatus = card.currentQuantity > 0 ? 'active' : card.batchStatus;
-    return;
-  }
-
-  if (['problem', 'contamination', 'greenhouseDisease'].includes(event.type)) {
+  if (['problem', 'contamination'].includes(event.type)) {
     card.batchStatus = 'problem';
     card.sterilityStatus = 'contaminated';
+    Object.assign(card, buildProblemQuantityPatch(card));
   }
 }
 
@@ -739,12 +740,12 @@ function buildCoverageCard({
     parentBatch: '',
     sterilityStatus: 'sterile',
     batchStatus: 'active',
+    activeProblemQuantity: 0,
     status: 'active',
     qrStatus,
     qrPrinted: qrStatus === 'printed',
     qrPrintedAt,
     qrPrintedBy: qrPrintedAt ? user.id : null,
-    startPhotoNote: '',
     startPhotoUri: '',
     startPhotoUris: [],
     operations: [batchCreatedOperation],
@@ -761,6 +762,7 @@ function buildCoverageCard({
         toStage: stage,
         quantity,
         operationId: `stage-change-${stageIndex}-${cardIndex}-${createdAt.getTime().toString(36)}`,
+        userId: user.id,
       }),
       nextStage: stage,
       nowIso: updatedAt.toISOString(),
@@ -853,17 +855,6 @@ export function buildDevelopmentCoverageTestCultureCards(existingCards, { now = 
         type: 'comment',
         title: 'Комментарий',
         comment: 'Дополнительный комментарий к партии.',
-        photoNote: 'Фото комментария.',
-      },
-    },
-    {
-      stage: INTRO_STAGE,
-      stageIndex: 0,
-      eventSpec: {
-        type: 'photo',
-        title: 'Фото',
-        comment: 'Фотофиксация без дополнительного действия.',
-        photoNote: 'Фотография партии.',
       },
     },
     {
@@ -877,18 +868,6 @@ export function buildDevelopmentCoverageTestCultureCards(existingCards, { now = 
         contaminationNote: 'Обнаружена контаминация на стартовой партии.',
         problemDescription: 'Требуется санитарный контроль.',
         comment: 'Партия помечена как проблемная.',
-        photoNote: 'Фото контаминации.',
-      },
-    },
-    {
-      stage: INTRO_STAGE,
-      stageIndex: 0,
-      eventSpec: {
-        type: 'quarantineReleased',
-        title: 'Снятие карантина',
-        reason: 'Риски устранены, партия возвращена в работу.',
-        quarantineReason: 'Риски устранены, партия возвращена в работу.',
-        comment: 'Карантин снят.',
       },
     },
     {
@@ -917,7 +896,6 @@ export function buildDevelopmentCoverageTestCultureCards(existingCards, { now = 
         growthRate: 'Средний',
         stability: 'Стабильная',
         comment: 'Пересадка внутри теплицы.',
-        photoNote: 'Фото пересадки.',
       },
     },
     {
@@ -931,7 +909,6 @@ export function buildDevelopmentCoverageTestCultureCards(existingCards, { now = 
         lossReason: 'Потери на минимальном остатке.',
         reason: 'Потери на минимальном остатке.',
         comment: 'Остаток ушел в ноль.',
-        photoNote: '',
       },
     },
     {
@@ -946,7 +923,6 @@ export function buildDevelopmentCoverageTestCultureCards(existingCards, { now = 
         recipient: 'Демо-клиент',
         saleAmount: '1',
         comment: 'Продажа закрыла остаток.',
-        photoNote: 'Фото продажи.',
         photoUri: TRANSPARENT_PIXEL_DATA_URI,
         photoUris: [TRANSPARENT_PIXEL_DATA_URI],
       },
@@ -961,7 +937,6 @@ export function buildDevelopmentCoverageTestCultureCards(existingCards, { now = 
         count: 1,
         reason: 'Отбраковка слабых экземпляров.',
         comment: 'Остаток после выбраковки 1.',
-        photoNote: '',
       },
     },
     {
@@ -974,7 +949,6 @@ export function buildDevelopmentCoverageTestCultureCards(existingCards, { now = 
         count: 1,
         reason: 'Гибель на минимальном остатке.',
         comment: 'Партия закрыта нулевым остатком.',
-        photoNote: '',
       },
     },
     {
@@ -987,7 +961,6 @@ export function buildDevelopmentCoverageTestCultureCards(existingCards, { now = 
         stressLevel: 'Низкий',
         turgor: 'Хороший',
         comment: '',
-        photoNote: '',
       },
     },
   ];
@@ -1036,5 +1009,72 @@ export function buildDevelopmentCoverageTestCultureCards(existingCards, { now = 
     createdCardsCount: createdCards.length,
     journalRecordsCount,
     nextCards: [...nextCards, ...createdCards],
+  };
+}
+
+export function buildEmptyIntroCultureCards(existingCards, { now = new Date(), user = currentUser, count = 10 } = {}) {
+  const profiles = getUniqueIntroPlantProfiles(existingCards, count);
+  const nextCards = [...(existingCards || [])];
+  const existingIds = new Set(nextCards.map((card) => `${card.id || ''}`));
+  const existingCodes = new Set(
+    nextCards
+      .map((card) => `${card.code || ''}`.trim())
+      .filter(Boolean),
+  );
+  const createdCards = [];
+  const quantityStep = count > 1
+    ? Math.floor((2000 - 500) / (count - 1))
+    : 0;
+
+  profiles.forEach((plant, index) => {
+    const createdAt = new Date(now.getTime() - index * 60 * 60 * 1000);
+    const quantity = Math.min(2000, 500 + index * quantityStep);
+    const cardId = buildUniqueId({
+      existingIds,
+      stage: INTRO_STAGE,
+      index: nextCards.length + index,
+    });
+    const code = buildUniqueCode({
+      stage: INTRO_STAGE,
+      createdAt,
+      existingCodes,
+      index: nextCards.length + index,
+    });
+    const card = normalizeCultureCard({
+      id: cardId,
+      name: plant.originalName || '',
+      createdAt: toIsoDate(createdAt),
+      updatedAt: createdAt.toISOString(),
+      updatedBy: user.id,
+      createdBy: user.id,
+      createdByName: user.fullName || user.id,
+      cultureName: plant.cultureName || '',
+      speciesName: plant.speciesName || '',
+      varietyName: plant.varietyName || '',
+      code,
+      quantity,
+      sourceMaterial: SOURCE_MATERIAL_OPTIONS[0] || '',
+      parentBatch: '',
+      sterilityStatus: 'unchecked',
+      batchStatus: 'active',
+      status: 'active',
+      qrStatus: 'pending_print',
+      qrPrinted: false,
+      qrPrintedAt: null,
+      qrPrintedBy: null,
+      startPhotoUri: '',
+      startPhotoUris: [],
+      operations: [],
+      stage: INTRO_STAGE,
+    });
+
+    nextCards.push(card);
+    createdCards.push(card);
+  });
+
+  return {
+    createdCardsCount: createdCards.length,
+    journalRecordsCount: 0,
+    nextCards,
   };
 }

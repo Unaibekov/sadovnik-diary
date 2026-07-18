@@ -2,6 +2,7 @@
 import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
 import {
+  ActivityIndicator,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -37,11 +38,13 @@ export default function MenuScreen({
   onLogout,
   onClearCards,
   onGenerateCoverageTestData,
+  onGenerateIntroSeedCards,
   onScheduleWateringReminder,
   onShareZipData,
   onScanPress,
   onTasksPress,
   onOpenDirectories,
+  isReportGenerating = false,
   role = 'operator',
   taskCount = 0,
 }) {
@@ -67,13 +70,22 @@ export default function MenuScreen({
       subtitle: 'Создать матрицу событий с полным покрытием полей',
       title: 'Покрытие событий',
     },
+    {
+      key: 'generateIntroSeedCards',
+      onPress: onGenerateIntroSeedCards,
+      subtitle: 'создать 10 партий в "Введение в культуру" без журнала',
+      title: 'Партии для ручного заполнения',
+    },
   ];
   const menuItems = [
     {
       key: 'shareZip',
-      onPress: onShareZipData,
-      subtitle: 'report.json и photos/ для ручной загрузки',
-      title: 'Экспорт ZIP для админки',
+      disabled: isReportGenerating,
+      onPress: isReportGenerating ? undefined : onShareZipData,
+      subtitle: isReportGenerating
+        ? 'Генерируем report.json и photos/'
+        : 'report.json и photos/ для ручной загрузки',
+      title: isReportGenerating ? 'Генерация ZIP...' : 'Экспорт ZIP для админки',
     },
     {
       key: 'password',
@@ -212,11 +224,13 @@ export default function MenuScreen({
             {menuItems.map((item) => (
               <Pressable
                 accessibilityRole="button"
+                disabled={Boolean(item.disabled)}
                 testID={`menu-item-${item.key}`}
                 key={item.key}
                 onPress={item.onPress}
                 style={({ pressed }) => [
                   styles.menuItem,
+                  item.disabled && localStyles.disabledMenuItem,
                   pressed && styles.linkButtonPressed,
                 ]}
               >
@@ -340,6 +354,18 @@ export default function MenuScreen({
         </ScrollView>
       </View>
 
+      <Modal animationType="fade" transparent visible={isReportGenerating}>
+        <View style={localStyles.loaderBackdrop}>
+          <View style={localStyles.loaderPanel}>
+            <ActivityIndicator color="#15863F" size="large" />
+            <Text style={localStyles.loaderTitle}>Генерируем ZIP-отчет</Text>
+            <Text style={localStyles.loaderText}>
+              Собираем report.json и фотографии. Это может занять несколько секунд.
+            </Text>
+          </View>
+        </View>
+      </Modal>
+
       <BottomTabBar
         activeTab="menu"
         bottomInset={bottomInset}
@@ -355,6 +381,38 @@ export default function MenuScreen({
 }
 
 const localStyles = StyleSheet.create({
+  disabledMenuItem: {
+    opacity: 0.55,
+  },
+  loaderBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    backgroundColor: 'rgba(11, 31, 20, 0.35)',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  loaderPanel: {
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 28,
+    gap: 12,
+    paddingHorizontal: 24,
+    paddingVertical: 24,
+    width: '100%',
+    maxWidth: 340,
+  },
+  loaderTitle: {
+    color: '#101828',
+    fontSize: 20,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  loaderText: {
+    color: '#667085',
+    fontSize: 15,
+    lineHeight: 22,
+    textAlign: 'center',
+  },
   passwordSheetRoot: {
     flex: 1,
     justifyContent: 'flex-end',

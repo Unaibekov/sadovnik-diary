@@ -41,7 +41,6 @@ function buildSeededCards() {
     qrPrinted: false,
     qrPrintedAt: '',
     qrPrintedBy: null,
-    startPhotoNote: '',
     startPhotoUri: '',
     startPhotoUris: [],
     locationDescription: 'Тестовая полка',
@@ -112,6 +111,13 @@ async function openFirstCard(page) {
 }
 
 async function saveCurrentStatusForm(page) {
+  const problemQuantityInput = page.getByText('Количество растений с проблемой, шт. *')
+    .locator('..')
+    .getByPlaceholder('0');
+
+  if (await problemQuantityInput.isVisible().catch(() => false)) {
+    await problemQuantityInput.fill('2');
+  }
   await page.getByRole('button', { name: 'Сохранить' }).click();
   await expect(page.getByTestId('calendar-add-event')).toBeVisible();
 }
@@ -140,6 +146,19 @@ async function openCurrentCardCalendar(page) {
 test.beforeEach(async ({ page }) => {
   await seedLocalStorage(page);
   await login(page);
+});
+
+test('logout and reload return to the PIN screen when quick auth is configured', async ({ page }) => {
+  await expect(page.getByTestId('stage-home-clone')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Меню' }).click();
+  await page.getByRole('button', { name: 'Выйти' }).click();
+
+  await expect(page.getByText('Введите пин-код')).toBeVisible();
+
+  await page.reload();
+
+  await expect(page.getByText('Введите пин-код')).toBeVisible();
 });
 
 test('intro stage card is available from the seeded data', async ({ page }) => {

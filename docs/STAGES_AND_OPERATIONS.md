@@ -54,8 +54,8 @@
 - `contamination`
 - `introLoss`
 - `quarantine`
-- `quarantineReleased`
 - `problem`
+- `problemRecovery`
 - `movement`
 
 ### Статусные операции
@@ -69,15 +69,11 @@
 
 ### Операции адаптации
 - `adaptationStress`
-- `adaptationEnvironment`
-- `adaptationHumidityReduction`
 - `adaptationCare`
 
 ### Операции теплицы
 - `greenhouseObservation`
 - `greenhouseCare`
-- `greenhouseEnvironment`
-- `greenhouseDisease`
 
 ### Операции закалки
 - `hardeningObservation`
@@ -92,8 +88,9 @@
 ## Поля, которые меняют карточку
 - `stageChange` обновляет текущую стадию и историю переходов.
 - `movement` обновляет `locationDescription`.
-- `quarantine` и `quarantineReleased` меняют `batchStatus`.
+- `quarantine` меняет `batchStatus`.
 - `problem` может менять `batchStatus` на `problem` или `quarantine`.
+- `problemRecovery` уменьшает активное количество больных растений без разделения партии.
 - `sale`, `death`, `discard`, `introLoss` уменьшают остаток.
 - `propagation` увеличивает остаток.
 - `plantingCompletion` архивирует карточку на уровне итогового статуса.

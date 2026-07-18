@@ -8,7 +8,7 @@ Source document: `c:\Users\uin-a\OneDrive\Документы\works\Прилож�
 - Main entry files: `App.jsx`, `index.js`, `app.json`.
 - First authorization screen implemented in JavaScript.
 - Stage selection screen implemented with six stage cards.
-- Planting card list screen implemented for `Введение в культуру` only.
+- Planting card list screens are implemented for all stages, with stage-specific filters and events.
 - Temporary local data storage connected through `@react-native-async-storage/async-storage`.
 - Static planting cards were removed; the first stage list now reads from local storage.
 - `Введение в культуру` add-card form now saves cards to local storage.
@@ -36,10 +36,9 @@ Source document: `c:\Users\uin-a\OneDrive\Документы\works\Прилож�
 - `Клонирование` now has the production core from the latest user scenario: status filters, card/list clone metrics, Excel recommendation block, current quantity/rooting/loss/risk calculations, date-based production events for rooting, death, discard, sale, and propagation, quantity validation against current remainder, sale-to-archive behavior at zero remainder, and transition blocking to adaptation when quarantine/problem/no rooting/zero remainder applies.
 - `Адаптация` now follows the latest scenario core: passport stays read-only, list/status filters show survival, stress, risk, and days in stage; the card shows adaptation state, Excel recommendations, stress/turgor/stability, and current remainder; events cover stress/state, environment changes, care actions, death, discard, and sale; sale/death/discard validate against current remainder and zero-remainder sale archives the batch; transition to greenhouse is blocked by quarantine, active contamination, critical stress, missing stability, or zero remainder.
 - `Теплица` now has the first MVP production core: cards arrive from adaptation, list/status filters show growth, losses, risk, and days in stage; the card shows greenhouse state, Excel recommendation placeholders, current remainder, losses, sales, transplants, stress, stability, and risk; events cover observation/state, care, environment, diseases/pests, transplant, death, discard, sale, and quarantine; transition to hardening is blocked by quarantine, critical disease/risk, missing stable growth, or zero remainder. Greenhouse care now has the first planning layer: `Уход -> Полив/Подкормка/Профилактика/Лечение` stores an interval in days, the card calculates last action, next action, due-today/overdue status, and the greenhouse list highlights any overdue care. The main stage-selection screen now shows `Задачи ухода` for greenhouse care due today or overdue, with quick open into the relevant card. Native push/local notifications are the next layer.
-- Started dev-architecture cleanup: domain constants, date helpers, empty form factories, batch/event calculations, and AsyncStorage access were moved out of `App.jsx` into `src/domain/*` and `src/services/cultureCardsStorage.js`. `App.jsx` still owns screens/UI and some catalog dropdown helpers.
+- Domain logic continues to be extracted out of `App.jsx` into `src/domain/*` and `src/services/*`; `App.jsx` now mainly coordinates screens, navigation, and cross-screen actions.
 - Menu now opens a compact plant catalog bottom sheet backed by the local plant catalog.
 - Menu now has a working `Поддержка` screen with app diagnostics and quick actions instead of a notice stub.
-- `git` is not available in the current shell PATH.
 - Initial TypeScript scaffold was converted to JavaScript because the project owner prefers JS.
 
 ## Core product scope

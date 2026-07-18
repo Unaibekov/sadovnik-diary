@@ -102,7 +102,7 @@ export function buildCultureCardsReportWorkbook(cards, helpers) {
                 operation.type === 'movement' ? operation.previousLocation || 'Не указано' : '',
                 operation.type === 'movement' ? operation.nextLocation || 'Не указано' : '',
                 operation.comment || operation.reason || operation.quarantineReason || '',
-                operation.photoNote || operation.contaminationNote || '',
+                operation.contaminationNote || '',
                 operation.createdAt ? formatDisplayDateTime(operation.createdAt) : '',
               ].map(normalizeReportCell),
             };

@@ -3,7 +3,12 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import JSZip from 'jszip';
 import { Platform, Share } from 'react-native';
-import { getCardCurrentQuantity, getCardLocationDescription } from '../domain/batch';
+import {
+  getCardActiveProblemQuantity,
+  getCardCurrentQuantity,
+  getCardHealthyQuantity,
+  getCardLocationDescription,
+} from '../domain/batch';
 import { currentUser as defaultCurrentUser } from '../domain/constants';
 import { getResolvedBatchStatus } from '../domain/cardSelectors';
 
@@ -20,6 +25,8 @@ const CARD_FIELDS = new Set([
   'sterilityStatus',
   'quantity',
   'currentQuantity',
+  'activeProblemQuantity',
+  'healthyQuantity',
   'locationDescription',
   'createdAt',
   'updatedAt',
@@ -38,10 +45,11 @@ const EVENT_FIELDS = new Set([
   'createdAt',
   'createdBy',
   'comment',
-  'photoNote',
   'photoFiles',
   'problemType',
   'riskLevel',
+  'affectedQuantity',
+  'recoveredQuantity',
   'count',
   'previousQuantity',
   'currentQuantity',
@@ -99,6 +107,28 @@ const EVENT_FIELDS = new Set([
   'extraFields',
 ]);
 
+const EVENT_EXPORT_FIELDS = new Set([
+  'id',
+  'eventId',
+  'type',
+  'title',
+  'stage',
+  'date',
+  'createdAt',
+  'createdBy',
+  'comment',
+  'photoNote',
+  'photoFiles',
+  'problemType',
+  'riskLevel',
+  'affectedQuantity',
+  'recoveredQuantity',
+  'count',
+  'previousQuantity',
+  'currentQuantity',
+  'extraFields',
+]);
+
 function normalizeText(value) {
   if (value === undefined || value === null) {
     return '';
@@ -123,10 +153,6 @@ function buildExtraFields(source, allowedFields) {
   }
 
   return Object.keys(source).reduce((extraFields, key) => {
-    if (allowedFields.has(key)) {
-      return extraFields;
-    }
-
     const value = source[key];
 
     if (value === undefined) {
@@ -138,6 +164,10 @@ function buildExtraFields(source, allowedFields) {
         ...extraFields,
         ...value,
       };
+    }
+
+    if (allowedFields.has(key)) {
+      return extraFields;
     }
 
     extraFields[key] = value;
@@ -280,21 +310,19 @@ function getPhotoUris(value) {
     });
 }
 
+function mergePhotoUris(...values) {
+  return getPhotoUris(values.flatMap((value) => (Array.isArray(value) ? value : [value])));
+}
+
 function getCardPhotoUris(card) {
-  return [
-    ...getPhotoUris(card?.startPhotoUris),
-    ...getPhotoUris(card?.startPhotoUri),
-  ];
+  return mergePhotoUris(card?.startPhotoUris, card?.startPhotoUri);
 }
 
 function getEventPhotoUris(operation) {
-  return [
-    ...getPhotoUris(operation?.photoUris),
-    ...getPhotoUris(operation?.photoUri),
-  ];
+  return mergePhotoUris(operation?.photoUris, operation?.photoUri);
 }
 
-function countAttachmentFiles(filePaths, photoNote, sourceUriCount = 0) {
+function countAttachmentFiles(filePaths, sourceUriCount = 0) {
   if (filePaths.length > 0) {
     return filePaths.length;
   }
@@ -303,7 +331,7 @@ function countAttachmentFiles(filePaths, photoNote, sourceUriCount = 0) {
     return 1;
   }
 
-  return normalizeText(photoNote) ? 1 : 0;
+  return 0;
 }
 
 function normalizeEvent(operation, card, zip, zipState, index) {
@@ -332,20 +360,20 @@ function normalizeEvent(operation, card, zip, zipState, index) {
       createdAt: normalizeText(safeOperation.createdAt),
       createdBy: normalizeText(safeOperation.createdBy),
       comment: normalizeText(safeOperation.comment),
-      photoNote: normalizeText(safeOperation.photoNote),
       photoFiles: eventPhotoFiles,
       problemType: normalizeText(safeOperation.problemType),
       riskLevel: normalizeText(safeOperation.riskLevel),
+      affectedQuantity: normalizeNumber(safeOperation.affectedQuantity, 0),
+      recoveredQuantity: normalizeNumber(safeOperation.recoveredQuantity, 0),
       count: normalizeNumber(safeOperation.count, 0),
       previousQuantity: normalizeNumber(safeOperation.previousQuantity, 0),
       currentQuantity: normalizeNumber(safeOperation.currentQuantity, 0),
-      extraFields: buildExtraFields(safeOperation, EVENT_FIELDS),
+      extraFields: buildExtraFields(safeOperation, EVENT_EXPORT_FIELDS),
     };
 
     zipState.eventsCount += 1;
     zipState.photosCount += countAttachmentFiles(
       normalizedEvent.photoFiles,
-      normalizedEvent.photoNote,
       eventPhotoUris.length,
     );
 
@@ -353,7 +381,6 @@ function normalizeEvent(operation, card, zip, zipState, index) {
       'problem',
       'contamination',
       'quarantine',
-      'greenhouseDisease',
     ].includes(normalizedEvent.type)) {
       zipState.problemsCount += 1;
     }
@@ -394,6 +421,8 @@ function normalizeCard(card, zip, zipState, index) {
       );
 
       const batchStatus = normalizeText(getResolvedBatchStatus(safeCard) || safeCard.batchStatus || safeCard.status || 'active') || 'active';
+      const activeProblemQuantity = normalizeNumber(getCardActiveProblemQuantity(safeCard), 0);
+      const healthyQuantity = normalizeNumber(getCardHealthyQuantity(safeCard), 0);
       const normalizedCard = {
         cardId,
         code: normalizeText(safeCard.code),
@@ -405,6 +434,8 @@ function normalizeCard(card, zip, zipState, index) {
         sterilityStatus: normalizeText(safeCard.sterilityStatus),
         quantity: normalizeNumber(safeCard.quantity, 0),
         currentQuantity: normalizeNumber(getCardCurrentQuantity(safeCard), 0),
+        activeProblemQuantity,
+        healthyQuantity,
         locationDescription: normalizeText(getCardLocationDescription(safeCard)),
         createdAt: normalizeText(safeCard.createdAt),
         updatedAt: normalizeText(safeCard.updatedAt || safeCard.createdAt),
@@ -433,11 +464,13 @@ function normalizeCard(card, zip, zipState, index) {
         zipState.archivedCount += 1;
       }
 
-      zipState.photosCount += countAttachmentFiles(startPhotoFiles, safeCard.startPhotoNote, cardPhotoUris.length);
+      zipState.photosCount += countAttachmentFiles(startPhotoFiles, cardPhotoUris.length);
 
       return normalizedCard;
     })
     .catch(() => {
+      const fallbackActiveProblemQuantity = normalizeNumber(getCardActiveProblemQuantity(safeCard), 0);
+      const fallbackHealthyQuantity = normalizeNumber(getCardHealthyQuantity(safeCard), 0);
       const fallbackCard = {
         cardId,
         code: normalizeText(safeCard.code),
@@ -449,6 +482,8 @@ function normalizeCard(card, zip, zipState, index) {
         sterilityStatus: normalizeText(safeCard.sterilityStatus),
         quantity: normalizeNumber(safeCard.quantity, 0),
         currentQuantity: normalizeNumber(getCardCurrentQuantity(safeCard), 0),
+        activeProblemQuantity: fallbackActiveProblemQuantity,
+        healthyQuantity: fallbackHealthyQuantity,
         locationDescription: normalizeText(getCardLocationDescription(safeCard)),
         createdAt: normalizeText(safeCard.createdAt),
         updatedAt: normalizeText(safeCard.updatedAt || safeCard.createdAt),
@@ -457,7 +492,7 @@ function normalizeCard(card, zip, zipState, index) {
       };
 
       zipState.cardsCount += 1;
-      zipState.photosCount += countAttachmentFiles(startPhotoFiles, safeCard.startPhotoNote, cardPhotoUris.length);
+      zipState.photosCount += countAttachmentFiles(startPhotoFiles, cardPhotoUris.length);
 
       return fallbackCard;
     });
@@ -558,11 +593,16 @@ async function buildAdminReportZipBase64(cards, options = {}) {
 export async function createAdminReportZip(cards, options = {}) {
   const { report, reportJson, zipBase64 } = await buildAdminReportZipBase64(cards, options);
   const datePart = report.createdAt.slice(0, 10) || new Date().toISOString().slice(0, 10);
+  const timePart = new Date(report.createdAt || Date.now()).toLocaleTimeString('ru-RU', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).replace(':', '-');
   const reportLabel = sanitizeFileSegment(
     report.user.displayName || report.deviceId,
     report.deviceId,
   );
-  const fileName = `sadovnik-report-${datePart}-${reportLabel}.zip`;
+  const fileName = `sadovnik-report-${datePart}-${timePart}-${reportLabel}.zip`;
 
   if (Platform.OS !== 'web' && FileSystem.cacheDirectory) {
     const fileUri = `${FileSystem.cacheDirectory}${fileName}`;

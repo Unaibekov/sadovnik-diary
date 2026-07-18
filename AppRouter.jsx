@@ -63,6 +63,7 @@ export default function AppRouter({ actions, state }) {
     isGreenhouseStage,
     isHardeningStage,
     isPlantingStage,
+    isReportGenerating,
     isDateActionErrorVisible,
     isStageMoveConfirmVisible,
     isSupportedPlantingStage,
@@ -121,6 +122,7 @@ export default function AppRouter({ actions, state }) {
     handleAddStageChange,
     handleClearTestData,
     handleGenerateCoverageTestData,
+    handleGenerateIntroSeedCards,
     handleDateChange,
     handleGenerateCode,
     handleLogout,
@@ -591,6 +593,7 @@ export default function AppRouter({ actions, state }) {
           currentPassword={authPassword}
           firstName={currentEmployee?.firstName || ""}
           lastName={currentEmployee?.lastName || ""}
+          isReportGenerating={isReportGenerating}
           notice={notice}
           onHomePress={() => setCurrentScreen("stages")}
           onJournalPress={() => {
@@ -602,6 +605,7 @@ export default function AppRouter({ actions, state }) {
           onOpenDirectories={openDirectories}
           onClearCards={handleClearTestData}
           onGenerateCoverageTestData={handleGenerateCoverageTestData}
+          onGenerateIntroSeedCards={handleGenerateIntroSeedCards}
           onChangePermanentPassword={handleChangePermanentPassword}
           onScheduleWateringReminder={handleScheduleWateringReminder}
           onShareZipData={handleShareZipData}

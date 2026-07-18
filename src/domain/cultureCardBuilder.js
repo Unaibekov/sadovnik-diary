@@ -14,7 +14,6 @@ export function buildCultureCardPayload({
   quantity,
   sourceMaterial,
   parentBatch,
-  startPhotoNote,
   startPhotoUri,
   startPhotoUris,
   userId,
@@ -46,7 +45,6 @@ export function buildCultureCardPayload({
     locationDescription: cultureForm.locationDescription?.trim() || '',
     parentBatch,
     sterilityStatus: cultureForm.sterilityStatus || 'unchecked',
-    startPhotoNote,
     startPhotoUri: startPhotoUris?.[0] || startPhotoUri || '',
     startPhotoUris: Array.isArray(startPhotoUris) ? startPhotoUris.filter(Boolean) : startPhotoUri ? [startPhotoUri] : [],
     name: getCardDisplayName({ cultureName, speciesName, varietyName }),
@@ -58,6 +56,7 @@ export function buildCultureCardPayload({
     batchStatus: editingCardId
       ? (cultureForm.batchStatus === 'draft' ? 'active' : (cultureForm.batchStatus || 'active'))
       : 'active',
+    activeProblemQuantity: Number(cultureForm.activeProblemQuantity) || 0,
     status: cultureForm.status || 'active',
     cancelledAt: cultureForm.cancelledAt || null,
     cancelledBy: cultureForm.cancelledBy || null,

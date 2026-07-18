@@ -1,6 +1,7 @@
 ﻿import { useEffect, useState } from "react";
 import { Platform } from "react-native";
 import * as ImagePicker from "expo-image-picker";
+import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
 import * as FileSystem from "expo-file-system/legacy";
 import {
   SafeAreaProvider,
@@ -78,6 +79,7 @@ import {
 } from "./src/domain/cultureCardSave";
 import {
   buildDevelopmentCoverageTestCultureCards,
+  buildEmptyIntroCultureCards,
 } from "./src/domain/testDataGenerator";
 import { validateCultureCardInput } from "./src/domain/cultureFormValidation";
 import { updateFormField } from "./src/domain/formState";
@@ -195,6 +197,9 @@ function beginPinAuthFlow({
   setQuickAuthPinConfirm("");
 }
 
+const NATIVE_PHOTO_MAX_SIDE = 1600;
+const NATIVE_PHOTO_COMPRESSION = 0.7;
+
 function AppContent() {
   const safeAreaInsets = useSafeAreaInsets();
   const bottomInset = getBottomInset(safeAreaInsets);
@@ -223,6 +228,7 @@ function AppContent() {
   const [cardSearch, setCardSearch] = useState("");
   const [cultureCards, setCultureCards] = useState([]);
   const [isCardsLoading, setIsCardsLoading] = useState(true);
+  const [isReportGenerating, setIsReportGenerating] = useState(false);
   const [storageError, setStorageError] = useState("");
   const [currentScreen, setCurrentScreen] = useState("stages");
   const [cultureForm, setCultureForm] = useState(createEmptyCultureForm);
@@ -262,7 +268,6 @@ function AppContent() {
     allVisibleStageCardsCount,
     careTasks,
     canEditCurrentIdentity,
-    canReleaseQuarantine,
     calendarDays,
     cultureOptions,
     editingCard,
@@ -347,8 +352,8 @@ function AppContent() {
         setAuthPassword(quickAuthState.password || AUTH_TEST_PASSWORD);
         setIsBiometricAvailable(biometricInfo.available);
         setBiometricDescription(biometricInfo.description);
-        setAuthMode("credentials");
-        setAuthPinStep("setup");
+        setAuthMode(quickAuthState.pinCode ? "pinUnlock" : "credentials");
+        setAuthPinStep(quickAuthState.pinCode ? "unlock" : "setup");
         setQuickAuthPinInput("");
         setQuickAuthPinConfirm("");
         setCurrentEmployee(employeeProfile);
@@ -925,6 +930,11 @@ function AppContent() {
   }
 
   async function handleShareZipData() {
+    if (isReportGenerating) {
+      return;
+    }
+
+    setIsReportGenerating(true);
     try {
       const shareResult = await shareAdminReportZip(cultureCards, {
         currentEmployee,
@@ -934,6 +944,8 @@ function AppContent() {
       setNotice(getShareZipReportNotice(shareResult));
     } catch (shareError) {
       setNotice("Не удалось подготовить ZIP-отчет.");
+    } finally {
+      setIsReportGenerating(false);
     }
   }
   async function handleScheduleWateringReminder() {
@@ -1001,8 +1013,8 @@ function AppContent() {
     setNotice("");
     setFocusedField("");
     setAuthStep("credentials");
-    setAuthMode("credentials");
-    setAuthPinStep("setup");
+    setAuthMode(quickAuthPin ? "pinUnlock" : "credentials");
+    setAuthPinStep(quickAuthPin ? "unlock" : "setup");
   }
 
   async function handleClearTestData() {
@@ -1044,6 +1056,24 @@ function AppContent() {
     } catch (generateError) {
       console.error("handleGenerateCoverageTestData failed", generateError);
       setStorageError("Не удалось заполнить тестовыми данными");
+    }
+  }
+
+  async function handleGenerateIntroSeedCards() {
+    try {
+      const result = buildEmptyIntroCultureCards(cultureCards, {
+        count: 10,
+      });
+      await saveCultureCardsToStorage(result.nextCards);
+      setCultureCards(result.nextCards);
+      setStorageError("");
+      setCurrentScreen("stages");
+      setNotice(
+        `Создано ${result.createdCardsCount} партий в стадии «Введение в культуру» без записей журнала.`,
+      );
+    } catch (generateError) {
+      console.error("handleGenerateIntroSeedCards failed", generateError);
+      setStorageError("Не удалось создать партии для ручного заполнения");
     }
   }
 
@@ -1295,13 +1325,38 @@ function AppContent() {
       return { uri: asset.uri };
     }
 
-    const extension = getPhotoFileExtension(asset);
+    let sourceUri = asset.uri;
+
+    try {
+      const width = Number(asset.width) || 0;
+      const height = Number(asset.height) || 0;
+      const context = ImageManipulator.manipulate(asset.uri);
+
+      if (Math.max(width, height) > NATIVE_PHOTO_MAX_SIDE) {
+        context.resize(
+          width >= height
+            ? { width: NATIVE_PHOTO_MAX_SIDE }
+            : { height: NATIVE_PHOTO_MAX_SIDE },
+        );
+      }
+
+      const renderedImage = await context.renderAsync();
+      const compressedImage = await renderedImage.saveAsync({
+        compress: NATIVE_PHOTO_COMPRESSION,
+        format: SaveFormat.JPEG,
+      });
+      sourceUri = compressedImage.uri || asset.uri;
+    } catch {
+      // Keep the original asset if the platform cannot transform this image.
+    }
+
+    const extension = sourceUri === asset.uri ? getPhotoFileExtension(asset) : "jpg";
     const fileName = `photo-${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
     const fileUri = `${FileSystem.documentDirectory}${fileName}`;
 
     try {
       await FileSystem.copyAsync({
-        from: asset.uri,
+        from: sourceUri,
         to: fileUri,
       });
 
@@ -1844,7 +1899,7 @@ function AppContent() {
       return;
     }
 
-    const { editedOperation, currentQuantity } = buildStatusOperationContext({
+    const { cardWithoutEditedOperation, editedOperation, currentQuantity } = buildStatusOperationContext({
       editingOperationId,
       selectedCard,
       selectedCardOperations,
@@ -1853,9 +1908,9 @@ function AppContent() {
       editingOperationId,
       introActionType,
       selectedCard,
+      validationCard: cardWithoutEditedOperation,
       currentQuantity,
       statusForm,
-      canReleaseQuarantine,
       selectedCalendarDate,
     });
 
@@ -1937,7 +1992,7 @@ function AppContent() {
       return false;
     }
 
-    if (introActionDate !== getTodayIsoDate()) {
+    if (!editingOperationId && introActionDate !== getTodayIsoDate()) {
       setStageActionError(STATUS_DATE_NOT_TODAY_MESSAGE);
       setIsDateActionErrorVisible(true);
       return false;
@@ -1956,14 +2011,13 @@ function AppContent() {
       photoUris: getIntroActionPhotoUris(introActionForm),
       photoUri: isRenderablePhotoUri(introActionForm.photoUri) ? introActionForm.photoUri : "",
     };
-    const value = sanitizedIntroActionForm[actionConfig.field].trim();
+    const value = `${sanitizedIntroActionForm[actionConfig.field] || ""}`.trim();
     const hasPhoto = sanitizedIntroActionForm.photoUris.length > 0;
     const hasProblemDetails = [
       sanitizedIntroActionForm.problemType,
       sanitizedIntroActionForm.riskLevel,
       sanitizedIntroActionForm.problemDescription,
       sanitizedIntroActionForm.comment,
-      sanitizedIntroActionForm.photoNote,
       sanitizedIntroActionForm.photoUri,
       ...sanitizedIntroActionForm.photoUris,
     ].some((item) => `${item || ''}`.trim());
@@ -2027,7 +2081,6 @@ function AppContent() {
     const quantity = cultureForm.quantity.trim();
     const sourceMaterial = cultureForm.sourceMaterial.trim();
     const parentBatch = cultureForm.parentBatch.trim();
-    const startPhotoNote = cultureForm.startPhotoNote.trim();
     const startPhotoUris = getCulturePhotoUris(cultureForm);
     const startPhotoUri = startPhotoUris[0] || "";
     const isDuplicateCode = isDuplicateCultureCode(
@@ -2075,7 +2128,6 @@ function AppContent() {
       quantity,
       sourceMaterial,
       parentBatch,
-      startPhotoNote,
       startPhotoUri,
       startPhotoUris,
       userId: currentUser.id,
@@ -2140,6 +2192,7 @@ function AppContent() {
     isGreenhouseStage,
     isHardeningStage: selectedStageFlags.isHardeningStage,
     isPlantingStage: selectedStageFlags.isPlantingStage,
+    isReportGenerating,
     isStageMoveConfirmVisible,
     isDateActionErrorVisible,
     isSupportedPlantingStage,
@@ -2197,6 +2250,7 @@ function AppContent() {
     handleAddStageChange,
     handleClearTestData,
     handleGenerateCoverageTestData,
+    handleGenerateIntroSeedCards,
     handleDateChange,
     handleGenerateCode,
     handleLogout,

@@ -1,5 +1,5 @@
 // Сборка карточки после изменения статуса.
-import { getCardCurrentQuantity } from './batch';
+import { buildProblemQuantityPatch, getCardCurrentQuantity } from './batch';
 import { getResolvedBatchStatus } from './cardSelectors';
 import { getFallbackBatchStatus } from './statusCardStatusResolver';
 import { getGreenhouseCareIntervalsPatch } from './statusCardMutations';
@@ -56,11 +56,24 @@ export function buildUpdatedStatusCard(card, {
     batchStatus: nextBatchStatus,
     sterilityStatus: hasContamination ? 'contaminated' : 'unchecked',
   };
+  const problemQuantityPatch = buildProblemQuantityPatch(nextCardWithStatus);
+  const finalBatchStatus = nextBatchStatus === 'problem' &&
+    problemQuantityPatch.activeProblemQuantity <= 0 &&
+    !hasContamination
+    ? nextQuantity < Number(card.quantity || 0)
+      ? 'partial'
+      : 'active'
+    : nextBatchStatus;
 
   return {
     ...nextCardWithStatus,
-    batchStatus: nextBatchStatus,
-    status: ['sold', 'archived'].includes(getResolvedBatchStatus(nextCardWithStatus))
+    ...problemQuantityPatch,
+    batchStatus: finalBatchStatus,
+    status: ['sold', 'archived'].includes(getResolvedBatchStatus({
+      ...nextCardWithStatus,
+      ...problemQuantityPatch,
+      batchStatus: finalBatchStatus,
+    }))
       ? 'archived'
       : 'active',
   };

@@ -1,5 +1,6 @@
 // Построение карточки после удаления операции.
 import { getResolvedBatchStatus } from './cardSelectors';
+import { buildProblemQuantityPatch } from './batch';
 
 export function buildDeletedOperationCard(card, operationId) {
   const deletedOperation = (card.operations || []).find((operation) => operation.id === operationId);
@@ -16,6 +17,7 @@ export function buildDeletedOperationCard(card, operationId) {
 
   return {
     ...nextCard,
+    ...buildProblemQuantityPatch(nextCard),
     batchStatus: getResolvedBatchStatus(nextCard),
     status: getResolvedBatchStatus(nextCard) === 'sold' ? 'archived' : 'active',
   };

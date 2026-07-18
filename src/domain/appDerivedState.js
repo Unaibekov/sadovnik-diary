@@ -21,7 +21,6 @@ import {
 import { buildCareTasks } from './tasks';
 import {
   canEditCurrentIdentityForCard,
-  canReleaseQuarantineForRole,
   getSelectedCardMetrics,
   getSelectedCardNextStage,
   getRecommendationCard,
@@ -73,7 +72,6 @@ export function buildAppDerivedState({
   const showIdentityAsText = shouldShowIdentityAsText(Boolean(editingCardId));
   const isSupportedPlantingStage = isSupportedPlantingStageForStage(selectedStage);
   const isSelectedCloneCard = isSelectedCloneCardForCard(selectedCard);
-  const canReleaseQuarantine = canReleaseQuarantineForRole(currentUser.role);
   const globalJournalEvents = getGlobalJournalEvents(cultureCards);
   const careTasks = buildCareTasks(cultureCards, getResolvedBatchStatus);
   const activeCardsCount = getActiveCardsCount(
@@ -161,7 +159,6 @@ export function buildAppDerivedState({
     allVisibleStageCardsCount,
     careTasks,
     canEditCurrentIdentity: canEditCurrentIdentityForCard(currentUser, editingCard),
-    canReleaseQuarantine,
     calendarDays,
     cultureOptions,
     editingCard,

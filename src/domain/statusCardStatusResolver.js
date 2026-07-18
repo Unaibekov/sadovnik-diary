@@ -14,10 +14,6 @@ export function getFallbackBatchStatus(card, introActionType, nextQuantity, stat
     return 'quarantine';
   }
 
-  if (introActionType === 'quarantineReleased') {
-    return 'active';
-  }
-
   if (introActionType === 'plantingCompletion') {
     return 'archived';
   }
@@ -38,7 +34,7 @@ export function getFallbackBatchStatus(card, introActionType, nextQuantity, stat
   );
 
   const isCriticalGreenhouseEvent = (
-    ['greenhouseObservation', 'greenhouseDisease', 'greenhouseCare'].includes(introActionType) &&
+    ['greenhouseObservation', 'greenhouseCare'].includes(introActionType) &&
     (
       statusForm.stressLevel === 'Критический' ||
       statusForm.riskLevel === 'Критический' ||

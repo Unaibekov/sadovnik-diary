@@ -87,7 +87,6 @@ export function normalizeCultureCard(card) {
     sterilityStatus: card.sterilityStatus || 'unchecked',
     sourceMaterial: card.sourceMaterial || card.sourcePlantName || '',
     parentBatch: card.parentBatch || '',
-    startPhotoNote: card.startPhotoNote || '',
     startPhotoUri: normalizedStartPhotoUris[0] || '',
     startPhotoUris: normalizedStartPhotoUris,
   };
@@ -95,7 +94,7 @@ export function normalizeCultureCard(card) {
     ...operation,
     id: operation.id || `${normalizedCard.id || 'card'}-${operation.type || 'operation'}-${operation.createdAt || operation.date || 'unknown'}-${index}`,
   }));
-  const normalizedOperations = hasBatchCreatedOperation
+  const normalizedOperations = hasBatchCreatedOperation || operations.length === 0
     ? normalizedExistingOperations
     : [
       createBatchCreatedOperation(normalizedCard, normalizedCard.createdAt || new Date().toISOString()),
@@ -105,6 +104,10 @@ export function normalizeCultureCard(card) {
   return {
     ...normalizedCard,
     operations: normalizedOperations,
+    activeProblemQuantity: getCardActiveProblemQuantity({
+      ...normalizedCard,
+      operations: normalizedOperations,
+    }),
   };
 }
 
@@ -144,7 +147,6 @@ export function getOperationSummaryItems(operation, card) {
       ['Площадь / участок', operation.plotArea],
       ['Тип грунта', operation.soilType],
       ['Комментарий', operation.comment],
-      ['Фото', operation.photoNote],
     ].filter(([, value]) => Boolean(value));
   }
 
@@ -154,7 +156,6 @@ export function getOperationSummaryItems(operation, card) {
       ['Уровень стресса', operation.stressLevel],
       ['Тургор', operation.turgor],
       ['Комментарий', operation.comment],
-      ['Фото', operation.photoNote],
     ].filter(([, value]) => Boolean(value));
   }
 
@@ -166,7 +167,6 @@ export function getOperationSummaryItems(operation, card) {
       ['Способ внесения', operation.applicationMethod],
       ['Реакция растений', operation.plantReaction],
       ['Комментарий', operation.comment],
-      ['Фото', operation.photoNote],
     ].filter(([, value]) => Boolean(value));
   }
 
@@ -174,7 +174,6 @@ export function getOperationSummaryItems(operation, card) {
     return [
       ['Итог высадки', operation.completionResult],
       ['Комментарий', operation.comment],
-      ['Фото', operation.photoNote],
     ].filter(([, value]) => Boolean(value));
   }
 
@@ -235,7 +234,6 @@ export function getOperationSummaryItems(operation, card) {
       ['Стабильность', operation.stability],
       ['Тургор', operation.turgor],
       ['Комментарий', operation.comment],
-      ['Фото', operation.photoNote],
       ...legacyAdaptationEnvironmentItems,
     ].filter(([, value]) => Boolean(value));
   }
@@ -246,7 +244,6 @@ export function getOperationSummaryItems(operation, card) {
       ['Тургор', operation.turgor],
       ['Готовность к высадке', operation.readinessForPlanting],
       ['Комментарий', operation.comment],
-      ['Фото', operation.photoNote],
     ].filter(([, value]) => Boolean(value));
   }
 
@@ -258,7 +255,6 @@ export function getOperationSummaryItems(operation, card) {
       ['Способ внесения', operation.applicationMethod],
       ['Реакция растений', operation.plantReaction],
       ['Комментарий', operation.comment],
-      ['Фото', operation.photoNote],
     ].filter(([, value]) => Boolean(value));
   }
 
@@ -269,13 +265,9 @@ export function getOperationSummaryItems(operation, card) {
     'sale',
     'propagation',
     'adaptationStress',
-    'adaptationEnvironment',
-    'adaptationHumidityReduction',
     'adaptationCare',
     'greenhouseObservation',
     'greenhouseCare',
-    'greenhouseEnvironment',
-    'greenhouseDisease',
     'hardeningObservation',
     'hardeningCare',
     'movement',
@@ -288,7 +280,6 @@ export function getOperationSummaryItems(operation, card) {
         ['Остаток', operation.currentQuantity !== undefined ? `${operation.currentQuantity} шт.` : ''],
         ['Способ размножения', operation.propagationMethod],
         ['Комментарий', operation.comment],
-        ['Фото', operation.photoNote],
       ].filter(([, value]) => Boolean(value));
     }
 
@@ -325,7 +316,6 @@ export function getOperationSummaryItems(operation, card) {
       ['Размещение', operation.placement],
       ['Плотность', operation.densityChange],
       ['Комментарий', operation.comment],
-      ['Фото', operation.photoNote],
     ].filter(([, value]) => Boolean(value));
   }
 
@@ -333,17 +323,27 @@ export function getOperationSummaryItems(operation, card) {
     return [['Комментарий', operation.comment]].filter(([, value]) => Boolean(value));
   }
 
-  if (operation.type === 'photo') {
-    return [['Фото', operation.photoNote]].filter(([, value]) => Boolean(value));
-  }
-
   if (operation.type === 'problem') {
+    const affectedQuantity = Number(operation.affectedQuantity) || 0;
+    const problemTotalQuantity = Number(operation.currentQuantity) || getCardCurrentQuantity(card);
+
     return [
       ['Тип проблемы', operation.problemType],
       ['Уровень риска', operation.riskLevel],
+      ['Затронуто', affectedQuantity ? `${affectedQuantity} из ${problemTotalQuantity} шт.` : ''],
       ['Описание проблемы', operation.problemDescription],
       ['Комментарий', operation.comment],
-      ['Фото', operation.photoNote],
+    ].filter(([, value]) => Boolean(value));
+  }
+
+  if (operation.type === 'problemRecovery') {
+    const recoveredQuantity = Number(operation.recoveredQuantity) || 0;
+    const problemTotalQuantity = Number(operation.activeProblemQuantityBefore) || Number(operation.currentProblemQuantity) || 0;
+
+    return [
+      ['Выздоровело', recoveredQuantity ? `${recoveredQuantity} из ${problemTotalQuantity} шт.` : ''],
+      ['Уровень риска', operation.riskLevel],
+      ['Комментарий', operation.comment],
     ].filter(([, value]) => Boolean(value));
   }
 
@@ -353,10 +353,6 @@ export function getOperationSummaryItems(operation, card) {
 
   if (operation.type === 'quarantine') {
     return [['Причина', operation.quarantineReason || operation.reason]].filter(([, value]) => Boolean(value));
-  }
-
-  if (operation.type === 'quarantineReleased') {
-    return [['Причина снятия', operation.reason]].filter(([, value]) => Boolean(value));
   }
 
   return [];
@@ -371,6 +367,52 @@ export function formatQuantityDisplay(currentQuantity, totalQuantity) {
   }
 
   return `${normalizedCurrentQuantity} шт.`;
+}
+
+export function getCardActiveProblemQuantity(card) {
+  const currentQuantity = getCardCurrentQuantity(card);
+  const operations = card?.operations || [];
+  const affectedQuantity = operations.reduce((sum, operation) => {
+    if (operation.type === 'problem') {
+      return sum + (Number(operation.affectedQuantity) || 0);
+    }
+
+    if (operation.type === 'problemRecovery') {
+      return sum - (Number(operation.recoveredQuantity) || 0);
+    }
+
+    return sum;
+  }, 0);
+
+  return Math.min(Math.max(affectedQuantity, 0), currentQuantity);
+}
+
+export function getCardHealthyQuantity(card) {
+  return Math.max(getCardCurrentQuantity(card) - getCardActiveProblemQuantity(card), 0);
+}
+
+export function getLatestProblemRiskLevel(card) {
+  return (card?.operations || []).find((operation) => (
+    ['problemRecovery', 'problem'].includes(operation.type) &&
+    operation.riskLevel
+  ))?.riskLevel || '';
+}
+
+export function formatProblemAwareQuantityDisplay(card) {
+  const currentQuantity = getCardCurrentQuantity(card);
+  const activeProblemQuantity = getCardActiveProblemQuantity(card);
+
+  if (activeProblemQuantity <= 0) {
+    return formatQuantityDisplay(currentQuantity, card?.quantity);
+  }
+
+  return `${getCardHealthyQuantity(card)} здоровых · ${activeProblemQuantity} с проблемой`;
+}
+
+export function buildProblemQuantityPatch(card) {
+  return {
+    activeProblemQuantity: getCardActiveProblemQuantity(card),
+  };
 }
 
 export function getCardCurrentQuantity(card) {
@@ -468,6 +510,7 @@ export function getIntroStats(card) {
   const initialQuantity = Number(card?.quantity) || 0;
   const isProblemCard = card?.batchStatus === 'problem' ||
     getProblemBatchStatusFromOperations(operations, card?.stage || '') === 'problem';
+  const latestProblemRiskLevel = getLatestProblemRiskLevel(card);
   const deathCount = operations.reduce((sum, operation) => (
     sum + (operation.type === 'death' ? Number(operation.count) || 0 : 0)
   ), 0);
@@ -481,8 +524,10 @@ export function getIntroStats(card) {
   const lossPercent = initialQuantity > 0
     ? Math.round((lossCount / initialQuantity) * 100)
     : 0;
-  const riskStatus = isProblemCard || lossPercent >= 30
-    ? 'Критический'
+  const riskStatus = isProblemCard
+    ? latestProblemRiskLevel || 'Критический'
+    : lossPercent >= 30
+      ? 'Критический'
     : lossPercent >= 15
       ? 'Повышенный'
       : 'Нормальный';
@@ -523,8 +568,8 @@ export function getAdaptationStats(card) {
     sum + (operation.type === 'introLoss' ? Number(operation.count) || 0 : 0)
   ), 0);
   const stressLevel = getLatestOperationValue(operations, ['adaptationStress'], 'stressLevel') || 'Не указан';
-  const turgor = getLatestOperationValue(operations, ['adaptationStress', 'adaptationEnvironment', 'adaptationHumidityReduction'], 'turgor') || 'Не указан';
-  const stability = getLatestOperationValue(operations, ['adaptationStress', 'adaptationEnvironment', 'adaptationHumidityReduction'], 'stability') || 'Не указана';
+  const turgor = getLatestOperationValue(operations, ['adaptationStress'], 'turgor') || 'Не указан';
+  const stability = getLatestOperationValue(operations, ['adaptationStress'], 'stability') || 'Не указана';
   const riskStatus = stressLevel === 'Критический' || isProblemCard
     ? 'Критический'
     : stressLevel === 'Высокий'
@@ -569,26 +614,26 @@ export function getGreenhouseStats(card) {
   ), 0);
   const growthRate = getLatestOperationValue(
     operations,
-    ['greenhouseObservation', 'greenhouseEnvironment', 'greenhouseCare', 'transplant'],
+    ['greenhouseObservation', 'greenhouseCare', 'transplant'],
     'growthRate',
   ) || 'Не указана';
   const riskLevel = getLatestOperationValue(
     operations,
-    ['greenhouseObservation', 'greenhouseDisease', 'greenhouseEnvironment', 'greenhouseCare'],
+    ['greenhouseObservation', 'greenhouseCare'],
     'riskLevel',
   );
   const stressLevel = getLatestOperationValue(
     operations,
-    ['greenhouseObservation', 'greenhouseDisease'],
+    ['greenhouseObservation'],
     'stressLevel',
   ) || 'Не указан';
   const stability = getLatestOperationValue(
     operations,
-    ['greenhouseObservation', 'greenhouseEnvironment', 'greenhouseCare', 'transplant'],
+    ['greenhouseObservation', 'greenhouseCare', 'transplant'],
     'stability',
   ) || 'Не указана';
   const criticalDiseaseOperation = operations.find((operation) => (
-    operation.type === 'greenhouseDisease' &&
+    operation.type === 'problem' &&
     (operation.diseaseSeverity === 'Критическая' || operation.riskLevel === 'Критический')
   ));
   const introLossCount = operations.reduce((sum, operation) => (

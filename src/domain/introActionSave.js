@@ -3,8 +3,8 @@ import { buildIntroActionOperation } from './introActionOperationBuilder';
 import { buildIntroActionUpdatedCard } from './introActionCardBuilder';
 import { buildStatusOperationContext } from './statusOperationContext';
 import { INTRO_STAGE } from './constants';
-import { isPositiveInteger } from './batch';
-import { getProblemValidationError } from './statusProblemValidation';
+import { getCardActiveProblemQuantity, getCardHealthyQuantity, isPositiveInteger } from './batch';
+import { getProblemRecoveryValidationError, getProblemValidationError } from './statusProblemValidation';
 
 export function buildIntroActionSaveResult({
   actionConfig,
@@ -19,15 +19,15 @@ export function buildIntroActionSaveResult({
   selectedCardOperations,
   userId,
 }) {
-  const { editedOperation, currentQuantity } = buildStatusOperationContext({
+  const { cardWithoutEditedOperation, editedOperation, currentQuantity } = buildStatusOperationContext({
     editingOperationId,
     selectedCard,
     selectedCardOperations,
   });
 
-  const value = introActionForm[actionConfig.field].trim();
-  const lossCount = introActionForm.lossCount?.trim() || '';
-  const lossReason = introActionForm.lossReason?.trim() || '';
+  const value = `${introActionForm[actionConfig.field] || ''}`.trim();
+  const lossCount = `${introActionForm.lossCount || ''}`.trim();
+  const lossReason = `${introActionForm.lossReason || ''}`.trim();
   const introLossPreviousQuantity = editedOperation?.previousQuantity ?? currentQuantity;
   const hasMovementLocation = Boolean(
     movementDetails?.greenhouseName ||
@@ -54,9 +54,43 @@ export function buildIntroActionSaveResult({
     return { nextCards: cultureCards, nextOperation: null, error: actionConfig.error };
   }
 
-  const problemValidationError = getProblemValidationError(introActionType, introActionForm);
+  const problemValidationError = getProblemValidationError(introActionType, introActionForm, {
+    availableHealthyQuantity: getCardHealthyQuantity(cardWithoutEditedOperation),
+  });
   if (problemValidationError) {
-    return { nextCards: cultureCards, nextOperation: null, error: actionConfig.error };
+    const problemErrorMessages = {
+      problem_quantity_missing: 'Укажите количество растений с проблемой',
+      problem_quantity_not_positive: 'Количество должно быть больше нуля',
+      problem_quantity_not_integer: 'Укажите целое количество растений с проблемой',
+      problem_quantity_gt_healthy: 'Количество не может превышать здоровый остаток партии',
+      problem_all_plants_affected: 'Все растения партии уже относятся к активным проблемам',
+      problem_missing: 'Укажите тип, риск и описание проблемы',
+    };
+
+    return {
+      nextCards: cultureCards,
+      nextOperation: null,
+      error: problemErrorMessages[problemValidationError] || actionConfig.error,
+    };
+  }
+
+  const recoveryValidationError = getProblemRecoveryValidationError(introActionType, introActionForm, {
+    activeProblemQuantity: getCardActiveProblemQuantity(cardWithoutEditedOperation),
+  });
+  if (recoveryValidationError) {
+    const recoveryErrorMessages = {
+      recovery_no_active_problem: 'В партии нет активных больных растений',
+      recovery_quantity_missing: 'Укажите количество выздоровевших растений',
+      recovery_quantity_not_positive: 'Количество выздоровевших должно быть больше нуля',
+      recovery_quantity_not_integer: 'Укажите целое количество выздоровевших растений',
+      recovery_quantity_gt_problem: 'Количество выздоровевших не может превышать активное количество больных',
+    };
+
+    return {
+      nextCards: cultureCards,
+      nextOperation: null,
+      error: recoveryErrorMessages[recoveryValidationError] || actionConfig.error,
+    };
   }
 
   const nextOperation = buildIntroActionOperation({
@@ -73,12 +107,14 @@ export function buildIntroActionSaveResult({
     lossCount,
     lossReason,
     movementDetails,
-    problemType: introActionForm.problemType?.trim() || '',
-    riskLevel: introActionForm.riskLevel?.trim() || '',
-    problemDescription: introActionForm.problemDescription?.trim() || '',
-    comment: introActionForm.comment?.trim() || '',
-    photoNote: introActionForm.photoNote?.trim() || '',
+    problemType: `${introActionForm.problemType || ''}`.trim(),
+    riskLevel: `${introActionForm.riskLevel || ''}`.trim(),
+    affectedQuantity: `${introActionForm.affectedQuantity || ''}`.trim(),
+    recoveredQuantity: `${introActionForm.recoveredQuantity || ''}`.trim(),
+    problemDescription: `${introActionForm.problemDescription || ''}`.trim(),
+    comment: `${introActionForm.comment || ''}`.trim(),
     currentQuantity: introLossPreviousQuantity,
+    activeProblemQuantityBefore: getCardActiveProblemQuantity(cardWithoutEditedOperation),
   });
 
   const nextCards = cultureCards.map((card) => {

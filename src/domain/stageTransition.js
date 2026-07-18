@@ -9,6 +9,7 @@ export function buildStageChangeOperation({
   nowIso,
   selectedCard,
   selectedCalendarDate,
+  userId,
 }) {
   return {
     id: operationId || `${Date.now()}`,
@@ -23,6 +24,7 @@ export function buildStageChangeOperation({
     rootingPercent: cloneTransitionStats?.rootingPercent,
     currentQuantity: cloneTransitionStats?.currentQuantity ?? currentQuantity,
     createdAt: nowIso,
+    createdBy: userId,
   };
 }
 

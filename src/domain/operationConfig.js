@@ -13,11 +13,11 @@ export const statusEventCountFields = {
 
 export const introOperationFields = {
   comment: 'comment',
-  photo: 'photoNote',
   contamination: 'contaminationNote',
   introLoss: 'lossReason',
   quarantine: 'quarantineReason',
   problem: 'problemDescription',
+  problemRecovery: 'recoveredQuantity',
 };
 
 export const editableStatusOperationTypes = [
@@ -28,15 +28,10 @@ export const editableStatusOperationTypes = [
   'sale',
   'propagation',
   'quarantine',
-  'quarantineReleased',
   'adaptationStress',
-  'adaptationEnvironment',
-  'adaptationHumidityReduction',
   'adaptationCare',
   'greenhouseObservation',
   'greenhouseCare',
-  'greenhouseEnvironment',
-  'greenhouseDisease',
   'hardeningObservation',
   'hardeningCare',
   'planting',
@@ -44,6 +39,7 @@ export const editableStatusOperationTypes = [
   'plantingCare',
   'plantingCompletion',
   'problem',
+  'problemRecovery',
   'movement',
   'transplant',
 ];
@@ -51,7 +47,6 @@ export const editableStatusOperationTypes = [
 export const protectedOperationTypes = [
   'contamination',
   'quarantine',
-  'quarantineReleased',
 ];
 
 export const stageHomeItems = [

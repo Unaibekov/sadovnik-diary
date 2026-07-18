@@ -4,7 +4,8 @@ import { getStatusEventConfig } from './statusOperations';
 import { getStatusBaseValidationError } from './statusValidation';
 import { getAdaptationValidationError, getHardeningValidationError, getPlantingValidationError } from './statusStageValidation';
 import { getGreenhouseValidationError } from './statusGreenhouseValidation';
-import { getProblemValidationError } from './statusProblemValidation';
+import { getProblemRecoveryValidationError, getProblemValidationError } from './statusProblemValidation';
+import { getCardActiveProblemQuantity, getCardHealthyQuantity } from './batch';
 
 export const STATUS_DATE_NOT_TODAY_MESSAGE = 'Производственные события можно фиксировать только на текущую дату';
 
@@ -12,16 +13,16 @@ export function getStatusChangeValidationError({
   editingOperationId,
   introActionType,
   selectedCard,
+  validationCard,
   currentQuantity,
   statusForm,
-  canReleaseQuarantine,
   selectedCalendarDate,
 }) {
   if (!selectedCard || !selectedCalendarDate) {
     return '';
   }
 
-  if (selectedCalendarDate !== getTodayIsoDate()) {
+  if (!editingOperationId && selectedCalendarDate !== getTodayIsoDate()) {
     return 'date_not_today';
   }
 
@@ -35,10 +36,8 @@ export function getStatusChangeValidationError({
     count,
     introActionType,
     currentQuantity,
+    healthyQuantity: getCardHealthyQuantity(validationCard || selectedCard),
     reason: statusForm.reason,
-    canReleaseQuarantine,
-    isEditingOperation: Boolean(editingOperationId),
-    batchStatus: selectedCard.batchStatus,
   });
 
   if (baseValidationError) {
@@ -84,10 +83,25 @@ export function getStatusChangeValidationError({
   const problemValidationError = getProblemValidationError(
     introActionType,
     statusForm,
+    {
+      availableHealthyQuantity: getCardHealthyQuantity(validationCard || selectedCard),
+    },
   );
 
   if (problemValidationError) {
     return problemValidationError;
+  }
+
+  const recoveryValidationError = getProblemRecoveryValidationError(
+    introActionType,
+    statusForm,
+    {
+      activeProblemQuantity: getCardActiveProblemQuantity(validationCard || selectedCard),
+    },
+  );
+
+  if (recoveryValidationError) {
+    return recoveryValidationError;
   }
 
   return '';
@@ -101,18 +115,12 @@ export function getStatusChangeValidationMessage(validationError) {
       return 'Укажите корректное количество';
     case 'count_gt_current':
       return 'Количество не может быть больше текущего остатка';
+    case 'count_gt_healthy':
+      return 'Количество не может превышать здоровый остаток партии';
     case 'missing_reason':
       return 'Укажите причину';
-    case 'release_forbidden':
-      return 'Снять карантин может только агроном или администратор';
-    case 'not_in_quarantine':
-      return 'Партия не находится в карантине';
     case 'adaptation_stress_missing':
       return 'Укажите хотя бы один параметр наблюдения';
-    case 'adaptation_environment_missing':
-      return 'Укажите хотя бы один параметр среды';
-    case 'adaptation_humidity_reduction_missing':
-      return 'Укажите снижение влажности или состояние партии';
     case 'adaptation_care_type_missing':
       return 'Укажите тип ухода';
     case 'hardening_observation_missing':
@@ -131,12 +139,28 @@ export function getStatusChangeValidationMessage(validationError) {
       return 'Укажите хотя бы один параметр наблюдения';
     case 'greenhouse_care_type_missing':
       return 'Укажите тип ухода';
-    case 'greenhouse_environment_missing':
-      return 'Укажите хотя бы один параметр среды';
-    case 'greenhouse_disease_missing':
-      return 'Укажите болезнь, вредителя или уровень риска';
     case 'problem_missing':
       return 'Укажите хотя бы один параметр проблемы';
+    case 'problem_quantity_missing':
+      return 'Укажите количество растений с проблемой';
+    case 'problem_quantity_not_positive':
+      return 'Количество должно быть больше нуля';
+    case 'problem_quantity_not_integer':
+      return 'Укажите целое количество растений с проблемой';
+    case 'problem_quantity_gt_healthy':
+      return 'Количество не может превышать здоровый остаток партии';
+    case 'problem_all_plants_affected':
+      return 'Все растения партии уже относятся к активным проблемам';
+    case 'recovery_no_active_problem':
+      return 'В партии нет активных больных растений';
+    case 'recovery_quantity_missing':
+      return 'Укажите количество выздоровевших растений';
+    case 'recovery_quantity_not_positive':
+      return 'Количество выздоровевших должно быть больше нуля';
+    case 'recovery_quantity_not_integer':
+      return 'Укажите целое количество выздоровевших растений';
+    case 'recovery_quantity_gt_problem':
+      return 'Количество выздоровевших не может превышать активное количество больных';
     default:
       return '';
   }

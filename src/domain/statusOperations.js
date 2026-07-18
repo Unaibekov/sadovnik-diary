@@ -32,21 +32,8 @@ const statusEventConfigs = {
     countField: '',
     requiresReason: true,
   },
-  quarantineReleased: {
-    title: 'Снятие карантина',
-    countField: '',
-    requiresReason: true,
-  },
   adaptationStress: {
     title: 'Наблюдение',
-    countField: '',
-  },
-  adaptationEnvironment: {
-    title: 'Изменение среды',
-    countField: '',
-  },
-  adaptationHumidityReduction: {
-    title: 'Снижение влажности',
     countField: '',
   },
   adaptationCare: {
@@ -59,14 +46,6 @@ const statusEventConfigs = {
   },
   greenhouseCare: {
     title: 'Уход',
-    countField: '',
-  },
-  greenhouseEnvironment: {
-    title: 'Среда',
-    countField: '',
-  },
-  greenhouseDisease: {
-    title: 'Болезни / вредители',
     countField: '',
   },
   hardeningObservation: {
@@ -97,6 +76,10 @@ const statusEventConfigs = {
     title: 'Проблема',
     countField: '',
   },
+  problemRecovery: {
+    title: 'Выздоровление',
+    countField: '',
+  },
   movement: {
     title: 'Перемещение',
     countField: '',
@@ -118,12 +101,6 @@ export function getIntroActionConfig(actionType) {
       type: 'comment',
       title: '\u041a\u043e\u043c\u043c\u0435\u043d\u0442\u0430\u0440\u0438\u0439',
       error: '\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u043a\u043e\u043c\u043c\u0435\u043d\u0442\u0430\u0440\u0438\u0439',
-    },
-    photo: {
-      field: 'photoNote',
-      type: 'photo',
-      title: '\u0424\u043e\u0442\u043e',
-      error: '\u0414\u043e\u0431\u0430\u0432\u044c\u0442\u0435 \u043e\u043f\u0438\u0441\u0430\u043d\u0438\u0435 \u0444\u043e\u0442\u043e \u0438\u043b\u0438 \u0441\u0441\u044b\u043b\u043a\u0443',
     },
     contamination: {
       field: 'contaminationNote',
@@ -154,6 +131,12 @@ export function getIntroActionConfig(actionType) {
       type: 'problem',
       title: '\u041f\u0440\u043e\u0431\u043b\u0435\u043c\u0430',
       error: '\u0423\u043a\u0430\u0436\u0438\u0442\u0435 \u0445\u043e\u0442\u044f \u0431\u044b \u043e\u0434\u0438\u043d \u043f\u0430\u0440\u0430\u043c\u0435\u0442\u0440 \u043f\u0440\u043e\u0431\u043b\u0435\u043c\u044b',
+    },
+    problemRecovery: {
+      field: 'recoveredQuantity',
+      type: 'problemRecovery',
+      title: '\u0412\u044b\u0437\u0434\u043e\u0440\u043e\u0432\u043b\u0435\u043d\u0438\u0435',
+      error: '\u0423\u043a\u0430\u0436\u0438\u0442\u0435 \u043a\u043e\u043b\u0438\u0447\u0435\u0441\u0442\u0432\u043e \u0432\u044b\u0437\u0434\u043e\u0440\u043e\u0432\u0435\u0432\u0448\u0438\u0445',
     },
   };
 

@@ -21,7 +21,11 @@ import SelectBottomSheet from '../components/SelectBottomSheet';
 import { CalendarIcon, ChevronDownIcon, LeaveIcon } from '../components/icons';
 import { INTRO_STAGE } from '../domain/constants';
 import { formatDisplayDate } from '../domain/dates';
-import { getCardCurrentQuantity, getCardDisplayName } from '../domain/batch';
+import {
+  formatProblemAwareQuantityDisplay,
+  getCardActiveProblemQuantity,
+  getCardDisplayName,
+} from '../domain/batch';
 import { isRenderablePhotoUri } from '../domain/photoUri';
 
 const introActionCommands = [
@@ -53,14 +57,22 @@ export default function IntroActionFormScreen({
   const [isProblemTypeDropdownOpen, setIsProblemTypeDropdownOpen] = useState(false);
   const [isRiskDropdownOpen, setIsRiskDropdownOpen] = useState(false);
   const seenAlertRef = useRef('');
+  const activeProblemQuantity = getCardActiveProblemQuantity(selectedCard);
+  const canRecordProblemRecovery = activeProblemQuantity > 0 || actionType === 'problemRecovery';
+  const displayedActionCommands = canRecordProblemRecovery
+    ? introActionCommands.flatMap((item) => (
+      item[0] === 'problem'
+        ? [item, ['problemRecovery', 'Выздоровление']]
+        : [item]
+    ))
+    : introActionCommands;
   const selectedActionLabel =
-    introActionCommands.find(([value]) => value === actionType)?.[1] ||
+    displayedActionCommands.find(([value]) => value === actionType)?.[1] ||
     {
       contamination: 'Контаминация',
       quarantine: 'Карантин',
     }[actionType] ||
     'Запись';
-  const isPhotoAction = actionType === 'photo';
   const photoUris = (
     Array.isArray(actionForm.photoUris) && actionForm.photoUris.length > 0
       ? actionForm.photoUris
@@ -132,7 +144,7 @@ export default function IntroActionFormScreen({
                 <View style={styles.cardsMetaItem}>
                   <LeaveIcon color="#15863F" size={16} />
                   <Text style={styles.cardsMetaText}>
-                    {getCardCurrentQuantity(selectedCard)} шт.
+                    {formatProblemAwareQuantityDisplay(selectedCard)}
                   </Text>
                 </View>
               </View>
@@ -142,7 +154,7 @@ export default function IntroActionFormScreen({
               <View style={localStyles.actionTabsWrap}>
                 <StatusFilterTabs
                   activeValue={actionType}
-                  items={introActionCommands}
+                  items={displayedActionCommands}
                   onChange={onSelectActionType}
                 />
               </View>
@@ -161,18 +173,6 @@ export default function IntroActionFormScreen({
                   <Text style={styles.editActionTitle}>{selectedActionLabel}</Text>
                 )}
 
-                {isPhotoAction && (
-                  <View style={localStyles.commentField}>
-                    <TextInput
-                      multiline
-                      onChangeText={(value) => onChangeActionForm('photoNote', value)}
-                      placeholder="Комментарий"
-                      placeholderTextColor="#7C8A80"
-                      style={[styles.input, styles.multilineInput]}
-                      value={actionForm.photoNote}
-                    />
-                  </View>
-                )}
                 {actionType === 'problem' && (
                   <>
                     <View style={styles.field}>
@@ -237,6 +237,24 @@ export default function IntroActionFormScreen({
                       />
                     </View>
 
+                    <View style={styles.field}>
+                      <Text style={styles.label}>Количество растений с проблемой, шт. *</Text>
+                      <TextInput
+                        inputMode="numeric"
+                        keyboardType="numeric"
+                        onChangeText={(value) => onChangeActionForm('affectedQuantity', value)}
+                        placeholder="0"
+                        placeholderTextColor="#7C8A80"
+                        style={styles.input}
+                        value={actionForm.affectedQuantity}
+                      />
+                      <Text style={localStyles.fieldHint}>
+                        {activeProblemQuantity > 0
+                          ? `Сейчас с проблемой: ${activeProblemQuantity} шт. Действие «Выздоровление» доступно вверху формы.`
+                          : 'После сохранения проблемы появится действие «Выздоровление».'}
+                      </Text>
+                    </View>
+
                     <View style={localStyles.commentField}>
                       <TextInput
                         multiline
@@ -248,6 +266,68 @@ export default function IntroActionFormScreen({
                       />
                     </View>
 
+                  </>
+                )}
+                {actionType === 'problemRecovery' && (
+                  <>
+                    <View style={styles.field}>
+                      <Text style={styles.label}>Количество выздоровевших, шт. *</Text>
+                      <TextInput
+                        inputMode="numeric"
+                        keyboardType="numeric"
+                        onChangeText={(value) => onChangeActionForm('recoveredQuantity', value)}
+                        placeholder="0"
+                        placeholderTextColor="#7C8A80"
+                        style={styles.input}
+                        value={actionForm.recoveredQuantity}
+                      />
+                      <Text style={localStyles.fieldHint}>
+                        Сейчас с проблемой: {activeProblemQuantity} шт.
+                      </Text>
+                    </View>
+
+                    <View style={styles.field}>
+                      <Pressable
+                        accessibilityRole="button"
+                        onPress={() => setIsRiskDropdownOpen((current) => !current)}
+                        style={({ pressed }) => [
+                          styles.selectButton,
+                          pressed && styles.linkButtonPressed,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.selectButtonText,
+                            !actionForm.riskLevel && styles.selectPlaceholder,
+                          ]}
+                        >
+                          {actionForm.riskLevel || 'Выберите уровень риска после выздоровления'}
+                        </Text>
+                        <View style={styles.selectButtonArrow}>
+                          <ChevronDownIcon />
+                        </View>
+                      </Pressable>
+
+                      <SelectBottomSheet
+                        onClose={() => setIsRiskDropdownOpen(false)}
+                        onSelect={selectRiskLevel}
+                        options={riskLevelOptions}
+                        title="Выберите уровень риска"
+                        visible={isRiskDropdownOpen}
+                      />
+                    </View>
+
+                    <View style={styles.field}>
+                      <Text style={styles.label}>Комментарий</Text>
+                      <TextInput
+                        multiline
+                        onChangeText={(value) => onChangeActionForm('comment', value)}
+                        placeholder="Комментарий"
+                        placeholderTextColor="#7C8A80"
+                        style={[styles.input, styles.multilineInput]}
+                        value={actionForm.comment}
+                      />
+                    </View>
                   </>
                 )}
                 {actionType === 'contamination' && (
@@ -434,6 +514,11 @@ const localStyles = {
   },
   photoField: {
     gap: 12,
+  },
+  fieldHint: {
+    color: '#65756B',
+    fontSize: 12,
+    lineHeight: 16,
   },
   footer: {
     paddingBottom: 16,

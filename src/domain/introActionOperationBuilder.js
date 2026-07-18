@@ -17,10 +17,12 @@ export function buildIntroActionOperation({
   movementDetails,
   problemType,
   riskLevel,
+  affectedQuantity,
+  recoveredQuantity,
   problemDescription,
   comment,
-  photoNote,
   currentQuantity,
+  activeProblemQuantityBefore,
 }) {
   const normalizedPhotoUris = Array.isArray(photoUris) && photoUris.length > 0
     ? photoUris.filter(Boolean)
@@ -58,9 +60,30 @@ export function buildIntroActionOperation({
       date: selectedCalendarDate,
       problemType: problemType || '',
       riskLevel: riskLevel || '',
+      affectedQuantity: Number(affectedQuantity) || 0,
+      currentQuantity: Number(currentQuantity) || 0,
       problemDescription: problemDescription || '',
       comment: comment || '',
-      photoNote: photoNote || '',
+      ...(normalizedPhotoUris[0] ? { photoUri: normalizedPhotoUris[0] } : {}),
+      ...(normalizedPhotoUris.length ? { photoUris: normalizedPhotoUris } : {}),
+      createdAt: editedOperation?.createdAt || nowIso,
+      createdBy: editedOperation?.createdBy || userId,
+      ...(editingOperationId ? { updatedAt: nowIso, updatedBy: userId } : {}),
+    };
+  }
+
+  if (actionConfig.type === 'problemRecovery') {
+    return {
+      id: editingOperationId || `${actionConfig.type}-${Date.now()}`,
+      type: actionConfig.type,
+      title: actionConfig.title,
+      stage: selectedStage || INTRO_STAGE,
+      date: selectedCalendarDate,
+      recoveredQuantity: Number(recoveredQuantity) || 0,
+      activeProblemQuantityBefore: Number(activeProblemQuantityBefore) || 0,
+      currentQuantity: Number(currentQuantity) || 0,
+      riskLevel: riskLevel || '',
+      comment: comment || '',
       ...(normalizedPhotoUris[0] ? { photoUri: normalizedPhotoUris[0] } : {}),
       ...(normalizedPhotoUris.length ? { photoUris: normalizedPhotoUris } : {}),
       createdAt: editedOperation?.createdAt || nowIso,

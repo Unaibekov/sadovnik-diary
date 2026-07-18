@@ -6,10 +6,8 @@ export function getStatusBaseValidationError({
   count,
   introActionType,
   currentQuantity,
+  healthyQuantity,
   reason,
-  canReleaseQuarantine,
-  isEditingOperation,
-  batchStatus,
 }) {
   if (eventConfig.countField && !isPositiveInteger(count)) {
     return 'invalid_count';
@@ -22,18 +20,16 @@ export function getStatusBaseValidationError({
     return 'count_gt_current';
   }
 
-  if (eventConfig.requiresReason && !reason.trim()) {
-    return 'missing_reason';
+  if (
+    introActionType === 'sale' &&
+    Number.isFinite(Number(healthyQuantity)) &&
+    Number(count) > Number(healthyQuantity)
+  ) {
+    return 'count_gt_healthy';
   }
 
-  if (introActionType === 'quarantineReleased') {
-    if (!canReleaseQuarantine) {
-      return 'release_forbidden';
-    }
-
-    if (!isEditingOperation && (batchStatus || 'active') !== 'quarantine') {
-      return 'not_in_quarantine';
-    }
+  if (eventConfig.requiresReason && !reason.trim()) {
+    return 'missing_reason';
   }
 
   return '';

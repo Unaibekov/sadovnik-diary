@@ -7,7 +7,6 @@ export function buildStatusFormFromOperation(operation, countField) {
     reason: operation.reason || operation.quarantineReason || '',
     lossReason: operation.lossReason || operation.reason || '',
     comment: getStatusFormComment(operation),
-    photoNote: operation.photoNote || '',
     photoUri: operation.photoUri || '',
     photoUris: Array.isArray(operation.photoUris) && operation.photoUris.length > 0
       ? operation.photoUris.filter(Boolean)
@@ -52,6 +51,8 @@ export function buildStatusFormFromOperation(operation, countField) {
     movementComment: operation.comment || '',
     lossCount: operation.count || '',
     problemType: operation.problemType || '',
+    affectedQuantity: operation.affectedQuantity || '',
+    recoveredQuantity: operation.recoveredQuantity || '',
     problemDescription: operation.problemDescription || '',
     plantingLocation: operation.plantingLocation || '',
     plantingScheme: operation.plantingScheme || '',

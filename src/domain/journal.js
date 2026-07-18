@@ -22,13 +22,11 @@ const MAIN_FILTERS = new Set([
 const SUB_FILTER_LABELS = {
   all: 'Все',
   comment: 'Комментарии',
-  photo: 'Фото',
   contamination: 'Контаминация',
   quarantine: 'Карантин',
   problems: 'Проблемы',
   risks: 'Риски',
   losses: 'Потери',
-  disease: 'Болезни',
   sales: 'Продажи',
   planting: 'Высадка',
   completion: 'Завершение',
@@ -38,7 +36,6 @@ const SUB_FILTER_LABELS = {
   stageChange: 'Переходы',
   movement: 'Перемещения',
   observation: 'Наблюдения',
-  environment: 'Среда',
   care: 'Уход',
 };
 
@@ -76,10 +73,6 @@ function matchesImportantRisk(event) {
 
   if (event.type === 'plantingCompletion') {
     return ['Не прижилась', 'Частично прижилась'].includes(event.completionResult);
-  }
-
-  if (event.type === 'greenhouseDisease') {
-    return true;
   }
 
   return false;
@@ -134,7 +127,7 @@ export function getOperationEffectiveStage(operation, card) {
     return operation.toStage || card.stage || INTRO_STAGE;
   }
 
-  if (['batchCreated', 'qrGenerated', 'comment', 'photo', 'contamination', 'introLoss'].includes(operation.type)) {
+  if (['batchCreated', 'qrGenerated', 'comment', 'contamination', 'introLoss'].includes(operation.type)) {
     return INTRO_STAGE;
   }
 
@@ -144,8 +137,6 @@ export function getOperationEffectiveStage(operation, card) {
 
   if ([
     'adaptationStress',
-    'adaptationEnvironment',
-    'adaptationHumidityReduction',
     'adaptationCare',
   ].includes(operation.type)) {
     return stages[2];
@@ -154,8 +145,6 @@ export function getOperationEffectiveStage(operation, card) {
   if ([
     'greenhouseObservation',
     'greenhouseCare',
-    'greenhouseEnvironment',
-    'greenhouseDisease',
     'transplant',
   ].includes(operation.type)) {
     return stages[3];
@@ -259,7 +248,6 @@ export function isImportantJournalEvent(event) {
   return [
     'contamination',
     'quarantine',
-    'quarantineReleased',
     'problem',
     'death',
     'discard',
@@ -316,13 +304,11 @@ export function doesJournalEventMatchSubFilter(event, subFilter, mainFilter = 'a
 
   const typeMatches = {
     comment: event.type === 'comment',
-    photo: event.type === 'photo',
     contamination: event.type === 'contamination',
-    quarantine: ['quarantine', 'quarantineReleased'].includes(event.type),
-    problems: ['problem', 'contamination', 'quarantine', 'quarantineReleased', 'greenhouseDisease'].includes(event.type),
+    quarantine: event.type === 'quarantine',
+    problems: ['problem', 'problemRecovery', 'contamination', 'quarantine'].includes(event.type),
     risks: matchesImportantRisk(event),
     losses: ['death', 'discard', 'introLoss'].includes(event.type),
-    disease: event.type === 'greenhouseDisease',
     sales: event.type === 'sale',
     planting: ['planting', 'plantingObservation', 'plantingCare'].includes(event.type),
     completion: event.type === 'plantingCompletion',
@@ -332,7 +318,6 @@ export function doesJournalEventMatchSubFilter(event, subFilter, mainFilter = 'a
     stageChange: event.type === 'stageChange',
     movement: event.type === 'movement',
     observation: ['adaptationStress', 'greenhouseObservation', 'hardeningObservation', 'plantingObservation'].includes(event.type),
-    environment: ['adaptationEnvironment', 'adaptationHumidityReduction', 'greenhouseEnvironment'].includes(event.type),
     care: ['adaptationCare', 'greenhouseCare', 'hardeningCare', 'plantingCare'].includes(event.type),
   };
 

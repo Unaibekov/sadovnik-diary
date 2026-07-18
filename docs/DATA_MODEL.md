@@ -30,7 +30,6 @@
 - `sourceMaterial`
 - `parentBatch`
 - `locationDescription`
-- `startPhotoNote`
 - `startPhotoUri`
 - `startPhotoUris`
 - `cancelledAt`
@@ -71,7 +70,6 @@
 - `updatedAt`
 - `updatedBy`
 - `comment`
-- `photoNote`
 - `photoUri`
 - `photoUris`
 - `count`
@@ -86,15 +84,11 @@
 - `introLoss`: `reason`, `lossReason`
 - `sale`: `saleType`, `recipient`, `saleAmount`
 - `propagation`: `propagationMethod`
-- `quarantine` / `quarantineReleased`: `reason`, `quarantineReason`
+- `quarantine`: `reason`, `quarantineReason`
 - `adaptationStress`: `stressLevel`, `turgor`, `stability`, `environment*`
-- `adaptationEnvironment`: `environmentTemperature`, `environmentAirHumidity`, `substrateHumidity`, `environmentLight`, `ventilation`, `humidityReduction`, `turgor`, `stability`
-- `adaptationHumidityReduction`: `environmentAirHumidity`, `substrateHumidity`, `humidityReduction`, `turgor`, `stability`
 - `adaptationCare`: `careType`
 - `greenhouseObservation`: `growthRate`, `stressLevel`, `stability`, `riskLevel`, `conditionDescription`
 - `greenhouseCare`: `careType`, `careIntervalDays`, `wateringIntervalDays`, `waterVolume`, `productName`, `dosage`, `applicationMethod`, `plantReaction`, `riskLevel`
-- `greenhouseEnvironment`: `environmentTemperature`, `environmentAirHumidity`, `environmentLight`, `ventilation`, `placement`, `densityChange`, `growthRate`, `stability`, `riskLevel`
-- `greenhouseDisease`: `diseaseName`, `pestName`, `diseaseSeverity`, `riskLevel`, `productName`, `dosage`, `applicationMethod`, `plantReaction`
 - `hardeningObservation`: `stressLevel`, `turgor`, `readinessForPlanting`
 - `hardeningCare`: `careType`, `productName`, `dosage`, `applicationMethod`, `plantReaction`
 - `planting`: `plantingLocation`, `plantingScheme`, `plotArea`, `soilType`
@@ -102,7 +96,8 @@
 - `plantingCare`: `careType`, `productName`, `dosage`, `applicationMethod`, `plantReaction`
 - `plantingCompletion`: `completionResult`
 - `movement`: `previousLocation`, `nextLocation`, `greenhouseName`, `rackName`, `shelfName`
-- `problem`: `problemType`, `riskLevel`, `problemDescription`
+- `problem`: `problemType`, `riskLevel`, `affectedQuantity`, `problemDescription`
+- `problemRecovery`: `recoveredQuantity`, `riskLevel`
 
 ### Связи
 - Прикреплен к одной карточке.
@@ -195,10 +190,11 @@
 - `createdAt`
 - `createdBy`
 - `comment`
-- `photoNote`
 - `photoFiles`
 - `problemType`
 - `riskLevel`
+- `affectedQuantity`
+- `recoveredQuantity`
 - `count`
 - `previousQuantity`
 - `currentQuantity`

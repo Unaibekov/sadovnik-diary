@@ -21,9 +21,30 @@ export function buildOperationEditState({
         ...createEmptyIntroActionForm(),
         problemType: operation.problemType || '',
         riskLevel: operation.riskLevel || '',
+        affectedQuantity: operation.affectedQuantity || '',
         problemDescription: operation.problemDescription || '',
         comment: operation.comment || '',
-        photoNote: operation.photoNote || '',
+        photoUri: operation.photoUri || '',
+        photoUris: Array.isArray(operation.photoUris) && operation.photoUris.length > 0
+          ? operation.photoUris.filter(Boolean)
+          : operation.photoUri
+            ? [operation.photoUri]
+            : [],
+      },
+      isDateEntryExpanded: true,
+      cultureCalendarTab: 'calendar',
+      currentScreen: 'introActionForm',
+    };
+  }
+
+  if (selectedCardStage === INTRO_STAGE && operation.type === 'problemRecovery') {
+    return {
+      introActionType: operation.type,
+      introActionForm: {
+        ...createEmptyIntroActionForm(),
+        recoveredQuantity: operation.recoveredQuantity || '',
+        riskLevel: operation.riskLevel || '',
+        comment: operation.comment || '',
         photoUri: operation.photoUri || '',
         photoUris: Array.isArray(operation.photoUris) && operation.photoUris.length > 0
           ? operation.photoUris.filter(Boolean)

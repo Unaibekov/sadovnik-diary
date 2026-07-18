@@ -49,10 +49,6 @@ export function getRecommendationStage(
   return recommendationsContext?.stage || selectedCard?.stage || selectedStage;
 }
 
-export function canReleaseQuarantineForRole(userRole) {
-  return ['agronomist', 'admin', 'superadmin'].includes(userRole);
-}
-
 export function isSelectedCardActionLocked(selectedCard) {
   return (
     selectedCard?.batchStatus === 'quarantine' ||

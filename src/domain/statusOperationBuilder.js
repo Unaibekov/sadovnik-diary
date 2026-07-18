@@ -1,4 +1,5 @@
 // Построение операции изменения статуса.
+import { getCardActiveProblemQuantity } from './batch';
 export function buildStatusOperation({
   editingOperationId,
   introActionType,
@@ -74,10 +75,11 @@ export function buildStatusOperation({
     ...(introActionType === 'propagation'
       ? { currentQuantity: currentQuantity + Number(count) }
       : {}),
-    comment: introActionType === 'movement'
-      ? statusForm.movementComment.trim()
-      : statusForm.comment.trim(),
-    photoNote: statusForm.photoNote.trim(),
+    comment: introActionType === 'introLoss'
+      ? ''
+      : introActionType === 'movement'
+        ? statusForm.movementComment.trim()
+        : statusForm.comment.trim(),
     ...(normalizedPhotoUris[0] ? { photoUri: normalizedPhotoUris[0] } : {}),
     ...(normalizedPhotoUris.length ? { photoUris: normalizedPhotoUris } : {}),
     ...(['death', 'discard'].includes(introActionType)
@@ -88,9 +90,6 @@ export function buildStatusOperation({
       : {}),
     ...(introActionType === 'quarantine'
       ? { quarantineReason: statusForm.reason.trim() }
-      : {}),
-    ...(introActionType === 'quarantineReleased'
-      ? { reason: statusForm.reason.trim() }
       : {}),
     ...(introActionType === 'sale'
       ? {
@@ -119,27 +118,6 @@ export function buildStatusOperation({
             ventilation: editedOperation?.ventilation?.trim() || statusForm.ventilation.trim(),
           }
           : {}),
-      }
-      : {}),
-    ...(introActionType === 'adaptationEnvironment'
-      ? {
-        environmentTemperature: statusForm.environmentTemperature.trim(),
-        environmentAirHumidity: statusForm.environmentAirHumidity.trim() || statusForm.environmentHumidity.trim(),
-        substrateHumidity: statusForm.substrateHumidity.trim(),
-        environmentLight: statusForm.environmentLight.trim(),
-        ventilation: statusForm.ventilation.trim(),
-        humidityReduction: statusForm.humidityReduction.trim(),
-        turgor: statusForm.turgor.trim(),
-        stability: statusForm.stability.trim(),
-      }
-      : {}),
-    ...(introActionType === 'adaptationHumidityReduction'
-      ? {
-        environmentAirHumidity: statusForm.environmentAirHumidity.trim() || statusForm.environmentHumidity.trim(),
-        substrateHumidity: statusForm.substrateHumidity.trim(),
-        humidityReduction: statusForm.humidityReduction.trim(),
-        turgor: statusForm.turgor.trim(),
-        stability: statusForm.stability.trim(),
       }
       : {}),
     ...(introActionType === 'adaptationCare'
@@ -212,38 +190,22 @@ export function buildStatusOperation({
         riskLevel: statusForm.riskLevel.trim(),
       }
       : {}),
-    ...(introActionType === 'greenhouseEnvironment'
-      ? {
-        environmentTemperature: statusForm.environmentTemperature.trim(),
-        environmentAirHumidity: statusForm.environmentAirHumidity.trim() || statusForm.environmentHumidity.trim(),
-        environmentLight: statusForm.environmentLight.trim(),
-        ventilation: statusForm.ventilation.trim(),
-        placement: statusForm.placement.trim(),
-        densityChange: statusForm.densityChange.trim(),
-        growthRate: statusForm.growthRate.trim(),
-        stability: statusForm.stability.trim(),
-        riskLevel: statusForm.riskLevel.trim(),
-      }
-      : {}),
-    ...(introActionType === 'greenhouseDisease'
-      ? {
-        diseaseName: statusForm.diseaseName.trim(),
-        pestName: statusForm.pestName.trim(),
-        diseaseSeverity: statusForm.diseaseSeverity.trim(),
-        riskLevel: statusForm.riskLevel.trim(),
-        productName: statusForm.productName.trim(),
-        dosage: statusForm.dosage.trim(),
-        applicationMethod: statusForm.applicationMethod.trim(),
-        plantReaction: statusForm.plantReaction.trim(),
-      }
-      : {}),
     ...(introActionType === 'problem'
       ? {
         problemType: statusForm.problemType.trim(),
         riskLevel: statusForm.riskLevel.trim(),
+        affectedQuantity: Number(statusForm.affectedQuantity) || 0,
+        currentQuantity,
         problemDescription: statusForm.problemDescription.trim(),
         comment: statusForm.comment.trim(),
-        photoNote: statusForm.photoNote.trim(),
+      }
+      : {}),
+    ...(introActionType === 'problemRecovery'
+      ? {
+        recoveredQuantity: Number(statusForm.recoveredQuantity) || 0,
+        activeProblemQuantityBefore: getCardActiveProblemQuantity(selectedCard),
+        currentQuantity,
+        riskLevel: statusForm.riskLevel.trim(),
       }
       : {}),
     ...(introActionType === 'movement'

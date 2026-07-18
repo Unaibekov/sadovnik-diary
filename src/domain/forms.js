@@ -15,7 +15,6 @@ export function createEmptyCultureForm() {
     locationDescription: '',
     parentBatch: '',
     sterilityStatus: 'unchecked',
-    startPhotoNote: '',
     startPhotoUri: '',
     startPhotoUris: [],
     batchStatus: '',
@@ -35,7 +34,6 @@ export function createEmptyStatusForm() {
     reason: '',
     lossReason: '',
     comment: '',
-    photoNote: '',
     photoUri: '',
     photoUris: [],
     saleType: '',
@@ -75,6 +73,8 @@ export function createEmptyStatusForm() {
     shelfName: '',
     movementComment: '',
     problemType: '',
+    affectedQuantity: '',
+    recoveredQuantity: '',
     problemDescription: '',
     plantingLocation: '',
     plantingScheme: '',
@@ -87,7 +87,6 @@ export function createEmptyStatusForm() {
 export function createEmptyIntroActionForm() {
   return {
     comment: '',
-    photoNote: '',
     photoUri: '',
     photoUris: [],
     contaminationNote: '',
@@ -102,6 +101,8 @@ export function createEmptyIntroActionForm() {
     deathReason: '',
     problemType: '',
     riskLevel: '',
+    affectedQuantity: '',
+    recoveredQuantity: '',
     problemDescription: '',
   };
 }

@@ -4,7 +4,14 @@ import appStyles from '../../styles';
 import { DownloadSquareIcon } from './icons';
 import { BATCH_STATUS_LABELS, INTRO_STAGE, QR_STATUS_LABELS, stages } from '../domain/constants';
 import { formatDisplayDate } from '../domain/dates';
-import { formatQuantityDisplay, getCardLocationDescription, getQrStatus } from '../domain/batch';
+import {
+  formatQuantityDisplay,
+  getCardActiveProblemQuantity,
+  getCardHealthyQuantity,
+  getCardLocationDescription,
+  getIntroStats,
+  getQrStatus,
+} from '../domain/batch';
 
 export default function CulturePassportTab({
   adaptationStats,
@@ -28,7 +35,10 @@ export default function CulturePassportTab({
     riskStatus: 'Нормальный',
     survivalRate: 'Не указана',
   };
+  const introStats = getIntroStats(card);
   const batchStatus = getResolvedBatchStatus(card);
+  const activeProblemQuantity = getCardActiveProblemQuantity(card);
+  const healthyQuantity = getCardHealthyQuantity(card);
   const batchStatusLabel = batchStatus === 'active'
     ? 'Без отклонений'
     : (BATCH_STATUS_LABELS[batchStatus] || batchStatus || 'Не указан');
@@ -41,6 +51,12 @@ export default function CulturePassportTab({
           <Text style={styles.passportLabel}>Статус партии</Text>
           <Text style={styles.passportValue}>{batchStatusLabel}</Text>
         </View>
+        {card.stage === INTRO_STAGE && (
+          <View style={styles.passportRow}>
+            <Text style={styles.passportLabel}>Статус риска</Text>
+            <Text style={styles.passportValue}>{introStats.riskStatus}</Text>
+          </View>
+        )}
         {card.stage === 'Клонирование' && (
           <View style={styles.passportRow}>
             <Text style={styles.passportLabel}>Статус риска</Text>
@@ -66,11 +82,23 @@ export default function CulturePassportTab({
           </View>
         )}
         <View style={styles.passportRow}>
-          <Text style={styles.passportLabel}>Остаток</Text>
+          <Text style={styles.passportLabel}>Общий остаток</Text>
           <Text style={styles.passportValue}>
             {formatQuantityDisplay(currentQuantity, card.quantity)}
           </Text>
         </View>
+        {activeProblemQuantity > 0 && (
+          <>
+            <View style={styles.passportRow}>
+              <Text style={styles.passportLabel}>Здоровые</Text>
+              <Text style={styles.passportValue}>{healthyQuantity} шт.</Text>
+            </View>
+            <View style={styles.passportRow}>
+              <Text style={styles.passportLabel}>С активной проблемой</Text>
+              <Text style={styles.passportValue}>{activeProblemQuantity} шт.</Text>
+            </View>
+          </>
+        )}
         {card.stage === 'Клонирование' && (
           <>
             <View style={styles.passportRow}>

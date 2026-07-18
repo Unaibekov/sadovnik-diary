@@ -1,5 +1,6 @@
 // Преобразование карточки после ввода стартового действия.
 import { getProblemBatchStatus } from './statusProblemValidation';
+import { buildProblemQuantityPatch, getCardCurrentQuantity } from './batch';
 
 export function buildIntroActionUpdatedCard(card, {
   editingOperationId,
@@ -18,7 +19,7 @@ export function buildIntroActionUpdatedCard(card, {
   const currentBatchStatus = card.batchStatus || 'active';
   const problemBatchStatus = getProblemBatchStatus(nextOperation.problemType, nextOperation.riskLevel);
 
-  return {
+  const nextCard = {
     ...card,
     batchStatus: currentBatchStatus === 'quarantine'
       ? 'quarantine'
@@ -32,5 +33,19 @@ export function buildIntroActionUpdatedCard(card, {
       ? { locationDescription: nextOperation.nextLocation || '' }
       : {}),
     operations: nextOperations,
+  };
+  const problemQuantityPatch = buildProblemQuantityPatch(nextCard);
+  const finalBatchStatus = nextCard.batchStatus === 'problem' &&
+    problemQuantityPatch.activeProblemQuantity <= 0 &&
+    !hasContamination
+    ? getCardCurrentQuantity(nextCard) < Number(card.quantity || 0)
+      ? 'partial'
+      : 'active'
+    : nextCard.batchStatus;
+
+  return {
+    ...nextCard,
+    ...problemQuantityPatch,
+    batchStatus: finalBatchStatus,
   };
 }

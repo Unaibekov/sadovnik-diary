@@ -4,34 +4,10 @@ export function getAdaptationValidationError(introActionType, statusForm) {
     statusForm.stressLevel,
     statusForm.turgor,
     statusForm.comment,
-    statusForm.photoNote,
     statusForm.photoUri,
     ...(Array.isArray(statusForm.photoUris) ? statusForm.photoUris : []),
   ].some((value) => value.trim())) {
     return 'adaptation_stress_missing';
-  }
-
-  if (introActionType === 'adaptationEnvironment' && ![
-    statusForm.environmentTemperature,
-    statusForm.environmentAirHumidity,
-    statusForm.environmentHumidity,
-    statusForm.substrateHumidity,
-    statusForm.environmentLight,
-    statusForm.ventilation,
-    statusForm.humidityReduction,
-  ].some((value) => value.trim())) {
-    return 'adaptation_environment_missing';
-  }
-
-  if (introActionType === 'adaptationHumidityReduction' && ![
-    statusForm.environmentAirHumidity,
-    statusForm.environmentHumidity,
-    statusForm.substrateHumidity,
-    statusForm.humidityReduction,
-    statusForm.turgor,
-    statusForm.stability,
-  ].some((value) => value.trim())) {
-    return 'adaptation_humidity_reduction_missing';
   }
 
   if (introActionType === 'adaptationCare' && !statusForm.careType.trim()) {
@@ -47,7 +23,6 @@ export function getHardeningValidationError(introActionType, statusForm) {
     statusForm.turgor,
     statusForm.readinessForPlanting,
     statusForm.comment,
-    statusForm.photoNote,
     statusForm.photoUri,
     ...(Array.isArray(statusForm.photoUris) ? statusForm.photoUris : []),
   ].some((value) => `${value || ''}`.trim())) {
@@ -68,7 +43,6 @@ export function getPlantingValidationError(introActionType, statusForm) {
     statusForm.plotArea,
     statusForm.soilType,
     statusForm.comment,
-    statusForm.photoNote,
     statusForm.photoUri,
     ...(Array.isArray(statusForm.photoUris) ? statusForm.photoUris : []),
   ].some((value) => `${value || ''}`.trim())) {
@@ -80,7 +54,6 @@ export function getPlantingValidationError(introActionType, statusForm) {
     statusForm.stressLevel,
     statusForm.turgor,
     statusForm.comment,
-    statusForm.photoNote,
     statusForm.photoUri,
     ...(Array.isArray(statusForm.photoUris) ? statusForm.photoUris : []),
   ].some((value) => `${value || ''}`.trim())) {

@@ -118,10 +118,11 @@
 - `createdAt`
 - `createdBy`
 - `comment`
-- `photoNote`
 - `photoFiles`
 - `problemType`
 - `riskLevel`
+- `affectedQuantity`
+- `recoveredQuantity`
 - `count`
 - `previousQuantity`
 - `currentQuantity`

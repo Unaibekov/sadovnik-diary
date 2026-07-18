@@ -9,7 +9,6 @@ import { InfoIcon, LeaveIcon, LogoElementIcon, TimeIcon } from '../components/ic
 import StatusFilterTabs from '../components/StatusFilterTabs';
 import {
   getAdaptationStats,
-  getCardCurrentQuantity,
   getCardDisplayName,
   getCloneStats,
   getDaysInCurrentStage,
@@ -18,7 +17,7 @@ import {
   getIntroStats,
   getPlantingStats,
   getQrStatus,
-  formatQuantityDisplay,
+  formatProblemAwareQuantityDisplay,
 } from '../domain/batch';
 import { hasProblemOperation } from '../domain/statusProblemValidation';
 import { getStageStatusFilterItems } from '../domain/cultureSelectors';
@@ -203,7 +202,7 @@ export default function CultureListScreen({
                 (isHardeningStage && hardeningStats.riskStatus === 'Критический') ||
                 (isPlantingStage && plantingStats.riskStatus === 'Критический')
               );
-              const isProblemStatus = hasProblemOperation(card) || batchStatus === 'problem' || isCriticalLossRisk;
+              const isProblemStatus = hasProblemOperation(card) || batchStatus === 'problem';
               const problemStatusMeta = isContaminated
                 ? [{
                   key: 'contamination',
@@ -232,7 +231,7 @@ export default function CultureListScreen({
                 {
                   key: 'quantity',
                   icon: <LeaveIcon color="#15863F" size={16} />,
-                  value: formatQuantityDisplay(getCardCurrentQuantity(card), card.quantity),
+                  value: formatProblemAwareQuantityDisplay(card),
                 },
                 {
                   key: 'days',
@@ -244,7 +243,7 @@ export default function CultureListScreen({
                 {
                   key: 'quantity',
                   icon: <LeaveIcon color="#15863F" size={16} />,
-                  value: formatQuantityDisplay(getCardCurrentQuantity(card), card.quantity),
+                  value: formatProblemAwareQuantityDisplay(card),
                 },
                 {
                   key: 'days',
@@ -254,6 +253,14 @@ export default function CultureListScreen({
               ];
               const introStatuses = [
                 ...baseStatuses,
+                ...(isCultureIntroStage && introStats.riskStatus !== 'Нормальный'
+                  ? [{
+                    key: 'intro-risk',
+                    icon: <InfoIcon color="#D92D20" size={14} />,
+                    text: `Риск: ${introStats.riskStatus}`,
+                    textStyle: { color: '#D92D20' },
+                  }]
+                  : []),
                 ...(cardDaysInStage >= 14 && !problemStatusMeta.length
                   ? [{
                     key: 'stage-ready',
@@ -338,7 +345,7 @@ export default function CultureListScreen({
                 >
                   {hasProblemMarker && (
                     <View
-                      accessibilityLabel={problemStatusMeta[0]?.text || 'Проблема'}
+                      accessibilityLabel={problemStatusMeta[0]?.text || `Риск: ${introStats.riskStatus}`}
                       style={[
                         styles.plantCardStatusDot,
                         styles.plantCardStatusDotProblem,
