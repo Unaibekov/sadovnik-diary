@@ -4,6 +4,7 @@ const AUTH_TEST_LOGIN = 'login';
 const AUTH_TEST_PASSWORD = 'pass';
 const CULTURE_CARDS_STORAGE_KEY = 'sadovnikDiary:cultureCards';
 const CULTURE_CARDS_RESET_KEY = 'sadovnikDiary:cultureCardsReset:2026-05-25-clear-stage-cards';
+const CULTURE_CARDS_STORAGE_SCHEMA_VERSION = 1;
 const INTRO_STAGE = 'Введение в культуру';
 
 function localIsoDate(date = new Date()) {
@@ -78,6 +79,12 @@ async function seedLocalStorage(page) {
   );
 }
 
+async function enterPin(page) {
+  for (const digit of ['1', '2', '3', '4']) {
+    await page.getByRole('button', { name: digit }).click();
+  }
+}
+
 async function login(page) {
   await page.goto('/');
   await page.getByTestId('auth-login-input').fill(AUTH_TEST_LOGIN);
@@ -89,13 +96,8 @@ async function login(page) {
   await page.getByPlaceholder('Фамилия').fill('Тестов');
   await page.getByRole('button', { name: 'Продолжить' }).click();
 
-  for (const digit of ['1', '2', '3', '4']) {
-    await page.getByRole('button', { name: digit }).click();
-  }
-
-  for (const digit of ['1', '2', '3', '4']) {
-    await page.getByRole('button', { name: digit }).click();
-  }
+  await enterPin(page);
+  await enterPin(page);
 
   await expect(page.getByTestId('stage-home-clone')).toBeVisible();
 }
@@ -166,6 +168,43 @@ test('intro stage card is available from the seeded data', async ({ page }) => {
   await expect(page.getByTestId('culture-card').first()).toContainText('Томат');
   await expect(page.getByTestId('culture-card').first()).toContainText('20 растений');
   await expect(page.getByTestId('culture-card').first()).toContainText('QR ожидает печати');
+});
+
+test('legacy culture cards load without the reset marker', async ({ page }) => {
+  const cards = buildSeededCards();
+
+  await page.evaluate(
+    ({ cardsKey, resetKey, seededCards }) => {
+      localStorage.removeItem(resetKey);
+      localStorage.setItem(cardsKey, JSON.stringify(seededCards));
+    },
+    {
+      cardsKey: CULTURE_CARDS_STORAGE_KEY,
+      resetKey: CULTURE_CARDS_RESET_KEY,
+      seededCards: cards,
+    },
+  );
+
+  await page.reload();
+  await expect(page.getByText('Введите пин-код')).toBeVisible();
+  await enterPin(page);
+  await openIntroStage(page);
+  await expect(page.getByTestId('culture-card').first()).toContainText('Томат');
+});
+
+test('saved culture cards use the versioned storage envelope', async ({ page }) => {
+  await openIntroStage(page);
+  await openCurrentCardCalendar(page);
+  await moveToNextStage(page);
+
+  const savedCardsStorageValue = await page.evaluate(
+    (cardsKey) => localStorage.getItem(cardsKey),
+    CULTURE_CARDS_STORAGE_KEY,
+  );
+  const savedCardsStorage = JSON.parse(savedCardsStorageValue);
+
+  expect(savedCardsStorage.schemaVersion).toBe(CULTURE_CARDS_STORAGE_SCHEMA_VERSION);
+  expect(Array.isArray(savedCardsStorage.cards)).toBe(true);
 });
 
 test('full client flow moves one card through all stages and writes records', async ({ page }) => {

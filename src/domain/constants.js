@@ -17,6 +17,8 @@ export const stageMoveTargetLabels = {
 };
 
 export const CULTURE_CARDS_STORAGE_KEY = 'sadovnikDiary:cultureCards';
+export const CULTURE_CARDS_STORAGE_BACKUP_KEY = 'sadovnikDiary:cultureCards:backup';
+export const CULTURE_CARDS_STORAGE_SCHEMA_VERSION = 1;
 export const CULTURE_CARDS_RESET_KEY = 'sadovnikDiary:cultureCardsReset:2026-05-25-clear-stage-cards';
 export const EMPTY_CATALOG_VALUE = 'Отсутствует';
 export const INTRO_STAGE = 'Введение в культуру';
