@@ -12,7 +12,7 @@ import {
 import {
   getCardActiveProblemQuantity,
   getCardHealthyQuantity,
-  getCardRemainingProblemQuantity,
+  getCardUnisolatedProblemQuantity,
 } from './batch';
 
 export const STATUS_DATE_NOT_TODAY_MESSAGE = 'Производственные события можно фиксировать только на текущую дату';
@@ -95,7 +95,7 @@ export function getStatusChangeValidationError({
 
   const isolationValidationError = getProblemIsolationValidationError(introActionType, statusForm, {
     currentQuantity,
-    remainingProblemQuantity: getCardRemainingProblemQuantity(activeCard),
+    unisolatedProblemQuantity: getCardUnisolatedProblemQuantity(activeCard),
   });
 
   if (isolationValidationError) {

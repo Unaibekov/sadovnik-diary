@@ -22,7 +22,7 @@ import {
   createEmptyStatusForm,
 } from "./src/domain/forms";
 import { dateFromIso, getTodayIsoDate } from "./src/domain/dates";
-import { getCardActiveProblemQuantity, getCardDisplayName, getCardRemainingProblemQuantity } from "./src/domain/batch";
+import { getCardActiveProblemQuantity, getCardDisplayName, getCardUnisolatedProblemQuantity } from "./src/domain/batch";
 import {
   editableStatusOperationTypes,
   introOperationFields,
@@ -254,8 +254,8 @@ export default function AppRouter({ actions, state }) {
     function openAddEventFlow(actionDateIso) {
       const selectedStageForAction = selectedCard.stage || INTRO_STAGE;
       const activeProblemQuantity = getCardActiveProblemQuantity(selectedCard);
-      const remainingProblemQuantity = getCardRemainingProblemQuantity(selectedCard);
-      const initialProblemActionType = remainingProblemQuantity > 0
+      const unisolatedProblemQuantity = getCardUnisolatedProblemQuantity(selectedCard);
+      const initialProblemActionType = unisolatedProblemQuantity > 0
         ? "problemIsolation"
         : activeProblemQuantity > 0
           ? "problemRecovery"

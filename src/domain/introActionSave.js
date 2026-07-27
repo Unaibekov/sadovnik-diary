@@ -6,7 +6,7 @@ import { INTRO_STAGE } from './constants';
 import {
   getCardActiveProblemQuantity,
   getCardHealthyQuantity,
-  getCardRemainingProblemQuantity,
+  getCardUnisolatedProblemQuantity,
   getLatestActiveProblemOperation,
   isPositiveInteger,
 } from './batch';
@@ -107,7 +107,7 @@ export function buildIntroActionSaveResult({
 
   const isolationValidationError = getProblemIsolationValidationError(introActionType, introActionForm, {
     currentQuantity,
-    remainingProblemQuantity: getCardRemainingProblemQuantity(cardWithoutEditedOperation),
+    unisolatedProblemQuantity: getCardUnisolatedProblemQuantity(cardWithoutEditedOperation),
   });
   if (isolationValidationError) {
     const isolationErrorMessages = {

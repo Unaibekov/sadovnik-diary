@@ -12,7 +12,7 @@ const {
 const {
   calculateCurrentQuantity,
   getCardActiveProblemQuantity,
-  getCardRemainingProblemQuantity,
+  getCardUnisolatedProblemQuantity,
 } = require('../../src/domain/batch');
 const {
   buildUniquePlantingCode,
@@ -48,7 +48,7 @@ test('problem state removes isolated problem quantity from a parent batch', () =
 
   assert.equal(calculateCurrentQuantity(parentCard), 234);
   assert.equal(getCardActiveProblemQuantity(parentCard), 0);
-  assert.equal(getCardRemainingProblemQuantity(parentCard), 0);
+  assert.equal(getCardUnisolatedProblemQuantity(parentCard), 0);
 });
 
 test('full-batch contamination keeps remaining plants active after partial isolation', () => {
@@ -63,7 +63,7 @@ test('full-batch contamination keeps remaining plants active after partial isola
 
   assert.equal(calculateCurrentQuantity(parentCard), 60);
   assert.equal(getCardActiveProblemQuantity(parentCard), 60);
-  assert.equal(getCardRemainingProblemQuantity(parentCard), 60);
+  assert.equal(getCardUnisolatedProblemQuantity(parentCard), 60);
 });
 
 test('problem journal overrides stale stored active quantity after full recovery', () => {
@@ -158,7 +158,7 @@ test('problem state keeps isolated child marked as problem but without parent is
   });
 
   assert.equal(childState.activeProblemQuantity, 1000);
-  assert.equal(childState.remainingProblemQuantity, 0);
+  assert.equal(childState.unisolatedProblemQuantity, 0);
   assert.equal(childState.batchStatus, 'problem');
   assert.equal(childState.isActive, true);
 });

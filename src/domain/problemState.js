@@ -87,7 +87,7 @@ export function getProblemStateFromOperations(operations = [], {
   const normalizedActiveProblemQuantity = canUseStoredActiveProblemQuantity
     ? Number(activeProblemQuantity)
     : calculatedActiveProblemQuantity;
-  const remainingProblemQuantity = originType === 'problemIsolation'
+  const unisolatedProblemQuantity = originType === 'problemIsolation'
     ? 0
     : normalizedActiveProblemQuantity;
   const isActive = normalizedActiveProblemQuantity > 0;
@@ -114,7 +114,7 @@ export function getProblemStateFromOperations(operations = [], {
     latestProblemOperation,
     problemType: latestProblemOperation?.problemType ||
       (batchStatus === 'quarantine' ? 'Карантин' : batchStatus === 'problem' ? 'Контаминация' : ''),
-    remainingProblemQuantity: Math.max(remainingProblemQuantity, 0),
+    unisolatedProblemQuantity: Math.max(unisolatedProblemQuantity, 0),
     riskLevel: latestRiskLevel || latestProblemOperation?.riskLevel || '',
   };
 }

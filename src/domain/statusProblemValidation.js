@@ -93,7 +93,7 @@ export function getProblemRecoveryValidationError(actionType, form, {
 
 export function getProblemIsolationValidationError(actionType, form, {
   currentQuantity = null,
-  remainingProblemQuantity = null,
+  unisolatedProblemQuantity = null,
 } = {}) {
   if (actionType !== 'problemIsolation') {
     return '';
@@ -103,9 +103,9 @@ export function getProblemIsolationValidationError(actionType, form, {
   const isolationLocation = `${form.isolationLocation || ''}`.trim();
 
   if (
-    remainingProblemQuantity !== null &&
-    Number.isFinite(Number(remainingProblemQuantity)) &&
-    Number(remainingProblemQuantity) === 0
+    unisolatedProblemQuantity !== null &&
+    Number.isFinite(Number(unisolatedProblemQuantity)) &&
+    Number(unisolatedProblemQuantity) === 0
   ) {
     return 'isolation_no_remaining_problem';
   }
@@ -129,9 +129,9 @@ export function getProblemIsolationValidationError(actionType, form, {
   }
 
   if (
-    remainingProblemQuantity !== null &&
-    Number.isFinite(Number(remainingProblemQuantity)) &&
-    Number(isolationQuantityText) > Number(remainingProblemQuantity)
+    unisolatedProblemQuantity !== null &&
+    Number.isFinite(Number(unisolatedProblemQuantity)) &&
+    Number(isolationQuantityText) > Number(unisolatedProblemQuantity)
   ) {
     return 'isolation_quantity_gt_remaining_problem';
   }

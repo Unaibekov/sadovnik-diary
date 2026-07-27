@@ -4,7 +4,7 @@ import {
   getAdaptationStats,
   getCardActiveProblemQuantity,
   getCardCurrentQuantity,
-  getCardRemainingProblemQuantity,
+  getCardUnisolatedProblemQuantity,
   getCloneStats,
   getDaysInCurrentStage,
   getHardeningStats,
@@ -61,9 +61,9 @@ export function isSupportedPlantingStageForStage(selectedStage) {
 
 export function getStageMoveBlockedMessage(selectedCard) {
   const activeProblemQuantity = getCardActiveProblemQuantity(selectedCard);
-  const remainingProblemQuantity = getCardRemainingProblemQuantity(selectedCard);
+  const unisolatedProblemQuantity = getCardUnisolatedProblemQuantity(selectedCard);
 
-  if (remainingProblemQuantity > 0) {
+  if (unisolatedProblemQuantity > 0) {
     return 'В партии есть неизолированные проблемные растения. Сначала изолируйте их или решите проблему.';
   }
 

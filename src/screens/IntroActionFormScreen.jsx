@@ -26,7 +26,7 @@ import {
   getCardActiveProblemQuantity,
   getCardCurrentQuantity,
   getCardDisplayName,
-  getCardRemainingProblemQuantity,
+  getCardUnisolatedProblemQuantity,
 } from '../domain/batch';
 import { isRenderablePhotoUri } from '../domain/photoUri';
 
@@ -61,9 +61,9 @@ export default function IntroActionFormScreen({
   const [isRiskDropdownOpen, setIsRiskDropdownOpen] = useState(false);
   const seenAlertRef = useRef('');
   const activeProblemQuantity = getCardActiveProblemQuantity(selectedCard);
-  const remainingProblemQuantity = getCardRemainingProblemQuantity(selectedCard);
+  const unisolatedProblemQuantity = getCardUnisolatedProblemQuantity(selectedCard);
   const canRecordProblemRecovery = activeProblemQuantity > 0 || actionType === 'problemRecovery';
-  const canIsolateProblem = remainingProblemQuantity > 0 || actionType === 'problemIsolation';
+  const canIsolateProblem = unisolatedProblemQuantity > 0 || actionType === 'problemIsolation';
   const displayedActionCommands = introActionCommands.flatMap((item) => {
     if (item[0] !== 'problem') {
       return [item];
@@ -112,12 +112,12 @@ export default function IntroActionFormScreen({
   useEffect(() => {
     if (
       actionType === 'problemIsolation' &&
-      remainingProblemQuantity > 0 &&
+      unisolatedProblemQuantity > 0 &&
       !`${actionForm.isolationQuantity || ''}`.trim()
     ) {
-      onChangeActionForm('isolationQuantity', `${remainingProblemQuantity}`);
+      onChangeActionForm('isolationQuantity', `${unisolatedProblemQuantity}`);
     }
-  }, [actionType, remainingProblemQuantity, actionForm.isolationQuantity, onChangeActionForm]);
+  }, [actionType, unisolatedProblemQuantity, actionForm.isolationQuantity, onChangeActionForm]);
 
   async function handleSavePress() {
     if (isSaving) {
@@ -366,13 +366,13 @@ export default function IntroActionFormScreen({
                         inputMode="numeric"
                         keyboardType="numeric"
                         onChangeText={(value) => onChangeActionForm('isolationQuantity', value)}
-                        placeholder={`${remainingProblemQuantity || 0}`}
+                        placeholder={`${unisolatedProblemQuantity || 0}`}
                         placeholderTextColor="#7C8A80"
                         style={styles.input}
                         value={actionForm.isolationQuantity}
                       />
                       <Text style={localStyles.fieldHint}>
-                        Необходимо изолировать: {remainingProblemQuantity} шт.
+                        Необходимо изолировать: {unisolatedProblemQuantity} шт.
                       </Text>
                     </View>
 

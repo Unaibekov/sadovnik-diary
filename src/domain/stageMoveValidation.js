@@ -1,6 +1,6 @@
 // Проверка корректности перемещения между стадиями.
 import { INTRO_STAGE, stages } from './constants';
-import { getCardActiveProblemQuantity, getCardRemainingProblemQuantity } from './batch';
+import { getCardActiveProblemQuantity, getCardUnisolatedProblemQuantity } from './batch';
 
 export function getStageMoveValidationError({
   selectedCard,
@@ -13,9 +13,9 @@ export function getStageMoveValidationError({
   }
 
   const activeProblemQuantity = getCardActiveProblemQuantity(selectedCard);
-  const remainingProblemQuantity = getCardRemainingProblemQuantity(selectedCard);
+  const unisolatedProblemQuantity = getCardUnisolatedProblemQuantity(selectedCard);
 
-  if (remainingProblemQuantity > 0) {
+  if (unisolatedProblemQuantity > 0) {
     return 'В партии есть неизолированные проблемные растения. Сначала изолируйте их или решите проблему.';
   }
 

@@ -433,14 +433,17 @@ export function getCardActiveProblemQuantity(card) {
   }).activeProblemQuantity;
 }
 
-export function getCardRemainingProblemQuantity(card) {
+export function getCardUnisolatedProblemQuantity(card) {
   return getProblemStateFromOperations(card?.operations || [], {
     activeProblemQuantity: getCardActiveProblemQuantity(card),
     currentQuantity: getCardCurrentQuantity(card),
     originType: card?.originType || '',
     stage: card?.stage || '',
-  }).remainingProblemQuantity;
+  }).unisolatedProblemQuantity;
 }
+
+// Deprecated API alias. New code should use getCardUnisolatedProblemQuantity.
+export const getCardRemainingProblemQuantity = getCardUnisolatedProblemQuantity;
 
 export function getLatestActiveProblemOperation(card) {
   return getProblemStateFromOperations(card?.operations || [], {
