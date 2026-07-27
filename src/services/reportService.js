@@ -32,6 +32,9 @@ export function buildCultureCardsReportWorkbook(cards, helpers) {
       'Статус',
       'Местоположение',
       'Количество',
+      'Тип происхождения',
+      'Родительская партия',
+      'Поколение',
       'Дата создания',
       'Событий в журнале',
     ],
@@ -47,6 +50,9 @@ export function buildCultureCardsReportWorkbook(cards, helpers) {
         BATCH_STATUS_LABELS[status] || status,
         getCardLocationDescription(card) || 'Не указано',
         getCardCurrentQuantity(card),
+        card.originType || '',
+        card.parentCode || '',
+        card.generation || '',
         card.createdAt ? formatDisplayDate(card.createdAt) : '',
         (card.operations || []).length,
       ];
@@ -66,6 +72,9 @@ export function buildCultureCardsReportWorkbook(cards, helpers) {
       'Стадия события',
       'Текущее количество',
       'Остаток',
+      'Дочерняя партия',
+      'Родительская партия',
+      'Поколение',
       'Детали',
       'Старое место',
       'Новое место',
@@ -98,6 +107,9 @@ export function buildCultureCardsReportWorkbook(cards, helpers) {
                 operation.stage || operation.toStage || operation.fromStage || '',
                 getCardCurrentQuantity(card),
                 operation.currentQuantity ?? '',
+                operation.childCode || '',
+                operation.parentCode || '',
+                operation.generation || '',
                 summary,
                 operation.type === 'movement' ? operation.previousLocation || 'Не указано' : '',
                 operation.type === 'movement' ? operation.nextLocation || 'Не указано' : '',
@@ -116,8 +128,8 @@ export function buildCultureCardsReportWorkbook(cards, helpers) {
   const partiesSheet = XLSX.utils.aoa_to_sheet(partyRows);
   const journalSheet = XLSX.utils.aoa_to_sheet(journalRows);
 
-  setSheetColumnWidths(partiesSheet, [20, 18, 18, 18, 22, 14, 28, 12, 16, 18]);
-  setSheetColumnWidths(journalSheet, [20, 18, 18, 18, 22, 14, 16, 24, 22, 14, 12, 60, 24, 24, 36, 36, 18]);
+  setSheetColumnWidths(partiesSheet, [20, 18, 18, 18, 22, 14, 28, 12, 18, 20, 12, 16, 18]);
+  setSheetColumnWidths(journalSheet, [20, 18, 18, 18, 22, 14, 16, 24, 22, 14, 12, 20, 20, 12, 60, 24, 24, 36, 36, 18]);
   XLSX.utils.book_append_sheet(workbook, partiesSheet, 'Партии');
   XLSX.utils.book_append_sheet(workbook, journalSheet, 'Журнал');
 

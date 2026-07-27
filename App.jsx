@@ -36,6 +36,7 @@ import {
   getCloneStats,
   getDaysInCurrentStage,
   getGreenhouseStats,
+  getLatestActiveProblemOperation,
   getNextStage,
   getQrStatus,
 } from "./src/domain/batch";
@@ -113,6 +114,12 @@ import {
   getStatusEventConfig,
 } from "./src/domain/statusOperations";
 import { buildStatusOperation } from "./src/domain/statusOperationBuilder";
+import {
+  attachChildToOperation,
+  attachPropagationChildToOperation,
+  buildDerivedChildBatch,
+  buildPropagationChildCard,
+} from "./src/domain/propagationChildCard";
 import {
   buildStageChangeOperation,
   buildStageTransitionCard,
@@ -403,10 +410,9 @@ function AppContent() {
       cardsWithoutRecommendations,
     );
 
-    setCultureCards(compactCards);
-
     try {
       await saveCultureCardsToStorage(compactCards);
+      setCultureCards(compactCards);
       setStorageError("");
     } catch (saveError) {
       console.error("saveCultureCardsToStorage failed", saveError);
@@ -1069,7 +1075,7 @@ function AppContent() {
       setStorageError("");
       setCurrentScreen("stages");
       setNotice(
-        `Создано ${result.createdCardsCount} партий в стадии «Введение в культуру» без записей журнала.`,
+        `Создано ${result.createdCardsCount} партий в стадии «Введение в культуру» и ${result.journalRecordsCount} записей журнала.`,
       );
     } catch (generateError) {
       console.error("handleGenerateIntroSeedCards failed", generateError);
@@ -1929,9 +1935,13 @@ function AppContent() {
     const count = eventConfig.countField
       ? sanitizedStatusForm[eventConfig.countField].trim()
       : "";
+    const sourceProblemOperation = introActionType === 'problemIsolation'
+      ? (cardWithoutEditedOperation.operations || []).find((operation) => operation.id === sanitizedStatusForm.sourceProblemEventId) ||
+        getLatestActiveProblemOperation(cardWithoutEditedOperation)
+      : null;
 
     const nowIso = new Date().toISOString();
-    const nextOperation = buildStatusOperation({
+    const builtOperation = buildStatusOperation({
       editingOperationId,
       introActionType,
       eventConfig,
@@ -1940,14 +1950,80 @@ function AppContent() {
       selectedCalendarDate,
       count,
       currentQuantity,
-      statusForm: sanitizedStatusForm,
+      statusForm: {
+        ...sanitizedStatusForm,
+        sourceProblemEventId: sourceProblemOperation?.id || sanitizedStatusForm.sourceProblemEventId || '',
+      },
       editedOperation,
       userId: currentUser.id,
       nowIso,
       photoUri: sanitizedStatusForm.photoUri,
       photoUris: sanitizedStatusForm.photoUris,
     });
+    const propagationChildCard = introActionType === 'propagation' && !editingOperationId
+      ? buildPropagationChildCard({
+        cultureCards,
+        parentCard: selectedCard,
+        propagationOperation: builtOperation,
+        quantity: Number(count) || 0,
+        userId: currentUser.id,
+      })
+      : null;
+    const isolationChildCard = introActionType === 'problemIsolation' && !editingOperationId
+      ? buildDerivedChildBatch({
+        cultureCards,
+        parentCard: selectedCard,
+        sourceOperation: builtOperation,
+        quantity: Number(sanitizedStatusForm.isolationQuantity) || 0,
+        userId: currentUser.id,
+        originType: 'problemIsolation',
+        stage: selectedCard.stage || INTRO_STAGE,
+        locationDescription: sanitizedStatusForm.isolationLocation.trim(),
+        batchStatus: getResolvedBatchStatus(selectedCard) === 'quarantine' ? 'quarantine' : 'problem',
+        healthStatus: 'problem',
+        isolationStatus: 'isolated',
+        sourceProblemOperation,
+      })
+      : null;
+    const derivedChildCard = propagationChildCard || isolationChildCard;
+    const nextOperation = derivedChildCard
+      ? introActionType === 'propagation'
+        ? attachPropagationChildToOperation(builtOperation, derivedChildCard)
+        : attachChildToOperation(builtOperation, derivedChildCard)
+      : editedOperation?.childCardId
+        ? {
+          ...builtOperation,
+          childCardId: editedOperation.childCardId,
+          childCode: editedOperation.childCode,
+        }
+        : builtOperation;
+    const linkedPropagationChildId = introActionType === 'propagation' && editingOperationId
+      ? editedOperation?.childCardId
+      : '';
     const nextCards = cultureCards.map((card) => {
+      if (linkedPropagationChildId && card.id === linkedPropagationChildId) {
+        return {
+          ...card,
+          quantity: Number(count) || 0,
+          currentQuantity: Number(count) || 0,
+          propagationMethod: sanitizedStatusForm.propagationMethod.trim(),
+          updatedAt: nowIso,
+          updatedBy: currentUser.id,
+          operations: (card.operations || []).map((operation) => (
+            ['batchCreated', 'clonedFromParent'].includes(operation.type)
+              ? {
+                ...operation,
+                quantity: Number(count) || 0,
+                count: operation.type === 'clonedFromParent' ? Number(count) || 0 : operation.count,
+                propagationMethod: operation.type === 'clonedFromParent'
+                  ? sanitizedStatusForm.propagationMethod.trim()
+                  : operation.propagationMethod,
+              }
+              : operation
+          )),
+        };
+      }
+
       if (card.id !== selectedCard.id) {
         return card;
       }
@@ -1960,7 +2036,7 @@ function AppContent() {
       });
     });
 
-    await saveCultureCards(nextCards);
+    await saveCultureCards(derivedChildCard ? [...nextCards, derivedChildCard] : nextCards);
 
     if (
       introActionType === "greenhouseCare" &&
@@ -2171,6 +2247,7 @@ function AppContent() {
     canEditCurrentIdentity,
     canSaveCultureForm: true,
     cultureCalendarTab,
+    cultureCards,
     cultureForm,
     cultureOptions,
     currentScreen,

@@ -3,11 +3,37 @@ import { useState } from 'react';
 import { Image, Pressable, ScrollView, Text, View } from 'react-native';
 import styles from '../../styles';
 import { formatDisplayLongDate, formatDisplayTime } from '../domain/dates';
-import { getOperationSummaryItems } from '../domain/batch';
+import { getCardActiveProblemQuantity, getOperationSummaryItems } from '../domain/batch';
 import { isRenderablePhotoUri } from '../domain/photoUri';
 import StageCalendar from './StageCalendar';
 import PhotoViewerModal from './PhotoViewerModal';
 import { EditIcon, InfoIcon } from './icons';
+
+function hasIsolationForProblem(card, problemOperation) {
+  return (card?.operations || []).some((operation) => (
+    operation.type === 'problemIsolation' &&
+    (
+      !operation.sourceProblemEventId ||
+      operation.sourceProblemEventId === problemOperation.id
+    )
+  ));
+}
+
+function getCalendarOperationTitle(operation, card) {
+  if (operation.type === 'problemIsolation') {
+    return 'Изоляция проблемы';
+  }
+
+  if (
+    operation.type === 'problem' &&
+    getCardActiveProblemQuantity(card) <= 0 &&
+    hasIsolationForProblem(card, operation)
+  ) {
+    return 'Проблема изолирована';
+  }
+
+  return operation.title || 'Событие';
+}
 
 export default function CultureCalendarTab({
   calendarDays,
@@ -101,7 +127,7 @@ export default function CultureCalendarTab({
                   : []
             ).filter((uri) => isRenderablePhotoUri(uri));
             const isTextOnlyOperation = ['comment', 'contamination', 'quarantine'].includes(operation.type);
-            const title = operation.title || 'Событие';
+            const title = getCalendarOperationTitle(operation, card);
 
             return (
               <View

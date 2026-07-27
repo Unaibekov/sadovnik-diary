@@ -292,6 +292,8 @@ const localStyles = {
     alignItems: "center",
     flexDirection: "row",
     gap: 12,
+    justifyContent: "flex-end",
+    width: "100%",
   },
   moveBlockedNotice: {
     alignItems: "center",

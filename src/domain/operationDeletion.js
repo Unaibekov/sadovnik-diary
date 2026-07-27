@@ -24,7 +24,15 @@ export function buildDeletedOperationCard(card, operationId) {
 }
 
 export function buildDeletedOperationCards(cultureCards, selectedCardId, operationId) {
-  return cultureCards.map((card) => (
+  const selectedCard = cultureCards.find((card) => card.id === selectedCardId);
+  const deletedOperation = (selectedCard?.operations || []).find((operation) => operation.id === operationId);
+  const childCardId = deletedOperation?.childCardId;
+
+  return cultureCards.filter((card) => !(
+    childCardId &&
+    card.id === childCardId &&
+    card.sourceEventId === deletedOperation.id
+  )).map((card) => (
     card.id === selectedCardId
       ? buildDeletedOperationCard(card, operationId)
       : card

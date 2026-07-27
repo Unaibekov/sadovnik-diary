@@ -24,7 +24,9 @@ import { formatDisplayDate } from '../domain/dates';
 import {
   formatProblemAwareQuantityDisplay,
   getCardActiveProblemQuantity,
+  getCardCurrentQuantity,
   getCardDisplayName,
+  getCardRemainingProblemQuantity,
 } from '../domain/batch';
 import { isRenderablePhotoUri } from '../domain/photoUri';
 
@@ -53,19 +55,26 @@ export default function IntroActionFormScreen({
   selectedCalendarDate,
 }) {
   const [isAlertVisible, setIsAlertVisible] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [saveAttemptCount, setSaveAttemptCount] = useState(0);
   const [isProblemTypeDropdownOpen, setIsProblemTypeDropdownOpen] = useState(false);
   const [isRiskDropdownOpen, setIsRiskDropdownOpen] = useState(false);
   const seenAlertRef = useRef('');
   const activeProblemQuantity = getCardActiveProblemQuantity(selectedCard);
+  const remainingProblemQuantity = getCardRemainingProblemQuantity(selectedCard);
   const canRecordProblemRecovery = activeProblemQuantity > 0 || actionType === 'problemRecovery';
-  const displayedActionCommands = canRecordProblemRecovery
-    ? introActionCommands.flatMap((item) => (
-      item[0] === 'problem'
-        ? [item, ['problemRecovery', 'Выздоровление']]
-        : [item]
-    ))
-    : introActionCommands;
+  const canIsolateProblem = remainingProblemQuantity > 0 || actionType === 'problemIsolation';
+  const displayedActionCommands = introActionCommands.flatMap((item) => {
+    if (item[0] !== 'problem') {
+      return [item];
+    }
+
+    return [
+      item,
+      ...(canRecordProblemRecovery ? [['problemRecovery', 'Выздоровление']] : []),
+      ...(canIsolateProblem ? [['problemIsolation', 'Изолировать растения']] : []),
+    ];
+  });
   const selectedActionLabel =
     displayedActionCommands.find(([value]) => value === actionType)?.[1] ||
     {
@@ -100,9 +109,28 @@ export default function IntroActionFormScreen({
     setIsRiskDropdownOpen(false);
   }, [actionType]);
 
-  function handleSavePress() {
+  useEffect(() => {
+    if (
+      actionType === 'problemIsolation' &&
+      remainingProblemQuantity > 0 &&
+      !`${actionForm.isolationQuantity || ''}`.trim()
+    ) {
+      onChangeActionForm('isolationQuantity', `${remainingProblemQuantity}`);
+    }
+  }, [actionType, remainingProblemQuantity, actionForm.isolationQuantity, onChangeActionForm]);
+
+  async function handleSavePress() {
+    if (isSaving) {
+      return;
+    }
+
+    setIsSaving(true);
     setSaveAttemptCount((current) => current + 1);
-    onSave();
+    try {
+      await onSave();
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   function selectProblemType(value) {
@@ -330,6 +358,58 @@ export default function IntroActionFormScreen({
                     </View>
                   </>
                 )}
+                {actionType === 'problemIsolation' && (
+                  <>
+                    <View style={styles.field}>
+                      <Text style={styles.label}>Количество для изоляции, шт. *</Text>
+                      <TextInput
+                        inputMode="numeric"
+                        keyboardType="numeric"
+                        onChangeText={(value) => onChangeActionForm('isolationQuantity', value)}
+                        placeholder={`${remainingProblemQuantity || 0}`}
+                        placeholderTextColor="#7C8A80"
+                        style={styles.input}
+                        value={actionForm.isolationQuantity}
+                      />
+                      <Text style={localStyles.fieldHint}>
+                        Необходимо изолировать: {remainingProblemQuantity} шт.
+                      </Text>
+                    </View>
+
+                    <View style={styles.field}>
+                      <Text style={styles.label}>Новое местоположение *</Text>
+                      <TextInput
+                        onChangeText={(value) => onChangeActionForm('isolationLocation', value)}
+                        placeholder="Например: Изолятор 1, стеллаж B, полка 3"
+                        placeholderTextColor="#7C8A80"
+                        style={styles.input}
+                        value={actionForm.isolationLocation}
+                      />
+                    </View>
+
+                    <View style={styles.field}>
+                      <Text style={styles.label}>Итог разделения</Text>
+                      <Text style={localStyles.fieldHint}>
+                        Исходная партия: {Math.max(getCardCurrentQuantity(selectedCard) - (Number(actionForm.isolationQuantity) || 0), 0)} шт.
+                      </Text>
+                      <Text style={localStyles.fieldHint}>
+                        Новая изолированная партия: {Number(actionForm.isolationQuantity) || 0} шт. QR ожидает печати.
+                      </Text>
+                    </View>
+
+                    <View style={styles.field}>
+                      <Text style={styles.label}>Комментарий</Text>
+                      <TextInput
+                        multiline
+                        onChangeText={(value) => onChangeActionForm('isolationComment', value)}
+                        placeholder="Комментарий"
+                        placeholderTextColor="#7C8A80"
+                        style={[styles.input, styles.multilineInput]}
+                        value={actionForm.isolationComment}
+                      />
+                    </View>
+                  </>
+                )}
                 {actionType === 'contamination' && (
                   <TextInput
                     multiline
@@ -438,6 +518,7 @@ export default function IntroActionFormScreen({
           <View style={localStyles.footer}>
             <Pressable
               accessibilityRole="button"
+              disabled={isSaving}
               onPress={handleSavePress}
               style={({ pressed }) => [
                 styles.primaryButton,

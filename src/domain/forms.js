@@ -75,6 +75,9 @@ export function createEmptyStatusForm() {
     problemType: '',
     affectedQuantity: '',
     recoveredQuantity: '',
+    isolationQuantity: '',
+    isolationLocation: '',
+    isolationComment: '',
     problemDescription: '',
     plantingLocation: '',
     plantingScheme: '',
@@ -103,6 +106,9 @@ export function createEmptyIntroActionForm() {
     riskLevel: '',
     affectedQuantity: '',
     recoveredQuantity: '',
+    isolationQuantity: '',
+    isolationLocation: '',
+    isolationComment: '',
     problemDescription: '',
   };
 }

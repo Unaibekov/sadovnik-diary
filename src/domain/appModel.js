@@ -2,7 +2,9 @@
 import {
   canEditIdentityFields,
   getAdaptationStats,
+  getCardActiveProblemQuantity,
   getCardCurrentQuantity,
+  getCardRemainingProblemQuantity,
   getCloneStats,
   getDaysInCurrentStage,
   getHardeningStats,
@@ -50,9 +52,14 @@ export function getRecommendationStage(
 }
 
 export function isSelectedCardActionLocked(selectedCard) {
+  const activeProblemQuantity = getCardActiveProblemQuantity(selectedCard);
+
   return (
-    selectedCard?.batchStatus === 'quarantine' ||
-    selectedCard?.sterilityStatus === 'contaminated'
+    activeProblemQuantity <= 0 &&
+    (
+      selectedCard?.batchStatus === 'quarantine' ||
+      selectedCard?.sterilityStatus === 'contaminated'
+    )
   );
 }
 
@@ -61,16 +68,29 @@ export function isSupportedPlantingStageForStage(selectedStage) {
 }
 
 export function getStageMoveBlockedMessage(selectedCard) {
+  const activeProblemQuantity = getCardActiveProblemQuantity(selectedCard);
+  const remainingProblemQuantity = getCardRemainingProblemQuantity(selectedCard);
+
+  if (remainingProblemQuantity > 0) {
+    return 'В партии есть неизолированные проблемные растения. Сначала изолируйте их или решите проблему.';
+  }
+
+  if (selectedCard?.originType === 'problemIsolation' && activeProblemQuantity > 0) {
+    return 'В изолированной партии есть активная проблема. Сначала решите проблему.';
+  }
+
   if (
     selectedCard?.stage === INTRO_STAGE &&
-    selectedCard.sterilityStatus === 'contaminated'
+    selectedCard.sterilityStatus === 'contaminated' &&
+    activeProblemQuantity > 0
   ) {
     return 'Партия с контаминацией. Перевод в клонирование заблокирован.';
   }
 
   if (
     selectedCard?.stage === INTRO_STAGE &&
-    (selectedCard.batchStatus || 'active') === 'quarantine'
+    (selectedCard.batchStatus || 'active') === 'quarantine' &&
+    activeProblemQuantity > 0
   ) {
     return 'Партия на карантине. Перевод в клонирование заблокирован.';
   }

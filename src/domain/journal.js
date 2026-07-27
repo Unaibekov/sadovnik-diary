@@ -131,7 +131,7 @@ export function getOperationEffectiveStage(operation, card) {
     return INTRO_STAGE;
   }
 
-  if (['rooting', 'propagation'].includes(operation.type)) {
+  if (['rooting', 'propagation', 'clonedFromParent'].includes(operation.type)) {
     return stages[1];
   }
 

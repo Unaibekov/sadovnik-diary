@@ -17,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import styles from '../../styles';
 import BottomTabBar from '../components/BottomTabBar';
 import { ArrowBackIcon, ExitIcon } from '../components/icons';
+import { formatAppVersionLabel, getAppVersionInfo } from '../domain/appVersion';
 
 const roleLabels = {
   admin: 'Администратор',
@@ -58,6 +59,7 @@ export default function MenuScreen({
   const [newPasswordValue, setNewPasswordValue] = useState('');
   const [repeatPasswordValue, setRepeatPasswordValue] = useState('');
   const [passwordSheetError, setPasswordSheetError] = useState('');
+  const appVersionInfo = getAppVersionInfo();
 
   const accountItems = [
     ['Активные партии', String(activeCardsCount)],
@@ -247,6 +249,13 @@ export default function MenuScreen({
 
           {!!notice && <Text style={styles.menuNoticeText}>{notice}</Text>}
 
+          <View style={localStyles.appVersionBlock}>
+            <Text style={localStyles.appVersionTitle}>Версия приложения</Text>
+            <Text style={localStyles.appVersionValue}>
+              {formatAppVersionLabel(appVersionInfo)}
+            </Text>
+          </View>
+
           <Modal
             animationType="fade"
             onRequestClose={handleClosePasswordSheet}
@@ -383,6 +392,25 @@ export default function MenuScreen({
 const localStyles = StyleSheet.create({
   disabledMenuItem: {
     opacity: 0.55,
+  },
+  appVersionBlock: {
+    alignItems: 'center',
+    marginTop: 'auto',
+    paddingBottom: 8,
+    paddingTop: 18,
+  },
+  appVersionTitle: {
+    color: '#98A2B3',
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 16,
+  },
+  appVersionValue: {
+    color: '#65756B',
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 18,
+    marginTop: 2,
   },
   loaderBackdrop: {
     ...StyleSheet.absoluteFillObject,

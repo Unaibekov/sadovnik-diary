@@ -86,12 +86,62 @@ export function getProblemRecoveryValidationError(actionType, form, {
   return '';
 }
 
+export function getProblemIsolationValidationError(actionType, form, {
+  currentQuantity = null,
+  remainingProblemQuantity = null,
+} = {}) {
+  if (actionType !== 'problemIsolation') {
+    return '';
+  }
+
+  const isolationQuantityText = `${form.isolationQuantity || ''}`.trim();
+  const isolationLocation = `${form.isolationLocation || ''}`.trim();
+
+  if (
+    remainingProblemQuantity !== null &&
+    Number.isFinite(Number(remainingProblemQuantity)) &&
+    Number(remainingProblemQuantity) === 0
+  ) {
+    return 'isolation_no_remaining_problem';
+  }
+
+  if (!isolationQuantityText) {
+    return 'isolation_quantity_missing';
+  }
+
+  if (!isPositiveIntegerValue(isolationQuantityText)) {
+    return Number(isolationQuantityText) <= 0
+      ? 'isolation_quantity_not_positive'
+      : 'isolation_quantity_not_integer';
+  }
+
+  if (
+    currentQuantity !== null &&
+    Number.isFinite(Number(currentQuantity)) &&
+    Number(isolationQuantityText) > Number(currentQuantity)
+  ) {
+    return 'isolation_quantity_gt_current';
+  }
+
+  if (
+    remainingProblemQuantity !== null &&
+    Number.isFinite(Number(remainingProblemQuantity)) &&
+    Number(isolationQuantityText) > Number(remainingProblemQuantity)
+  ) {
+    return 'isolation_quantity_gt_remaining_problem';
+  }
+
+  if (!isolationLocation) {
+    return 'isolation_location_missing';
+  }
+
+  return '';
+}
+
 export function getProblemBatchStatus(problemType, riskLevel, stage = '') {
   if (!problemType) {
     return '';
   }
-
-  const isHardeningStage = stage === stages[4];
 
   if (problemType === 'Карантин') {
     return 'quarantine';
@@ -104,10 +154,15 @@ export function getProblemBatchStatus(problemType, riskLevel, stage = '') {
   return ['Болезнь', 'Вредители', 'Стресс', 'Ожоги', 'Увядание', 'Погодный стресс', 'Другое']
     .includes(problemType)
     ? 'problem'
-    : '';
+    : riskLevel === 'Критический' || stage === stages[4]
+      ? 'problem'
+      : '';
 }
 
 function getActiveProblemQuantityFromOperations(operations = []) {
+  const hasFullBatchProblem = operations.some((operation) => (
+    ['contamination', 'quarantine'].includes(operation.type)
+  ));
   const affectedQuantity = operations.reduce((sum, operation) => {
     if (operation.type === 'problem') {
       return sum + (Number(operation.affectedQuantity) || 0);
@@ -117,8 +172,12 @@ function getActiveProblemQuantityFromOperations(operations = []) {
       return sum - (Number(operation.recoveredQuantity) || 0);
     }
 
+    if (operation.type === 'problemIsolation') {
+      return sum - (Number(operation.count || operation.quantity) || 0);
+    }
+
     return sum;
-  }, 0);
+  }, hasFullBatchProblem ? 1 : 0);
 
   return Math.max(affectedQuantity, 0);
 }
@@ -129,11 +188,11 @@ export function getProblemBatchStatusFromOperations(operations = [], stage = '',
     : getActiveProblemQuantityFromOperations(operations) > 0;
 
   for (const operation of operations) {
-    if (operation.type === 'quarantine') {
+    if (operation.type === 'quarantine' && hasActiveProblemQuantity) {
       return 'quarantine';
     }
 
-    if (operation.type === 'contamination') {
+    if (operation.type === 'contamination' && hasActiveProblemQuantity) {
       return 'problem';
     }
 
@@ -154,5 +213,13 @@ export function getProblemBatchStatusFromOperations(operations = [], stage = '',
 }
 
 export function hasProblemOperation(card) {
-  return Boolean(getProblemBatchStatusFromOperations(card?.operations || [], card?.stage || ''));
+  const activeProblemQuantity = Number.isFinite(Number(card?.activeProblemQuantity))
+    ? Number(card.activeProblemQuantity)
+    : null;
+
+  return Boolean(getProblemBatchStatusFromOperations(
+    card?.operations || [],
+    card?.stage || '',
+    activeProblemQuantity,
+  ));
 }

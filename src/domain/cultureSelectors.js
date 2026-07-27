@@ -15,6 +15,24 @@ function hasOperationType(card, operationTypes) {
   return (card?.operations || []).some((operation) => types.includes(operation.type));
 }
 
+function getTimestamp(value) {
+  const timestamp = new Date(value || 0).getTime();
+  return Number.isNaN(timestamp) ? 0 : timestamp;
+}
+
+function getLatestCardActionTimestamp(card) {
+  const latestOperationTimestamp = (card?.operations || []).reduce((latest, operation) => Math.max(
+    latest,
+    getTimestamp(operation.updatedAt || operation.createdAt || operation.date),
+  ), 0);
+
+  return Math.max(
+    latestOperationTimestamp,
+    getTimestamp(card?.updatedAt),
+    getTimestamp(card?.createdAt),
+  );
+}
+
 function isIntroStageFilterMatch(card, batchStatus, filter, isProblemStatus, isCriticalProblemVisual) {
   if (filter === 'problem') {
     return isProblemStatus || isCriticalProblemVisual;
@@ -212,7 +230,7 @@ export function filterCultureCards(cultureCards, options) {
     const query = cardSearch.trim().toLowerCase();
     const cardStage = card.stage || INTRO_STAGE;
     const batchStatus = getResolvedBatchStatus(card);
-    const isProblemStatus = hasProblemOperation(card) || batchStatus === 'problem' || batchStatus === 'quarantine' || card.sterilityStatus === 'contaminated';
+    const isProblemStatus = hasProblemOperation(card) || batchStatus === 'problem' || batchStatus === 'quarantine';
     const isCriticalProblemVisual = hasCriticalProblemVisual(card, {
       isAdaptationStage,
       isCloneStage,
@@ -259,6 +277,14 @@ export function filterCultureCards(cultureCards, options) {
     }
 
     return getCardDisplayName(card).toLowerCase().includes(query);
+  }).sort((first, second) => {
+    const timeDiff = getLatestCardActionTimestamp(second) - getLatestCardActionTimestamp(first);
+
+    if (timeDiff !== 0) {
+      return timeDiff;
+    }
+
+    return getCardDisplayName(first).localeCompare(getCardDisplayName(second), 'ru');
   });
 }
 

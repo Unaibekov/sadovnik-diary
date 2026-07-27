@@ -9,6 +9,8 @@ import {
   getCardActiveProblemQuantity,
   getCardHealthyQuantity,
   getCardLocationDescription,
+  getCardPropagationQuantity,
+  getCardSourceQuantity,
   getIntroStats,
   getQrStatus,
 } from '../domain/batch';
@@ -16,12 +18,14 @@ import {
 export default function CulturePassportTab({
   adaptationStats,
   card,
+  cultureCards = [],
   cloneStats,
   currentQuantity,
   daysInStage,
   hardeningStats,
   plantingStats,
   getResolvedBatchStatus,
+  onOpenRelatedCard,
   onShareQrPress,
 }) {
   const safeHardeningStats = hardeningStats || {
@@ -39,6 +43,20 @@ export default function CulturePassportTab({
   const batchStatus = getResolvedBatchStatus(card);
   const activeProblemQuantity = getCardActiveProblemQuantity(card);
   const healthyQuantity = getCardHealthyQuantity(card);
+  const sourceQuantity = getCardSourceQuantity(card);
+  const propagationQuantity = getCardPropagationQuantity(card);
+  const childCards = cultureCards.filter((childCard) => childCard.parentCardId === card.id);
+  const parentCard = cultureCards.find((cultureCard) => cultureCard.id === card.parentCardId);
+  const originTypeLabel = card.originType === 'problemIsolation'
+    ? 'Изолированная партия'
+    : card.originType === 'cloned'
+      ? 'Клон'
+      : card.originType === 'split'
+        ? 'Разделенная партия'
+        : 'Исходная партия';
+  const totalQuantityLabel = propagationQuantity > 0
+    ? `${currentQuantity} шт.`
+    : formatQuantityDisplay(currentQuantity, card.quantity);
   const batchStatusLabel = batchStatus === 'active'
     ? 'Без отклонений'
     : (BATCH_STATUS_LABELS[batchStatus] || batchStatus || 'Не указан');
@@ -84,7 +102,7 @@ export default function CulturePassportTab({
         <View style={styles.passportRow}>
           <Text style={styles.passportLabel}>Общий остаток</Text>
           <Text style={styles.passportValue}>
-            {formatQuantityDisplay(currentQuantity, card.quantity)}
+            {totalQuantityLabel}
           </Text>
         </View>
         {activeProblemQuantity > 0 && (
@@ -96,6 +114,18 @@ export default function CulturePassportTab({
             <View style={styles.passportRow}>
               <Text style={styles.passportLabel}>С активной проблемой</Text>
               <Text style={styles.passportValue}>{activeProblemQuantity} шт.</Text>
+            </View>
+          </>
+        )}
+        {propagationQuantity > 0 && (
+          <>
+            <View style={styles.passportRow}>
+              <Text style={styles.passportLabel}>Исходные растения</Text>
+              <Text style={styles.passportValue}>{sourceQuantity} шт.</Text>
+            </View>
+            <View style={styles.passportRow}>
+              <Text style={styles.passportLabel}>Размножено</Text>
+              <Text style={styles.passportValue}>{propagationQuantity} шт.</Text>
             </View>
           </>
         )}
@@ -189,6 +219,93 @@ export default function CulturePassportTab({
           <Text style={styles.passportValue}>{getCardLocationDescription(card) || 'Не указано'}</Text>
         </View>
       </View>
+
+      {!!card.parentCardId && (
+        <View style={[appStyles.surfacePanel, styles.passportPanel]}>
+          <Text style={styles.passportSectionTitle}>Происхождение</Text>
+          <View style={[styles.passportRow, styles.passportRowFirst]}>
+            <Text style={styles.passportLabel}>Тип партии</Text>
+            <Text style={styles.passportValue}>Клон</Text>
+          </View>
+          <View style={styles.passportRow}>
+            <Text style={styles.passportLabel}>Родительская партия</Text>
+            <Text style={styles.passportValue}>
+              {card.parentCode || 'Не указана'}
+            </Text>
+            {!!parentCard && (
+              <Pressable
+                accessibilityLabel={`Перейти к родительской партии ${card.parentCode || ''}`}
+                accessibilityRole="button"
+                onPress={() => onOpenRelatedCard?.(parentCard)}
+                style={({ pressed }) => [
+                  styles.relatedCardButton,
+                  pressed && appStyles.linkButtonPressed,
+                ]}
+              >
+                <Text style={styles.relatedCardButtonText}>Перейти к родительской партии</Text>
+              </Pressable>
+            )}
+          </View>
+          <View style={styles.passportRow}>
+            <Text style={styles.passportLabel}>Поколение</Text>
+            <Text style={styles.passportValue}>{card.generation || 1}</Text>
+          </View>
+          {card.originType !== 'cloned' && (
+            <View style={styles.passportRow}>
+              <Text style={styles.passportLabel}>Происхождение</Text>
+              <Text style={styles.passportValue}>{originTypeLabel}</Text>
+            </View>
+          )}
+          {!!card.propagationMethod && (
+            <View style={styles.passportRow}>
+              <Text style={styles.passportLabel}>Способ размножения</Text>
+              <Text style={styles.passportValue}>{card.propagationMethod}</Text>
+            </View>
+          )}
+          {!!card.isolationStatus && (
+            <View style={styles.passportRow}>
+              <Text style={styles.passportLabel}>Статус изоляции</Text>
+              <Text style={styles.passportValue}>
+                {card.isolationStatus === 'released' ? 'Выпущена из изоляции' : 'Изолирована'}
+              </Text>
+            </View>
+          )}
+          {!!card.propagatedAt && (
+            <View style={styles.passportRow}>
+              <Text style={styles.passportLabel}>Дата размножения</Text>
+              <Text style={styles.passportValue}>{formatDisplayDate(card.propagatedAt)}</Text>
+            </View>
+          )}
+        </View>
+      )}
+
+      {childCards.length > 0 && (
+        <View style={[appStyles.surfacePanel, styles.passportPanel]}>
+          <Text style={styles.passportSectionTitle}>Дочерние партии</Text>
+          {childCards.map((childCard, index) => (
+            <View
+              key={childCard.id}
+              style={[styles.passportRow, index === 0 && styles.passportRowFirst]}
+            >
+              <Text style={styles.passportLabel}>{childCard.code || 'Без кода'}</Text>
+              <Text style={styles.passportValue}>
+                {formatQuantityDisplay(childCard.quantity, childCard.quantity)}
+              </Text>
+              <Pressable
+                accessibilityLabel={`Перейти к дочерней партии ${childCard.code || ''}`}
+                accessibilityRole="button"
+                onPress={() => onOpenRelatedCard?.(childCard)}
+                style={({ pressed }) => [
+                  styles.relatedCardButton,
+                  pressed && appStyles.linkButtonPressed,
+                ]}
+              >
+                <Text style={styles.relatedCardButtonText}>Перейти к дочерней партии</Text>
+              </Pressable>
+            </View>
+          ))}
+        </View>
+      )}
 
       <View style={[appStyles.surfacePanel, styles.passportPanel]}>
         <Text style={styles.passportSectionTitle}>Культура</Text>
@@ -286,6 +403,24 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     lineHeight: 22,
+  },
+  relatedCardButton: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: '#FFFFFF',
+    borderColor: '#15863F',
+    borderRadius: 999,
+    borderWidth: 1,
+    justifyContent: 'center',
+    marginTop: 8,
+    minHeight: 38,
+    paddingHorizontal: 14,
+  },
+  relatedCardButtonText: {
+    color: '#15863F',
+    fontSize: 14,
+    fontWeight: '800',
+    lineHeight: 19,
   },
   passportQrAction: {
     alignItems: 'center',

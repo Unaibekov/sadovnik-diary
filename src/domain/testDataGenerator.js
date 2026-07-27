@@ -1040,7 +1040,7 @@ export function buildEmptyIntroCultureCards(existingCards, { now = new Date(), u
       existingCodes,
       index: nextCards.length + index,
     });
-    const card = normalizeCultureCard({
+    const cardPayload = {
       id: cardId,
       name: plant.originalName || '',
       createdAt: toIsoDate(createdAt),
@@ -1064,8 +1064,12 @@ export function buildEmptyIntroCultureCards(existingCards, { now = new Date(), u
       qrPrintedBy: null,
       startPhotoUri: '',
       startPhotoUris: [],
-      operations: [],
       stage: INTRO_STAGE,
+    };
+    const batchCreatedOperation = createBatchCreatedOperation(cardPayload, createdAt.toISOString());
+    const card = normalizeCultureCard({
+      ...cardPayload,
+      operations: [batchCreatedOperation],
     });
 
     nextCards.push(card);
@@ -1074,7 +1078,10 @@ export function buildEmptyIntroCultureCards(existingCards, { now = new Date(), u
 
   return {
     createdCardsCount: createdCards.length,
-    journalRecordsCount: 0,
+    journalRecordsCount: createdCards.reduce(
+      (sum, card) => sum + (card.operations || []).length,
+      0,
+    ),
     nextCards,
   };
 }

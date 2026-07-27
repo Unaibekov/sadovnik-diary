@@ -12,8 +12,9 @@ const INTRO_STAGE = 'Введение в культуру';
 const STAGES = [INTRO_STAGE, 'Клонирование', 'Адаптация', 'Теплица', 'Закалка', 'Высадка'];
 const INITIAL_BATCHES_PER_STAGE = 9;
 const ADDED_BATCHES_PER_STAGE = 1;
+const DERIVED_SCENARIO_BATCHES = 7;
 const TOTAL_INITIAL_BATCHES = STAGES.length * INITIAL_BATCHES_PER_STAGE;
-const TOTAL_FINAL_BATCHES = TOTAL_INITIAL_BATCHES + STAGES.length * ADDED_BATCHES_PER_STAGE;
+const TOTAL_FINAL_BATCHES = TOTAL_INITIAL_BATCHES + STAGES.length * ADDED_BATCHES_PER_STAGE + DERIVED_SCENARIO_BATCHES;
 const REPORT_DATES = Array.from({ length: 10 }, (_, index) => new Date(Date.UTC(2026, 5, 10 + index, 18, 45)));
 
 const USERS = [
@@ -48,6 +49,10 @@ const EVENT_TITLES = {
   movement: 'Перемещение',
   quarantine: 'Карантин',
   problem: 'Проблема',
+  problemRecovery: 'Выздоровление',
+  problemIsolation: 'Изоляция проблемы',
+  clonedFromParent: 'Создана из размножения',
+  isolatedFromParent: 'Создана из изоляции проблемы',
   rooting: 'Укоренение',
   death: 'Гибель',
   discard: 'Выбраковка',
@@ -246,8 +251,18 @@ function applyEvent(world, card, spec) {
     riskLevel: spec.riskLevel || '',
     affectedQuantity,
     count: Number(spec.count) || 0,
+    quantity: Number(spec.quantity || spec.count) || 0,
     previousQuantity,
     currentQuantity: previousQuantity,
+    childCardId: spec.childCardId || '',
+    childCode: spec.childCode || '',
+    parentCardId: spec.parentCardId || '',
+    parentCode: spec.parentCode || '',
+    sourceEventId: spec.sourceEventId || '',
+    sourceProblemEventId: spec.sourceProblemEventId || '',
+    parentProblemEventId: spec.parentProblemEventId || '',
+    generation: Number(spec.generation) || 0,
+    location: spec.location || spec.nextLocation || '',
     extraFields: {},
   };
 
@@ -266,8 +281,33 @@ function applyEvent(world, card, spec) {
       card.batchStatus = event.currentQuantity === 0 ? 'sold' : 'partial';
     }
   } else if (event.type === 'propagation') {
-    event.currentQuantity = previousQuantity + event.count;
+    event.currentQuantity = event.childCardId ? previousQuantity : previousQuantity + event.count;
     card.currentQuantity = event.currentQuantity;
+  } else if (event.type === 'problemIsolation') {
+    event.count = Math.min(event.count || event.quantity, previousQuantity, Number(card.activeProblemQuantity) || 0);
+    event.quantity = event.count;
+    event.currentQuantity = previousQuantity - event.count;
+    card.currentQuantity = event.currentQuantity;
+    card.activeProblemQuantity = Math.max((Number(card.activeProblemQuantity) || 0) - event.count, 0);
+    if (card.activeProblemQuantity <= 0 && ['problem', 'quarantine'].includes(card.batchStatus)) {
+      card.batchStatus = card.currentQuantity < card.quantity ? 'partial' : 'active';
+      card.sterilityStatus = 'unchecked';
+    }
+  } else if (event.type === 'problemRecovery') {
+    const recoveredQuantity = Math.min(Number(spec.recoveredQuantity || spec.count) || 0, Number(card.activeProblemQuantity) || 0);
+    event.recoveredQuantity = recoveredQuantity;
+    event.currentQuantity = previousQuantity;
+    card.activeProblemQuantity = Math.max((Number(card.activeProblemQuantity) || 0) - recoveredQuantity, 0);
+    if (card.activeProblemQuantity <= 0) {
+      card.healthStatus = 'resolved';
+      if (card.isolationStatus === 'isolated') {
+        card.isolationStatus = 'released';
+      }
+      if (['problem', 'quarantine'].includes(card.batchStatus)) {
+        card.batchStatus = card.currentQuantity < card.quantity ? 'partial' : 'active';
+      }
+      card.sterilityStatus = 'unchecked';
+    }
   } else if (event.type === 'stageChange') {
     const fromStage = spec.fromStage || card.stage;
     const toStage = spec.toStage;
@@ -319,6 +359,14 @@ function createCard(world, culture, index, targetStageIndex, reportIndex, create
     activeProblemQuantity: 0,
     healthyQuantity: quantity,
     locationDescription: stageLocation(INTRO_STAGE, index),
+    originType: 'initial',
+    parentCardId: '',
+    parentCode: '',
+    sourceEventId: '',
+    generation: 0,
+    healthStatus: 'healthy',
+    isolationStatus: '',
+    qrStatus: 'pending_print',
     createdAt,
     updatedAt: createdAt,
     events: [],
@@ -367,6 +415,260 @@ function createCard(world, culture, index, targetStageIndex, reportIndex, create
   return card;
 }
 
+function setScenarioQuantity(card, quantity) {
+  card.quantity = quantity;
+  card.currentQuantity = quantity;
+  card.activeProblemQuantity = 0;
+  card.healthyQuantity = quantity;
+}
+
+function createScenarioChildCard(world, parentCard, {
+  index,
+  codePrefix,
+  quantity,
+  stage,
+  originType,
+  sourceEvent,
+  locationDescription,
+  reportIndex,
+}) {
+  const child = createCard(world, {
+    cultureName: parentCard.cultureName,
+    speciesName: parentCard.speciesName,
+    varietyName: parentCard.varietyName,
+  }, index, STAGES.indexOf(stage), reportIndex, sourceEvent.date);
+  setScenarioQuantity(child, quantity);
+  child.code = `${codePrefix}-2026-${String(index + 1).padStart(4, '0')}`;
+  child.stage = stage;
+  child.locationDescription = locationDescription;
+  child.originType = originType;
+  child.parentCardId = parentCard.cardId;
+  child.parentCode = parentCard.code;
+  child.sourceEventId = sourceEvent.eventId;
+  child.generation = (Number(parentCard.generation) || 0) + 1;
+  child.qrStatus = 'pending_print';
+  child.qrPrinted = false;
+  child.qrPrintedAt = null;
+  child.qrPrintedBy = null;
+  child.healthStatus = originType === 'problemIsolation' ? 'problem' : 'healthy';
+  child.isolationStatus = originType === 'problemIsolation' ? 'isolated' : '';
+  child.events = child.events.filter((event) => event.type === 'batchCreated');
+  child.events[0].code = child.code;
+  child.events[0].stage = stage;
+  child.events[0].quantity = quantity;
+  child.events[0].currentQuantity = quantity;
+
+  applyEvent(world, child, {
+    type: originType === 'problemIsolation' ? 'isolatedFromParent' : 'clonedFromParent',
+    stage,
+    quantity,
+    count: quantity,
+    parentCardId: parentCard.cardId,
+    parentCode: parentCard.code,
+    sourceEventId: sourceEvent.eventId,
+    sourceProblemEventId: sourceEvent.sourceProblemEventId || '',
+    generation: child.generation,
+    location: locationDescription,
+    date: sourceEvent.date,
+    createdBy: sourceEvent.createdBy,
+    comment: originType === 'problemIsolation'
+      ? `Изолированная партия ${child.code} заведена отдельно, QR ожидает печати.`
+      : `Клонированная партия ${child.code} заведена отдельно, QR ожидает печати.`,
+  });
+
+  return child;
+}
+
+function addDerivedBatchScenarios(world, cultures) {
+  const baseIndex = TOTAL_INITIAL_BATCHES + STAGES.length * ADDED_BATCHES_PER_STAGE;
+  const user = getUser(0);
+
+  const fullParent = createCard(world, cultures[baseIndex], baseIndex, 0, 0, historyTime(2, 8, 10));
+  setScenarioQuantity(fullParent, 1000);
+  const fullProblem = applyEvent(world, fullParent, {
+    type: 'problem',
+    affectedQuantity: 500,
+    problemType: 'Контаминация',
+    riskLevel: 'Высокий',
+    date: historyTime(2, 9, 10),
+    createdBy: user.userId,
+    comment: 'В половине партии обнаружены признаки контаминации, растения подготовлены к полной изоляции.',
+  });
+  const fullIsolationDraft = {
+    eventId: `event-derived-full-isolation-${world.reportIdBase}`,
+    date: historyTime(2, 10, 10),
+    createdBy: user.userId,
+    sourceProblemEventId: fullProblem.eventId,
+  };
+  const fullChild = createScenarioChildCard(world, fullParent, {
+    index: baseIndex + 1,
+    codePrefix: 'PI',
+    quantity: 500,
+    stage: fullParent.stage,
+    originType: 'problemIsolation',
+    sourceEvent: fullIsolationDraft,
+    locationDescription: 'Изолятор 1, стеллаж I-2',
+    reportIndex: 0,
+  });
+  applyEvent(world, fullParent, {
+    type: 'problemIsolation',
+    count: 500,
+    quantity: 500,
+    childCardId: fullChild.cardId,
+    childCode: fullChild.code,
+    sourceProblemEventId: fullProblem.eventId,
+    location: fullChild.locationDescription,
+    date: fullIsolationDraft.date,
+    createdBy: user.userId,
+    comment: 'Проблемные растения полностью отсажены в изолятор, исходная партия продолжает маршрут.',
+  });
+  applyEvent(world, fullChild, {
+    type: 'problem',
+    affectedQuantity: 500,
+    problemType: fullProblem.problemType,
+    riskLevel: fullProblem.riskLevel,
+    sourceProblemEventId: fullProblem.eventId,
+    date: historyTime(2, 10, 20),
+    createdBy: user.userId,
+    comment: 'Проблема перенесена в журнал изолированной партии для отдельного наблюдения.',
+  });
+  applyEvent(world, fullParent, {
+    type: 'stageChange',
+    fromStage: INTRO_STAGE,
+    toStage: STAGES[1],
+    date: historyTime(3, 9, 10),
+    createdBy: user.userId,
+    comment: 'После полной изоляции здоровый остаток переведен в клонирование.',
+  });
+  applyEvent(world, fullChild, {
+    type: 'problemRecovery',
+    recoveredQuantity: 500,
+    count: 500,
+    date: historyTime(4, 9, 10),
+    createdBy: user.userId,
+    comment: 'После обработки признаки проблемы сняты, стадия партии не изменялась автоматически.',
+  });
+  applyEvent(world, fullChild, {
+    type: 'stageChange',
+    fromStage: INTRO_STAGE,
+    toStage: STAGES[1],
+    date: historyTime(5, 9, 10),
+    createdBy: user.userId,
+    comment: 'Изолированная партия отдельно переведена в клонирование после выздоровления.',
+  });
+
+  const partialParent = createCard(world, cultures[baseIndex + 2], baseIndex + 2, 0, 0, historyTime(2, 8, 30));
+  setScenarioQuantity(partialParent, 800);
+  const partialProblem = applyEvent(world, partialParent, {
+    type: 'problem',
+    affectedQuantity: 300,
+    problemType: 'Вредители',
+    riskLevel: 'Средний',
+    date: historyTime(2, 9, 30),
+    createdBy: user.userId,
+    comment: 'На части партии замечены вредители, изоляция выполняется двумя этапами.',
+  });
+  const firstPartialDraft = {
+    eventId: `event-derived-partial-isolation-a-${world.reportIdBase}`,
+    date: historyTime(2, 11, 0),
+    createdBy: user.userId,
+    sourceProblemEventId: partialProblem.eventId,
+  };
+  const firstPartialChild = createScenarioChildCard(world, partialParent, {
+    index: baseIndex + 3,
+    codePrefix: 'PI',
+    quantity: 200,
+    stage: partialParent.stage,
+    originType: 'problemIsolation',
+    sourceEvent: firstPartialDraft,
+    locationDescription: 'Изолятор 2, стеллаж I-4',
+    reportIndex: 0,
+  });
+  applyEvent(world, firstPartialChild, {
+    type: 'problem',
+    affectedQuantity: 200,
+    problemType: partialProblem.problemType,
+    riskLevel: partialProblem.riskLevel,
+    sourceProblemEventId: partialProblem.eventId,
+    date: historyTime(2, 11, 10),
+    createdBy: user.userId,
+    comment: 'Первая изолированная часть получила отдельный журнал наблюдения по вредителям.',
+  });
+  applyEvent(world, partialParent, {
+    type: 'problemIsolation',
+    count: 200,
+    quantity: 200,
+    childCardId: firstPartialChild.cardId,
+    childCode: firstPartialChild.code,
+    sourceProblemEventId: partialProblem.eventId,
+    location: firstPartialChild.locationDescription,
+    date: firstPartialDraft.date,
+    createdBy: user.userId,
+    comment: 'Изолирована первая часть проблемных растений, в исходной партии остается 100 шт. для изоляции.',
+  });
+  const secondPartialDraft = {
+    eventId: `event-derived-partial-isolation-b-${world.reportIdBase}`,
+    date: historyTime(3, 11, 0),
+    createdBy: user.userId,
+    sourceProblemEventId: partialProblem.eventId,
+  };
+  const secondPartialChild = createScenarioChildCard(world, partialParent, {
+    index: baseIndex + 4,
+    codePrefix: 'PI',
+    quantity: 100,
+    stage: partialParent.stage,
+    originType: 'problemIsolation',
+    sourceEvent: secondPartialDraft,
+    locationDescription: 'Изолятор 2, стеллаж I-5',
+    reportIndex: 0,
+  });
+  applyEvent(world, secondPartialChild, {
+    type: 'problem',
+    affectedQuantity: 100,
+    problemType: partialProblem.problemType,
+    riskLevel: partialProblem.riskLevel,
+    sourceProblemEventId: partialProblem.eventId,
+    date: historyTime(3, 11, 10),
+    createdBy: user.userId,
+    comment: 'Оставшийся проблемный остаток ведется отдельной изолированной партией.',
+  });
+  applyEvent(world, partialParent, {
+    type: 'problemIsolation',
+    count: 100,
+    quantity: 100,
+    childCardId: secondPartialChild.cardId,
+    childCode: secondPartialChild.code,
+    sourceProblemEventId: partialProblem.eventId,
+    location: secondPartialChild.locationDescription,
+    date: secondPartialDraft.date,
+    createdBy: user.userId,
+    comment: 'Оставшийся проблемный остаток отсажен, переход исходной партии снова разрешен.',
+  });
+
+  const propagationParent = createCard(world, cultures[baseIndex + 5], baseIndex + 5, 0, 0, historyTime(2, 8, 50));
+  setScenarioQuantity(propagationParent, 500);
+  const propagationDraft = applyEvent(world, propagationParent, {
+    type: 'propagation',
+    count: 200,
+    quantity: 200,
+    childCardId: `${world.cardIdBase + baseIndex + 6}`,
+    childCode: `KL-2026-${String(baseIndex + 7).padStart(4, '0')}`,
+    date: historyTime(3, 10, 30),
+    createdBy: user.userId,
+    comment: 'Получены жизнеспособные клоны, родительское количество не изменено.',
+  });
+  createScenarioChildCard(world, propagationParent, {
+    index: baseIndex + 6,
+    codePrefix: 'KL',
+    quantity: 200,
+    stage: STAGES[1],
+    originType: 'cloned',
+    sourceEvent: propagationDraft,
+    locationDescription: stageLocation(STAGES[1], baseIndex + 6),
+    reportIndex: 0,
+  });
+}
+
 function seedInitialCards(world, cultures) {
   cultures.slice(0, TOTAL_INITIAL_BATCHES).forEach((culture, index) => {
     const targetStageIndex = Math.floor(index / INITIAL_BATCHES_PER_STAGE);
@@ -393,7 +695,12 @@ function pickCard(world, stage, offset) {
 }
 
 function addTypedEvent(world, reportIndex, stage, offset, spec) {
-  const card = pickCard(world, stage, offset);
+  const eligibleCards = spec.type === 'problem'
+    ? cardsByStage(world, stage).filter((card) => card.currentQuantity > 0 && getHealthyQuantity(card) > 0)
+    : [];
+  const card = eligibleCards.length > 0
+    ? eligibleCards[offset % eligibleCards.length]
+    : pickCard(world, stage, offset);
   const eventIndex = card.events.length + reportIndex + offset;
   applyEvent(world, card, {
     ...spec,
@@ -591,9 +898,20 @@ function publicEvent(event, photoPool) {
     problemType: sourceEvent.problemType || '',
     riskLevel: sourceEvent.riskLevel || '',
     affectedQuantity: Number(sourceEvent.affectedQuantity) || 0,
+    recoveredQuantity: Number(sourceEvent.recoveredQuantity) || 0,
     count: Number(sourceEvent.count) || 0,
+    quantity: Number(sourceEvent.quantity) || 0,
     previousQuantity: Number(sourceEvent.previousQuantity) || 0,
     currentQuantity: Number(sourceEvent.currentQuantity) || 0,
+    childCardId: sourceEvent.childCardId || '',
+    childCode: sourceEvent.childCode || '',
+    parentCardId: sourceEvent.parentCardId || '',
+    parentCode: sourceEvent.parentCode || '',
+    sourceEventId: sourceEvent.sourceEventId || '',
+    sourceProblemEventId: sourceEvent.sourceProblemEventId || '',
+    parentProblemEventId: sourceEvent.parentProblemEventId || '',
+    generation: Number(sourceEvent.generation) || 0,
+    location: sourceEvent.location || '',
     extraFields: {},
   };
   if (_photoSourceIndex !== undefined) {
@@ -678,7 +996,10 @@ function recalculateQuantity(card) {
       return Math.max(quantity - event.count, 0);
     }
     if (event.type === 'propagation') {
-      return quantity + event.count;
+      return event.childCardId ? quantity : quantity + event.count;
+    }
+    if (event.type === 'problemIsolation') {
+      return Math.max(quantity - event.count, 0);
     }
     return quantity;
   }, card.quantity);
@@ -715,8 +1036,9 @@ function validateReports(reports) {
     const typeSet = new Set(report.cards.flatMap((card) => card.events.map((event) => event.type)));
     REAL_EVENT_TYPES.forEach((type) => assert(typeSet.has(type), `report ${reportIndex + 1} misses event type ${type}`));
 
-    const cultureKeys = new Set(report.cards.map((card) => `${card.cultureName}|${card.speciesName}|${card.varietyName}`));
-    assert(cultureKeys.size === report.cards.length, `report ${reportIndex + 1} repeats a plant`);
+    const rootCards = report.cards.filter((card) => !card.parentCardId);
+    const cultureKeys = new Set(rootCards.map((card) => `${card.cultureName}|${card.speciesName}|${card.varietyName}`));
+    assert(cultureKeys.size === rootCards.length, `report ${reportIndex + 1} repeats a root plant`);
 
     const reportEventIds = new Set();
     report.cards.forEach((card) => {
@@ -776,6 +1098,7 @@ async function main() {
   const filePaths = [];
 
   seedInitialCards(world, cultures);
+  addDerivedBatchScenarios(world, cultures);
 
   for (let reportIndex = 0; reportIndex < REPORT_DATES.length; reportIndex += 1) {
     if (reportIndex === 4) {

@@ -73,7 +73,7 @@ export function buildStatusOperation({
       }
       : {}),
     ...(introActionType === 'propagation'
-      ? { currentQuantity: currentQuantity + Number(count) }
+      ? { currentQuantity }
       : {}),
     comment: introActionType === 'introLoss'
       ? ''
@@ -206,6 +206,17 @@ export function buildStatusOperation({
         activeProblemQuantityBefore: getCardActiveProblemQuantity(selectedCard),
         currentQuantity,
         riskLevel: statusForm.riskLevel.trim(),
+      }
+      : {}),
+    ...(introActionType === 'problemIsolation'
+      ? {
+        count: Number(statusForm.isolationQuantity) || 0,
+        quantity: Number(statusForm.isolationQuantity) || 0,
+        currentQuantity: Math.max(currentQuantity - (Number(statusForm.isolationQuantity) || 0), 0),
+        sourceProblemEventId: statusForm.sourceProblemEventId || '',
+        location: statusForm.isolationLocation.trim(),
+        nextLocation: statusForm.isolationLocation.trim(),
+        comment: statusForm.isolationComment.trim() || statusForm.comment.trim(),
       }
       : {}),
     ...(introActionType === 'movement'

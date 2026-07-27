@@ -35,9 +35,9 @@ export function buildIntroActionUpdatedCard(card, {
     operations: nextOperations,
   };
   const problemQuantityPatch = buildProblemQuantityPatch(nextCard);
-  const finalBatchStatus = nextCard.batchStatus === 'problem' &&
-    problemQuantityPatch.activeProblemQuantity <= 0 &&
-    !hasContamination
+  const hasResolvedActiveProblem = problemQuantityPatch.activeProblemQuantity <= 0 &&
+    ['problem', 'quarantine'].includes(nextCard.batchStatus);
+  const finalBatchStatus = hasResolvedActiveProblem
     ? getCardCurrentQuantity(nextCard) < Number(card.quantity || 0)
       ? 'partial'
       : 'active'
@@ -46,6 +46,17 @@ export function buildIntroActionUpdatedCard(card, {
   return {
     ...nextCard,
     ...problemQuantityPatch,
+    ...(introActionType === 'problemRecovery' && problemQuantityPatch.activeProblemQuantity <= 0
+      ? {
+        healthStatus: 'resolved',
+        ...(nextCard.isolationStatus === 'isolated'
+          ? { isolationStatus: 'released' }
+          : {}),
+      }
+      : {}),
+    sterilityStatus: hasContamination && problemQuantityPatch.activeProblemQuantity > 0
+      ? 'contaminated'
+      : 'unchecked',
     batchStatus: finalBatchStatus,
   };
 }

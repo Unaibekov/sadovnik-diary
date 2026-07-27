@@ -57,9 +57,9 @@ export function buildUpdatedStatusCard(card, {
     sterilityStatus: hasContamination ? 'contaminated' : 'unchecked',
   };
   const problemQuantityPatch = buildProblemQuantityPatch(nextCardWithStatus);
-  const finalBatchStatus = nextBatchStatus === 'problem' &&
-    problemQuantityPatch.activeProblemQuantity <= 0 &&
-    !hasContamination
+  const hasResolvedActiveProblem = problemQuantityPatch.activeProblemQuantity <= 0 &&
+    ['problem', 'quarantine'].includes(nextBatchStatus);
+  const finalBatchStatus = hasResolvedActiveProblem
     ? nextQuantity < Number(card.quantity || 0)
       ? 'partial'
       : 'active'
@@ -68,10 +68,24 @@ export function buildUpdatedStatusCard(card, {
   return {
     ...nextCardWithStatus,
     ...problemQuantityPatch,
+    ...(introActionType === 'problemRecovery' && problemQuantityPatch.activeProblemQuantity <= 0
+      ? {
+        healthStatus: 'resolved',
+        ...(nextCardWithStatus.isolationStatus === 'isolated'
+          ? { isolationStatus: 'released' }
+          : {}),
+      }
+      : {}),
+    sterilityStatus: hasContamination && problemQuantityPatch.activeProblemQuantity > 0
+      ? 'contaminated'
+      : 'unchecked',
     batchStatus: finalBatchStatus,
     status: ['sold', 'archived'].includes(getResolvedBatchStatus({
       ...nextCardWithStatus,
       ...problemQuantityPatch,
+      sterilityStatus: hasContamination && problemQuantityPatch.activeProblemQuantity > 0
+        ? 'contaminated'
+        : 'unchecked',
       batchStatus: finalBatchStatus,
     }))
       ? 'archived'

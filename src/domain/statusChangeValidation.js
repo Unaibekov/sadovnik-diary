@@ -4,8 +4,16 @@ import { getStatusEventConfig } from './statusOperations';
 import { getStatusBaseValidationError } from './statusValidation';
 import { getAdaptationValidationError, getHardeningValidationError, getPlantingValidationError } from './statusStageValidation';
 import { getGreenhouseValidationError } from './statusGreenhouseValidation';
-import { getProblemRecoveryValidationError, getProblemValidationError } from './statusProblemValidation';
-import { getCardActiveProblemQuantity, getCardHealthyQuantity } from './batch';
+import {
+  getProblemIsolationValidationError,
+  getProblemRecoveryValidationError,
+  getProblemValidationError,
+} from './statusProblemValidation';
+import {
+  getCardActiveProblemQuantity,
+  getCardHealthyQuantity,
+  getCardRemainingProblemQuantity,
+} from './batch';
 
 export const STATUS_DATE_NOT_TODAY_MESSAGE = 'Производственные события можно фиксировать только на текущую дату';
 
@@ -30,13 +38,14 @@ export function getStatusChangeValidationError({
   const count = eventConfig.countField
     ? statusForm[eventConfig.countField].trim()
     : '';
+  const activeCard = validationCard || selectedCard;
 
   const baseValidationError = getStatusBaseValidationError({
     eventConfig,
     count,
     introActionType,
     currentQuantity,
-    healthyQuantity: getCardHealthyQuantity(validationCard || selectedCard),
+    healthyQuantity: getCardHealthyQuantity(activeCard),
     reason: statusForm.reason,
   });
 
@@ -44,64 +53,53 @@ export function getStatusChangeValidationError({
     return baseValidationError;
   }
 
-  const adaptationValidationError = getAdaptationValidationError(
-    introActionType,
-    statusForm,
-  );
+  const adaptationValidationError = getAdaptationValidationError(introActionType, statusForm);
 
   if (adaptationValidationError) {
     return adaptationValidationError;
   }
 
-  const hardeningValidationError = getHardeningValidationError(
-    introActionType,
-    statusForm,
-  );
+  const hardeningValidationError = getHardeningValidationError(introActionType, statusForm);
 
   if (hardeningValidationError) {
     return hardeningValidationError;
   }
 
-  const plantingValidationError = getPlantingValidationError(
-    introActionType,
-    statusForm,
-  );
+  const plantingValidationError = getPlantingValidationError(introActionType, statusForm);
 
   if (plantingValidationError) {
     return plantingValidationError;
   }
 
-  const greenhouseValidationError = getGreenhouseValidationError(
-    introActionType,
-    statusForm,
-  );
+  const greenhouseValidationError = getGreenhouseValidationError(introActionType, statusForm);
 
   if (greenhouseValidationError) {
     return greenhouseValidationError;
   }
 
-  const problemValidationError = getProblemValidationError(
-    introActionType,
-    statusForm,
-    {
-      availableHealthyQuantity: getCardHealthyQuantity(validationCard || selectedCard),
-    },
-  );
+  const problemValidationError = getProblemValidationError(introActionType, statusForm, {
+    availableHealthyQuantity: getCardHealthyQuantity(activeCard),
+  });
 
   if (problemValidationError) {
     return problemValidationError;
   }
 
-  const recoveryValidationError = getProblemRecoveryValidationError(
-    introActionType,
-    statusForm,
-    {
-      activeProblemQuantity: getCardActiveProblemQuantity(validationCard || selectedCard),
-    },
-  );
+  const recoveryValidationError = getProblemRecoveryValidationError(introActionType, statusForm, {
+    activeProblemQuantity: getCardActiveProblemQuantity(activeCard),
+  });
 
   if (recoveryValidationError) {
     return recoveryValidationError;
+  }
+
+  const isolationValidationError = getProblemIsolationValidationError(introActionType, statusForm, {
+    currentQuantity,
+    remainingProblemQuantity: getCardRemainingProblemQuantity(activeCard),
+  });
+
+  if (isolationValidationError) {
+    return isolationValidationError;
   }
 
   return '';
@@ -120,27 +118,21 @@ export function getStatusChangeValidationMessage(validationError) {
     case 'missing_reason':
       return 'Укажите причину';
     case 'adaptation_stress_missing':
+    case 'hardening_observation_missing':
+    case 'planting_observation_missing':
+    case 'greenhouse_observation_missing':
       return 'Укажите хотя бы один параметр наблюдения';
     case 'adaptation_care_type_missing':
-      return 'Укажите тип ухода';
-    case 'hardening_observation_missing':
-      return 'Укажите хотя бы один параметр наблюдения';
     case 'hardening_care_type_missing':
+    case 'planting_care_type_missing':
+    case 'greenhouse_care_type_missing':
       return 'Укажите тип ухода';
     case 'planting_missing':
       return 'Укажите хотя бы один параметр высадки';
-    case 'planting_observation_missing':
-      return 'Укажите хотя бы один параметр наблюдения';
-    case 'planting_care_type_missing':
-      return 'Укажите тип ухода';
     case 'planting_completion_missing':
       return 'Укажите итог высадки';
-    case 'greenhouse_observation_missing':
-      return 'Укажите хотя бы один параметр наблюдения';
-    case 'greenhouse_care_type_missing':
-      return 'Укажите тип ухода';
     case 'problem_missing':
-      return 'Укажите хотя бы один параметр проблемы';
+      return 'Укажите тип, риск и описание проблемы';
     case 'problem_quantity_missing':
       return 'Укажите количество растений с проблемой';
     case 'problem_quantity_not_positive':
@@ -161,6 +153,20 @@ export function getStatusChangeValidationMessage(validationError) {
       return 'Укажите целое количество выздоровевших растений';
     case 'recovery_quantity_gt_problem':
       return 'Количество выздоровевших не может превышать активное количество больных';
+    case 'isolation_no_remaining_problem':
+      return 'В партии нет проблемных растений для изоляции';
+    case 'isolation_quantity_missing':
+      return 'Укажите количество растений для изоляции';
+    case 'isolation_quantity_not_positive':
+      return 'Количество для изоляции должно быть больше нуля';
+    case 'isolation_quantity_not_integer':
+      return 'Укажите целое количество растений для изоляции';
+    case 'isolation_quantity_gt_current':
+      return 'Количество для изоляции не может превышать текущий остаток партии';
+    case 'isolation_quantity_gt_remaining_problem':
+      return 'Нельзя изолировать больше неизолированного проблемного остатка';
+    case 'isolation_location_missing':
+      return 'Укажите новое местоположение изолированной партии';
     default:
       return '';
   }

@@ -5,24 +5,58 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import styles from '../../styles';
 import StageHeader from '../components/StageHeader';
 import CultureCardInfo from '../components/CultureCardInfo';
-import { InfoIcon, LeaveIcon, LogoElementIcon, TimeIcon } from '../components/icons';
 import StatusFilterTabs from '../components/StatusFilterTabs';
-import {
-  getAdaptationStats,
-  getCardDisplayName,
-  getCloneStats,
-  getDaysInCurrentStage,
-  getGreenhouseStats,
-  getHardeningStats,
-  getIntroStats,
-  getPlantingStats,
-  getQrStatus,
-  formatProblemAwareQuantityDisplay,
-} from '../domain/batch';
-import { hasProblemOperation } from '../domain/statusProblemValidation';
+import { InfoIcon, LeaveIcon, LogoElementIcon, TimeIcon } from '../components/icons';
+import { getCardDisplayName } from '../domain/batch';
+import { buildCultureListCardViewData } from '../domain/cultureListCardView';
 import { getStageStatusFilterItems } from '../domain/cultureSelectors';
 import { stages } from '../domain/constants';
 
+const STATUS_TONE_STYLES = {
+  neutral: { color: '#6B7280' },
+  problem: { color: '#D92D20' },
+  problemStrong: { color: '#D92D20', fontWeight: '700' },
+  success: { color: '#15863F' },
+  warning: { color: '#B45309' },
+};
+
+const STATUS_TONE_ICON_COLORS = {
+  neutral: '#9AA3AF',
+  problem: '#D92D20',
+  problemStrong: '#D92D20',
+  success: '#15863F',
+  warning: '#F59E0B',
+};
+
+function getMetaIcon(type) {
+  if (type === 'days') {
+    return <TimeIcon color="#15863F" size={16} />;
+  }
+
+  return <LeaveIcon color="#15863F" size={16} />;
+}
+
+function getStatusIcon(tone) {
+  if (tone === 'warning') {
+    return <TimeIcon color={STATUS_TONE_ICON_COLORS[tone]} size={14} />;
+  }
+
+  return <InfoIcon color={STATUS_TONE_ICON_COLORS[tone] || STATUS_TONE_ICON_COLORS.neutral} size={14} />;
+}
+
+function buildCardInfoProps(cardView) {
+  return {
+    meta: cardView.meta.map((item) => ({
+      ...item,
+      icon: getMetaIcon(item.icon),
+    })),
+    statuses: cardView.secondaryRows.map((status) => ({
+      ...status,
+      icon: getStatusIcon(status.tone),
+      textStyle: STATUS_TONE_STYLES[status.tone] || STATUS_TONE_STYLES.neutral,
+    })),
+  };
+}
 
 
 export default function CultureListScreen({
@@ -31,7 +65,6 @@ export default function CultureListScreen({
   bottomInset,
   cardSearch,
   cards,
-  getResolvedBatchStatus,
   isAdaptationStage,
   isCardsLoading,
   isCloneStage,
@@ -104,20 +137,6 @@ export default function CultureListScreen({
     };
   };
   const emptyStateCopy = getEmptyStateCopy();
-  const formatDaysInStage = (days) => {
-    const value = Math.max(days, 1);
-    const lastDigit = value % 10;
-    const lastTwoDigits = value % 100;
-    const suffix = lastTwoDigits >= 11 && lastTwoDigits <= 14
-      ? 'дней'
-      : lastDigit === 1
-        ? 'день'
-        : lastDigit >= 2 && lastDigit <= 4
-          ? 'дня'
-          : 'дней';
-
-    return `${value} ${suffix} в стадии`;
-  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -177,163 +196,20 @@ export default function CultureListScreen({
             )}
 
             {!isCardsLoading && cards.map((card) => {
-              const batchStatus = getResolvedBatchStatus(card);
-              const introStats = getIntroStats(card);
-              const cloneStats = getCloneStats(card);
-              const adaptationStats = getAdaptationStats(card);
-              const greenhouseStats = getGreenhouseStats(card);
-              const hardeningStats = getHardeningStats(card);
-              const plantingStats = typeof getPlantingStats === 'function'
-                ? getPlantingStats(card)
-                : {
-                  completionResult: 'Не указан',
-                  lossCount: 0,
-                  riskStatus: 'Нормальный',
-                  survivalRate: 'Не указана',
-                };
-              const cardDaysInStage = getDaysInCurrentStage(card);
-              const isContaminated = card.sterilityStatus === 'contaminated';
-              const isQuarantine = batchStatus === 'quarantine';
-              const isCriticalLossRisk = (
-                (isCultureIntroStage && introStats.riskStatus === 'Критический') ||
-                (isCloneStage && cloneStats.riskStatus === 'Критический') ||
-                (isAdaptationStage && adaptationStats.riskStatus === 'Критический') ||
-                (isGreenhouseStage && greenhouseStats.riskStatus === 'Критический') ||
-                (isHardeningStage && hardeningStats.riskStatus === 'Критический') ||
-                (isPlantingStage && plantingStats.riskStatus === 'Критический')
-              );
-              const isProblemStatus = hasProblemOperation(card) || batchStatus === 'problem';
-              const problemStatusMeta = isContaminated
-                ? [{
-                  key: 'contamination',
-                  icon: <InfoIcon color="#D92D20" size={14} />,
-                  text: 'Контаминация',
-                  textStyle: { color: '#D92D20' },
-                }]
-                : isQuarantine
-                  ? [{
-                    key: 'quarantine',
-                    icon: <InfoIcon color="#D92D20" size={14} />,
-                    text: 'Карантин',
-                    textStyle: { color: '#D92D20' },
-                  }]
-                  : isProblemStatus
-                    ? [{
-                      key: 'problem',
-                      icon: <InfoIcon color="#D92D20" size={14} />,
-                      text: 'Проблема',
-                      textStyle: { color: '#D92D20' },
-                    }]
-                  : [];
-              const hasProblemMarker = problemStatusMeta.length > 0 || isCriticalLossRisk;
-              const baseStatuses = problemStatusMeta;
-              const introMeta = [
-                {
-                  key: 'quantity',
-                  icon: <LeaveIcon color="#15863F" size={16} />,
-                  value: formatProblemAwareQuantityDisplay(card),
-                },
-                {
-                  key: 'days',
-                  icon: <TimeIcon color="#15863F" size={16} />,
-                  value: formatDaysInStage(cardDaysInStage),
-                },
-              ];
-              const stageMeta = [
-                {
-                  key: 'quantity',
-                  icon: <LeaveIcon color="#15863F" size={16} />,
-                  value: formatProblemAwareQuantityDisplay(card),
-                },
-                {
-                  key: 'days',
-                  icon: <TimeIcon color="#15863F" size={16} />,
-                  value: formatDaysInStage(cardDaysInStage),
-                },
-              ];
-              const introStatuses = [
-                ...baseStatuses,
-                ...(isCultureIntroStage && introStats.riskStatus !== 'Нормальный'
-                  ? [{
-                    key: 'intro-risk',
-                    icon: <InfoIcon color="#D92D20" size={14} />,
-                    text: `Риск: ${introStats.riskStatus}`,
-                    textStyle: { color: '#D92D20' },
-                  }]
-                  : []),
-                ...(cardDaysInStage >= 14 && !problemStatusMeta.length
-                  ? [{
-                    key: 'stage-ready',
-                    icon: <TimeIcon color="#F59E0B" size={14} />,
-                    text: 'Готово к смене стадии',
-                  }]
-                  : []),
-                ...(cardDaysInStage < 14 &&
-                  getQrStatus(card) === 'pending_print' &&
-                  !problemStatusMeta.length
-                  ? [{
-                    key: 'qr-pending',
-                    icon: <InfoIcon color="#9AA3AF" size={14} />,
-                    text: 'QR ожидает печати',
-                  }]
-                  : []),
-              ];
-              const stageStatuses = [
-                ...baseStatuses,
-                ...(isCloneStage && cloneStats.riskStatus !== 'Нормальный'
-                  ? [{
-                    key: 'clone-risk',
-                    icon: <InfoIcon color="#D92D20" size={14} />,
-                    text: `Риск: ${cloneStats.riskStatus}`,
-                    textStyle: { color: '#D92D20' },
-                  }]
-                  : []),
-                ...(isAdaptationStage && adaptationStats.riskStatus !== 'Нормальный'
-                  ? [{
-                    key: 'adaptation-risk',
-                    icon: <InfoIcon color="#D92D20" size={14} />,
-                    text: `Риск: ${adaptationStats.riskStatus}`,
-                    textStyle: { color: '#D92D20' },
-                  }]
-                  : []),
-                ...(isGreenhouseStage && greenhouseStats.riskStatus !== 'Низкий'
-                  ? [{
-                    key: 'greenhouse-risk',
-                    icon: <InfoIcon color="#D92D20" size={14} />,
-                    text: `Риск: ${greenhouseStats.riskStatus}`,
-                    textStyle: { color: '#D92D20' },
-                  }]
-                  : []),
-                ...(isGreenhouseStage && greenhouseStats.hasOverdueCare
-                  ? [{
-                    key: 'overdue-care',
-                    icon: <InfoIcon color="#D92D20" size={14} />,
-                    text: 'Уход просрочен',
-                    textStyle: { color: '#D92D20' },
-                  }]
-                  : []),
-                ...(isHardeningStage
-                  ? [{
-                    key: 'hardening-readiness',
-                    icon: <TimeIcon color={hardeningStats.readinessForPlanting === 'Готова' ? '#15863F' : '#F59E0B'} size={14} />,
-                    text: `Готовность: ${hardeningStats.readinessForPlanting}`,
-                    textStyle: { color: hardeningStats.readinessForPlanting === 'Готова' ? '#15863F' : '#B45309' },
-                  }]
-                  : []),
-                ...(isPlantingStage
-                  ? [{
-                    key: 'planting-completion',
-                    icon: <TimeIcon color={plantingStats.completionResult === 'Прижилась' ? '#15863F' : '#F59E0B'} size={14} />,
-                    text: plantingStats.completionResult !== 'Не указан'
-                      ? `Итог: ${plantingStats.completionResult}`
-                      : `Приживаемость: ${plantingStats.survivalRate}`,
-                    textStyle: { color: plantingStats.completionResult === 'Прижилась' ? '#15863F' : '#B45309' },
-                  }]
-                  : []),
-              ];
+              const cardView = buildCultureListCardViewData(card, {
+                isAdaptationStage,
+                isCloneStage,
+                isCultureIntroStage,
+                isGreenhouseStage,
+                isHardeningStage,
+                isPlantingStage,
+                selectedStage,
+              });
+              const cardInfo = buildCardInfoProps(cardView);
 
               return (
                 <Pressable
+                  accessibilityLabel={cardView.accessibilityLabel}
                   accessibilityRole="button"
                   testID="culture-card"
                   key={card.id}
@@ -343,9 +219,9 @@ export default function CultureListScreen({
                     pressed && styles.stageCardPressed,
                   ]}
                 >
-                  {hasProblemMarker && (
+                  {cardView.hasProblemMarker && (
                     <View
-                      accessibilityLabel={problemStatusMeta[0]?.text || `Риск: ${introStats.riskStatus}`}
+                      accessibilityLabel="Проблема активна"
                       style={[
                         styles.plantCardStatusDot,
                         styles.plantCardStatusDotProblem,
@@ -361,12 +237,12 @@ export default function CultureListScreen({
                             {getCardDisplayName(card)}
                           </Text>
                         </View>
-                        <CultureCardInfo meta={introMeta} statuses={introStatuses} />
+                        <CultureCardInfo meta={cardInfo.meta} statuses={cardInfo.statuses} />
                       </>
                     ) : (
                       <>
                         <Text style={styles.plantCardName}>{getCardDisplayName(card)}</Text>
-                        <CultureCardInfo meta={stageMeta} statuses={stageStatuses} />
+                        <CultureCardInfo meta={cardInfo.meta} statuses={cardInfo.statuses} />
                       </>
                     )}
                   </View>
@@ -402,6 +278,7 @@ export default function CultureListScreen({
             </Pressable>
           </View>
         )}
+
       </View>
     </SafeAreaView>
   );

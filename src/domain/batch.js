@@ -94,7 +94,7 @@ export function normalizeCultureCard(card) {
     ...operation,
     id: operation.id || `${normalizedCard.id || 'card'}-${operation.type || 'operation'}-${operation.createdAt || operation.date || 'unknown'}-${index}`,
   }));
-  const normalizedOperations = hasBatchCreatedOperation || operations.length === 0
+  const normalizedOperations = hasBatchCreatedOperation
     ? normalizedExistingOperations
     : [
       createBatchCreatedOperation(normalizedCard, normalizedCard.createdAt || new Date().toISOString()),
@@ -276,7 +276,8 @@ export function getOperationSummaryItems(operation, card) {
   ].includes(operation.type)) {
     if (operation.type === 'propagation') {
       return [
-        ['Добавлено', operation.count ? `${operation.count} шт.` : ''],
+        [operation.childCardId ? 'Создано в партии' : 'Добавлено', operation.count ? `${operation.count} шт.` : ''],
+        ['Код дочерней партии', operation.childCode],
         ['Остаток', operation.currentQuantity !== undefined ? `${operation.currentQuantity} шт.` : ''],
         ['Способ размножения', operation.propagationMethod],
         ['Комментарий', operation.comment],
@@ -347,6 +348,33 @@ export function getOperationSummaryItems(operation, card) {
     ].filter(([, value]) => Boolean(value));
   }
 
+  if (operation.type === 'problemIsolation') {
+    return [
+      ['Изолировано', operation.count || operation.quantity ? `${operation.count || operation.quantity} шт.` : ''],
+      ['Новая партия', operation.childCode],
+      ['Местоположение', operation.location || operation.nextLocation],
+      ['Комментарий', operation.comment],
+    ].filter(([, value]) => Boolean(value));
+  }
+
+  if (operation.type === 'clonedFromParent') {
+    return [
+      ['Родительская партия', operation.parentCode],
+      ['Количество', operation.quantity ? `${operation.quantity} шт.` : ''],
+      ['Поколение', operation.generation],
+      ['Способ размножения', operation.propagationMethod],
+    ].filter(([, value]) => Boolean(value));
+  }
+
+  if (operation.type === 'isolatedFromParent') {
+    return [
+      ['Родительская партия', operation.parentCode],
+      ['Количество', operation.quantity ? `${operation.quantity} шт.` : ''],
+      ['Местоположение', operation.location],
+      ['Поколение', operation.generation],
+    ].filter(([, value]) => Boolean(value));
+  }
+
   if (operation.type === 'contamination') {
     return [['Описание', operation.contaminationNote]].filter(([, value]) => Boolean(value));
   }
@@ -362,7 +390,11 @@ export function formatQuantityDisplay(currentQuantity, totalQuantity) {
   const normalizedCurrentQuantity = Number(currentQuantity) || 0;
   const normalizedTotalQuantity = Number(totalQuantity) || 0;
 
-  if (normalizedTotalQuantity > 0 && normalizedCurrentQuantity !== normalizedTotalQuantity) {
+  if (
+    normalizedTotalQuantity > 0 &&
+    normalizedCurrentQuantity !== normalizedTotalQuantity &&
+    normalizedCurrentQuantity <= normalizedTotalQuantity
+  ) {
     return `${normalizedCurrentQuantity} из ${normalizedTotalQuantity} шт.`;
   }
 
@@ -372,6 +404,9 @@ export function formatQuantityDisplay(currentQuantity, totalQuantity) {
 export function getCardActiveProblemQuantity(card) {
   const currentQuantity = getCardCurrentQuantity(card);
   const operations = card?.operations || [];
+  const hasFullBatchProblem = operations.some((operation) => (
+    ['contamination', 'quarantine'].includes(operation.type)
+  ));
   const affectedQuantity = operations.reduce((sum, operation) => {
     if (operation.type === 'problem') {
       return sum + (Number(operation.affectedQuantity) || 0);
@@ -381,10 +416,33 @@ export function getCardActiveProblemQuantity(card) {
       return sum - (Number(operation.recoveredQuantity) || 0);
     }
 
+    if (operation.type === 'problemIsolation') {
+      return sum - (Number(operation.count || operation.quantity) || 0);
+    }
+
     return sum;
-  }, 0);
+  }, hasFullBatchProblem ? currentQuantity : 0);
 
   return Math.min(Math.max(affectedQuantity, 0), currentQuantity);
+}
+
+export function getCardRemainingProblemQuantity(card) {
+  if (card?.originType === 'problemIsolation') {
+    return 0;
+  }
+
+  return getCardActiveProblemQuantity(card);
+}
+
+export function getLatestActiveProblemOperation(card) {
+  const operations = card?.operations || [];
+  const remainingProblemQuantity = getCardRemainingProblemQuantity(card);
+
+  if (remainingProblemQuantity <= 0) {
+    return null;
+  }
+
+  return operations.find((operation) => operation.type === 'problem') || null;
 }
 
 export function getCardHealthyQuantity(card) {
@@ -399,14 +457,78 @@ export function getLatestProblemRiskLevel(card) {
 }
 
 export function formatProblemAwareQuantityDisplay(card) {
-  const currentQuantity = getCardCurrentQuantity(card);
   const activeProblemQuantity = getCardActiveProblemQuantity(card);
+  const propagationQuantity = getCardPropagationQuantity(card);
+  const sourceQuantity = getCardSourceQuantity(card);
+  const lossQuantity = getCardLossQuantity(card);
 
   if (activeProblemQuantity <= 0) {
-    return formatQuantityDisplay(currentQuantity, card?.quantity);
+    if (propagationQuantity > 0) {
+      return [
+        `${getCardCurrentQuantity(card)} всего`,
+        `${sourceQuantity} исходных`,
+        `${propagationQuantity} размножено`,
+        lossQuantity > 0 ? `потери ${lossQuantity}` : '',
+      ].filter(Boolean).join(' · ');
+    }
+
+    return formatQuantityDisplay(sourceQuantity, card?.quantity);
   }
 
   return `${getCardHealthyQuantity(card)} здоровых · ${activeProblemQuantity} с проблемой`;
+}
+
+export function getCardPropagationQuantity(card) {
+  const operations = card?.operations || [];
+  const propagationQuantity = operations.reduce((sum, operation) => {
+    if (operation.type === 'statusChange') {
+      return sum + (Number(operation.propagationCount) || 0);
+    }
+
+    if (operation.type === 'propagation' && !operation.childCardId) {
+      return sum + (Number(operation.count) || 0);
+    }
+
+    return sum;
+  }, 0);
+  const spentQuantity = operations.reduce((sum, operation) => {
+    if (operation.type === 'statusChange') {
+      return sum +
+        (Number(operation.saleCount) || 0) +
+        (Number(operation.deathCount) || 0) +
+        (Number(operation.discardCount) || 0);
+    }
+
+    if (['sale', 'death', 'discard', 'introLoss'].includes(operation.type)) {
+      return sum + (Number(operation.count) || 0);
+    }
+
+    return sum;
+  }, 0);
+  const sourceSpentQuantity = Math.min(Number(card?.quantity) || 0, spentQuantity);
+  const propagationSpentQuantity = Math.max(spentQuantity - sourceSpentQuantity, 0);
+
+  return Math.max(propagationQuantity - propagationSpentQuantity, 0);
+}
+
+export function getCardSourceQuantity(card) {
+  return Math.max(getCardCurrentQuantity(card) - getCardPropagationQuantity(card), 0);
+}
+
+export function getCardLossQuantity(card) {
+  return (card?.operations || []).reduce((sum, operation) => {
+    if (operation.type === 'statusChange') {
+      return sum +
+        (Number(operation.deathCount) || 0) +
+        (Number(operation.discardCount) || 0);
+    }
+
+    if (['death', 'discard', 'introLoss'].includes(operation.type)) {
+      return sum + (Number(operation.count) || 0);
+    }
+
+    return sum;
+  }, 0);
 }
 
 export function buildProblemQuantityPatch(card) {
@@ -433,12 +555,16 @@ export function getCardCurrentQuantity(card) {
       return Math.max(quantity - (Number(operation.count) || 0), 0);
     }
 
-    if (operation.type === 'propagation') {
+    if (operation.type === 'propagation' && !operation.childCardId) {
       return quantity + (Number(operation.count) || 0);
     }
 
     if (operation.type === 'introLoss') {
       return Math.max(quantity - (Number(operation.count) || 0), 0);
+    }
+
+    if (operation.type === 'problemIsolation') {
+      return Math.max(quantity - (Number(operation.count || operation.quantity) || 0), 0);
     }
 
     return quantity;
@@ -448,8 +574,9 @@ export function getCardCurrentQuantity(card) {
 export function getCloneStats(card) {
   const initialQuantity = Number(card?.quantity) || 0;
   const operations = card?.operations || [];
-  const isProblemCard = card?.batchStatus === 'problem' ||
-    getProblemBatchStatusFromOperations(operations, card?.stage || '') === 'problem';
+  const activeProblemQuantity = getCardActiveProblemQuantity(card);
+  const isProblemCard = (card?.batchStatus === 'problem' && activeProblemQuantity > 0) ||
+    getProblemBatchStatusFromOperations(operations, card?.stage || '', activeProblemQuantity) === 'problem';
   const rootedCount = operations.reduce((sum, operation) => {
     if (operation.type === 'rooting') {
       return sum + (Number(operation.count) || 0);
@@ -508,8 +635,9 @@ export function getCloneStats(card) {
 export function getIntroStats(card) {
   const operations = card?.operations || [];
   const initialQuantity = Number(card?.quantity) || 0;
-  const isProblemCard = card?.batchStatus === 'problem' ||
-    getProblemBatchStatusFromOperations(operations, card?.stage || '') === 'problem';
+  const activeProblemQuantity = getCardActiveProblemQuantity(card);
+  const isProblemCard = (card?.batchStatus === 'problem' && activeProblemQuantity > 0) ||
+    getProblemBatchStatusFromOperations(operations, card?.stage || '', activeProblemQuantity) === 'problem';
   const latestProblemRiskLevel = getLatestProblemRiskLevel(card);
   const deathCount = operations.reduce((sum, operation) => (
     sum + (operation.type === 'death' ? Number(operation.count) || 0 : 0)
@@ -550,8 +678,9 @@ export function getAdaptationStats(card) {
   const operations = card?.operations || [];
   const currentQuantity = getCardCurrentQuantity(card);
   const initialQuantity = Number(card?.quantity) || 0;
-  const isProblemCard = card?.batchStatus === 'problem' ||
-    getProblemBatchStatusFromOperations(operations, card?.stage || '') === 'problem';
+  const activeProblemQuantity = getCardActiveProblemQuantity(card);
+  const isProblemCard = (card?.batchStatus === 'problem' && activeProblemQuantity > 0) ||
+    getProblemBatchStatusFromOperations(operations, card?.stage || '', activeProblemQuantity) === 'problem';
   const survivalPercent = initialQuantity > 0
     ? Math.round((currentQuantity / initialQuantity) * 100)
     : 0;
@@ -595,8 +724,9 @@ export function getGreenhouseStats(card) {
   const operations = card?.operations || [];
   const currentQuantity = getCardCurrentQuantity(card);
   const initialQuantity = Number(card?.quantity) || 0;
-  const isProblemCard = card?.batchStatus === 'problem' ||
-    getProblemBatchStatusFromOperations(operations, card?.stage || '') === 'problem';
+  const activeProblemQuantity = getCardActiveProblemQuantity(card);
+  const isProblemCard = (card?.batchStatus === 'problem' && activeProblemQuantity > 0) ||
+    getProblemBatchStatusFromOperations(operations, card?.stage || '', activeProblemQuantity) === 'problem';
   const careSchedules = getGreenhouseCareSchedules(card);
   const wateringSchedule = careSchedules.find((schedule) => schedule.careType === 'Полив');
   const overdueCareSchedules = careSchedules.filter((schedule) => schedule.isOverdue);
@@ -684,8 +814,9 @@ export function getHardeningStats(card) {
   const operations = card?.operations || [];
   const currentQuantity = getCardCurrentQuantity(card);
   const initialQuantity = Number(card?.quantity) || 0;
-  const isProblemCard = card?.batchStatus === 'problem' ||
-    getProblemBatchStatusFromOperations(operations, card?.stage || '') === 'problem';
+  const activeProblemQuantity = getCardActiveProblemQuantity(card);
+  const isProblemCard = (card?.batchStatus === 'problem' && activeProblemQuantity > 0) ||
+    getProblemBatchStatusFromOperations(operations, card?.stage || '', activeProblemQuantity) === 'problem';
   const deathCount = operations.reduce((sum, operation) => (
     sum + (operation.type === 'death' ? Number(operation.count) || 0 : 0)
   ), 0);
@@ -939,8 +1070,9 @@ export function getPlantingStats(card) {
   const operations = card?.operations || [];
   const currentQuantity = getCardCurrentQuantity(card);
   const initialQuantity = Number(card?.quantity) || 0;
-  const isProblemCard = card?.batchStatus === 'problem' ||
-    getProblemBatchStatusFromOperations(operations, card?.stage || '') === 'problem';
+  const activeProblemQuantity = getCardActiveProblemQuantity(card);
+  const isProblemCard = (card?.batchStatus === 'problem' && activeProblemQuantity > 0) ||
+    getProblemBatchStatusFromOperations(operations, card?.stage || '', activeProblemQuantity) === 'problem';
   const deathCount = operations.reduce((sum, operation) => (
     sum + (operation.type === 'death' ? Number(operation.count) || 0 : 0)
   ), 0);

@@ -22,7 +22,7 @@ import {
   createEmptyStatusForm,
 } from "./src/domain/forms";
 import { dateFromIso, getTodayIsoDate } from "./src/domain/dates";
-import { getCardDisplayName } from "./src/domain/batch";
+import { getCardActiveProblemQuantity, getCardDisplayName, getCardRemainingProblemQuantity } from "./src/domain/batch";
 import {
   editableStatusOperationTypes,
   introOperationFields,
@@ -45,6 +45,7 @@ export default function AppRouter({ actions, state }) {
     canEditCurrentIdentity,
     canSaveCultureForm,
     cultureCalendarTab,
+    cultureCards,
     cultureForm,
     cultureOptions,
     currentScreen,
@@ -252,6 +253,13 @@ export default function AppRouter({ actions, state }) {
 
     function openAddEventFlow(actionDateIso) {
       const selectedStageForAction = selectedCard.stage || INTRO_STAGE;
+      const activeProblemQuantity = getCardActiveProblemQuantity(selectedCard);
+      const remainingProblemQuantity = getCardRemainingProblemQuantity(selectedCard);
+      const initialProblemActionType = remainingProblemQuantity > 0
+        ? "problemIsolation"
+        : activeProblemQuantity > 0
+          ? "problemRecovery"
+          : "";
 
       if (actionDateIso) {
         setSelectedCalendarDate(actionDateIso);
@@ -262,15 +270,16 @@ export default function AppRouter({ actions, state }) {
       setEditingOperationId(null);
 
       if (selectedStageForAction === INTRO_STAGE) {
+        const initialActionType = initialProblemActionType || "problem";
         setIsDateEntryExpanded(false);
         clearIntroActionPhotoDrafts();
-        setIntroActionType("problem");
+        setIntroActionType(initialActionType);
         setIntroActionForm(createEmptyIntroActionForm());
         setCurrentScreen("introActionForm");
         return;
       }
 
-      openStatusChangeForm();
+      openStatusChangeForm(initialProblemActionType);
     }
 
     function handleAddEventPress() {
@@ -375,6 +384,7 @@ export default function AppRouter({ actions, state }) {
         {cultureCalendarTab === "passport" && (
           <CulturePassportTab
             adaptationStats={selectedCardAdaptationStats}
+            cultureCards={cultureCards}
             card={selectedCard}
             cloneStats={selectedCardCloneStats}
             currentQuantity={selectedCardCurrentQuantity}
@@ -382,6 +392,10 @@ export default function AppRouter({ actions, state }) {
             hardeningStats={selectedCardHardeningStats}
             plantingStats={selectedCardPlantingStats}
             getResolvedBatchStatus={getResolvedBatchStatus}
+            onOpenRelatedCard={(relatedCard) => {
+              openCultureCalendar(relatedCard);
+              setCultureCalendarTab("passport");
+            }}
             onShareQrPress={() => handleShareQrPress(selectedCard)}
           />
         )}
@@ -499,6 +513,8 @@ export default function AppRouter({ actions, state }) {
         bottomInset={bottomInset}
         cardSearch={cardSearch}
         cards={filteredCultureCards}
+        cultureCards={cultureCards}
+        currentEmployee={currentEmployee}
         getResolvedBatchStatus={getResolvedBatchStatus}
         isAdaptationStage={isAdaptationStage}
         isCardsLoading={isCardsLoading}
@@ -510,6 +526,10 @@ export default function AppRouter({ actions, state }) {
         onBack={() => setSelectedStage("")}
         onChangeBatchStatusFilter={setBatchStatusFilter}
         onChangeSearch={setCardSearch}
+        onChangeStage={(stage) => {
+          setSelectedStage(stage);
+          setBatchStatusFilter("all");
+        }}
         onCreateCulture={openCultureForm}
         onOpenCultureCalendar={openCultureCalendar}
         selectedStage={selectedStage}

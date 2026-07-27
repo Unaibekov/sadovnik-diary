@@ -2,12 +2,17 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 export default function CardStatusLine({
+  accessibilityLabel,
   icon,
   text,
   textStyle,
 }) {
   return (
-    <View style={styles.row}>
+    <View
+      accessibilityLabel={accessibilityLabel || text}
+      accessible
+      style={styles.row}
+    >
       <View style={styles.iconWrap}>
         {icon}
       </View>

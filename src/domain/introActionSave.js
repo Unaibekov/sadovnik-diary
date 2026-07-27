@@ -3,8 +3,20 @@ import { buildIntroActionOperation } from './introActionOperationBuilder';
 import { buildIntroActionUpdatedCard } from './introActionCardBuilder';
 import { buildStatusOperationContext } from './statusOperationContext';
 import { INTRO_STAGE } from './constants';
-import { getCardActiveProblemQuantity, getCardHealthyQuantity, isPositiveInteger } from './batch';
-import { getProblemRecoveryValidationError, getProblemValidationError } from './statusProblemValidation';
+import {
+  getCardActiveProblemQuantity,
+  getCardHealthyQuantity,
+  getCardRemainingProblemQuantity,
+  getLatestActiveProblemOperation,
+  isPositiveInteger,
+} from './batch';
+import {
+  getProblemBatchStatus,
+  getProblemIsolationValidationError,
+  getProblemRecoveryValidationError,
+  getProblemValidationError,
+} from './statusProblemValidation';
+import { attachChildToOperation, buildDerivedChildBatch } from './propagationChildCard';
 
 export function buildIntroActionSaveResult({
   actionConfig,
@@ -93,7 +105,34 @@ export function buildIntroActionSaveResult({
     };
   }
 
-  const nextOperation = buildIntroActionOperation({
+  const isolationValidationError = getProblemIsolationValidationError(introActionType, introActionForm, {
+    currentQuantity,
+    remainingProblemQuantity: getCardRemainingProblemQuantity(cardWithoutEditedOperation),
+  });
+  if (isolationValidationError) {
+    const isolationErrorMessages = {
+      isolation_no_remaining_problem: 'В партии нет проблемных растений для изоляции',
+      isolation_quantity_missing: 'Укажите количество растений для изоляции',
+      isolation_quantity_not_positive: 'Количество для изоляции должно быть больше нуля',
+      isolation_quantity_not_integer: 'Укажите целое количество растений для изоляции',
+      isolation_quantity_gt_current: 'Количество для изоляции не может превышать текущий остаток партии',
+      isolation_quantity_gt_remaining_problem: 'Нельзя изолировать больше неизолированного проблемного остатка',
+      isolation_location_missing: 'Укажите новое местоположение изолированной партии',
+    };
+
+    return {
+      nextCards: cultureCards,
+      nextOperation: null,
+      error: isolationErrorMessages[isolationValidationError] || actionConfig.error,
+    };
+  }
+
+  const sourceProblemOperation = introActionType === 'problemIsolation'
+    ? (cardWithoutEditedOperation.operations || []).find((operation) => operation.id === introActionForm.sourceProblemEventId) ||
+      getLatestActiveProblemOperation(cardWithoutEditedOperation)
+    : null;
+
+  const builtOperation = buildIntroActionOperation({
     actionConfig,
     editingOperationId,
     editedOperation,
@@ -111,11 +150,39 @@ export function buildIntroActionSaveResult({
     riskLevel: `${introActionForm.riskLevel || ''}`.trim(),
     affectedQuantity: `${introActionForm.affectedQuantity || ''}`.trim(),
     recoveredQuantity: `${introActionForm.recoveredQuantity || ''}`.trim(),
+    isolationQuantity: `${introActionForm.isolationQuantity || ''}`.trim(),
+    sourceProblemEventId: sourceProblemOperation?.id || '',
+    isolationLocation: `${introActionForm.isolationLocation || ''}`.trim(),
+    isolationComment: `${introActionForm.isolationComment || ''}`.trim(),
     problemDescription: `${introActionForm.problemDescription || ''}`.trim(),
     comment: `${introActionForm.comment || ''}`.trim(),
     currentQuantity: introLossPreviousQuantity,
     activeProblemQuantityBefore: getCardActiveProblemQuantity(cardWithoutEditedOperation),
   });
+
+  const isolationChildCard = introActionType === 'problemIsolation' && !editingOperationId
+    ? buildDerivedChildBatch({
+      cultureCards,
+      parentCard: selectedCard,
+      sourceOperation: builtOperation,
+      quantity: Number(introActionForm.isolationQuantity) || 0,
+      userId,
+      originType: 'problemIsolation',
+      stage: selectedCard.stage || INTRO_STAGE,
+      locationDescription: `${introActionForm.isolationLocation || ''}`.trim(),
+      batchStatus: getProblemBatchStatus(
+        sourceProblemOperation?.problemType,
+        sourceProblemOperation?.riskLevel,
+        selectedCard.stage || INTRO_STAGE,
+      ) || 'problem',
+      healthStatus: 'problem',
+      isolationStatus: 'isolated',
+      sourceProblemOperation,
+    })
+    : null;
+  const nextOperation = isolationChildCard
+    ? attachChildToOperation(builtOperation, isolationChildCard)
+    : builtOperation;
 
   const nextCards = cultureCards.map((card) => {
     if (card.id !== selectedCard.id) {
@@ -129,5 +196,8 @@ export function buildIntroActionSaveResult({
     });
   });
 
-  return { nextCards, nextOperation };
+  return {
+    nextCards: isolationChildCard ? [...nextCards, isolationChildCard] : nextCards,
+    nextOperation,
+  };
 }

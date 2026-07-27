@@ -60,13 +60,17 @@ export function getResolvedBatchStatus(card) {
   if (batchStatus === 'problem') {
     return activeProblemQuantity > 0
       ? 'problem'
-      : hasSale || currentQuantity < totalQuantity
+      : hasSale
         ? 'partial'
         : 'active';
   }
 
   if (batchStatus === 'quarantine') {
-    return 'quarantine';
+    return activeProblemQuantity > 0
+      ? 'quarantine'
+      : hasSale
+        ? 'partial'
+        : 'active';
   }
 
   if (hasSale && currentQuantity === 0) {
@@ -74,11 +78,11 @@ export function getResolvedBatchStatus(card) {
   }
 
   if (batchStatus === 'sold') {
-    return hasSale || currentQuantity < totalQuantity ? 'partial' : 'active';
+    return hasSale ? 'partial' : 'active';
   }
 
   if (batchStatus === 'partial') {
-    return hasSale || currentQuantity < totalQuantity ? 'partial' : 'active';
+    return hasSale ? 'partial' : 'active';
   }
 
   return batchStatus;

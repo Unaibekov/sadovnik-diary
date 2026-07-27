@@ -164,7 +164,7 @@ test('logout and reload return to the PIN screen when quick auth is configured',
 test('intro stage card is available from the seeded data', async ({ page }) => {
   await openIntroStage(page);
   await expect(page.getByTestId('culture-card').first()).toContainText('Томат');
-  await expect(page.getByTestId('culture-card').first()).toContainText('20 шт.');
+  await expect(page.getByTestId('culture-card').first()).toContainText('20 растений');
   await expect(page.getByTestId('culture-card').first()).toContainText('QR ожидает печати');
 });
 

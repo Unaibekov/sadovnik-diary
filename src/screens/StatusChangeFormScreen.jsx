@@ -6,7 +6,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import styles from '../../styles';
 import PhotoGallery from '../components/PhotoGallery';
 import { formatDisplayDate } from '../domain/dates';
-import { getCardActiveProblemQuantity, getCardCurrentQuantity, getCardDisplayName } from '../domain/batch';
+import {
+  getCardActiveProblemQuantity,
+  getCardCurrentQuantity,
+  getCardDisplayName,
+  getCardRemainingProblemQuantity,
+} from '../domain/batch';
 import StageHeader from '../components/StageHeader';
 import StatusFilterTabs from '../components/StatusFilterTabs';
 import SelectBottomSheet from '../components/SelectBottomSheet';
@@ -73,12 +78,15 @@ export default function StatusChangeFormScreen({
   const [isSurvivalDropdownOpen, setIsSurvivalDropdownOpen] = useState(false);
   const [isCompletionDropdownOpen, setIsCompletionDropdownOpen] = useState(false);
   const [isNoticeVisible, setIsNoticeVisible] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [saveAttemptCount, setSaveAttemptCount] = useState(0);
   const seenAlertRef = useRef('');
   const isMovementEvent = eventType === 'movement';
   const alertMessage = formError || formNotice || '';
   const activeProblemQuantity = getCardActiveProblemQuantity(selectedCard);
+  const remainingProblemQuantity = getCardRemainingProblemQuantity(selectedCard);
   const canRecordProblemRecovery = activeProblemQuantity > 0 || eventType === 'problemRecovery';
+  const canIsolateProblem = remainingProblemQuantity > 0 || eventType === 'problemIsolation';
   const eventOptions = selectedCard.stage === INTRO_STAGE
     ? [
       ['rooting', 'Укоренение'],
@@ -144,13 +152,17 @@ export default function StatusChangeFormScreen({
       ['introLoss', 'Потери'],
       ['sale', 'Продажа'],
     ];
-  const displayedEventOptions = canRecordProblemRecovery
-    ? eventOptions.flatMap((item) => (
-      item[0] === 'problem'
-        ? [item, ['problemRecovery', 'Выздоровление']]
-        : [item]
-    ))
-    : eventOptions;
+  const displayedEventOptions = eventOptions.flatMap((item) => {
+    if (item[0] !== 'problem') {
+      return [item];
+    }
+
+    return [
+      item,
+      ...(canRecordProblemRecovery ? [['problemRecovery', 'Выздоровление']] : []),
+      ...(canIsolateProblem ? [['problemIsolation', 'Изолировать растения']] : []),
+    ];
+  });
   const countField = countFieldByType[eventType || 'rooting'];
   const selectedEventLabel = displayedEventOptions.find(([value]) => value === eventType)?.[1] ||
     {
@@ -180,6 +192,16 @@ export default function StatusChangeFormScreen({
   }, [eventType]);
 
   useEffect(() => {
+    if (
+      eventType === 'problemIsolation' &&
+      remainingProblemQuantity > 0 &&
+      !`${form.isolationQuantity || ''}`.trim()
+    ) {
+      onChangeField('isolationQuantity', `${remainingProblemQuantity}`);
+    }
+  }, [eventType, remainingProblemQuantity, form.isolationQuantity, onChangeField]);
+
+  useEffect(() => {
     if (!alertMessage) {
       seenAlertRef.current = '';
       setIsNoticeVisible(false);
@@ -194,9 +216,18 @@ export default function StatusChangeFormScreen({
     }
   }, [alertMessage, saveAttemptCount]);
 
-  function handleSavePress() {
+  async function handleSavePress() {
+    if (isSaving) {
+      return;
+    }
+
+    setIsSaving(true);
     setSaveAttemptCount((current) => current + 1);
-    onSave();
+    try {
+      await onSave();
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   function selectCareType(value) {
@@ -316,6 +347,8 @@ export default function StatusChangeFormScreen({
                 'plantingCare',
                 'plantingCompletion',
                 'problem',
+                'problemRecovery',
+                'problemIsolation',
                 'movement',
                 'quarantine',
               ].includes(eventType) && (
@@ -964,6 +997,59 @@ export default function StatusChangeFormScreen({
                 </>
               )}
 
+              {eventType === 'problemIsolation' && (
+                <>
+                  <View style={styles.field}>
+                    <Text style={styles.label}>Количество для изоляции, шт. *</Text>
+                    <TextInput
+                      inputMode="numeric"
+                      keyboardType="numeric"
+                      onChangeText={(value) => onChangeField('isolationQuantity', value)}
+                      placeholder={`${remainingProblemQuantity || 0}`}
+                      placeholderTextColor="#7C8A80"
+                      style={styles.input}
+                      value={form.isolationQuantity}
+                    />
+                    <Text style={localStyles.fieldHint}>
+                      Необходимо изолировать: {remainingProblemQuantity} шт.
+                    </Text>
+                  </View>
+
+                  <View style={styles.field}>
+                    <Text style={styles.label}>Новое местоположение *</Text>
+                    <TextInput
+                      onChangeText={(value) => onChangeField('isolationLocation', value)}
+                      placeholder="Например: Изолятор 1, стеллаж B, полка 3"
+                      placeholderTextColor="#7C8A80"
+                      style={styles.input}
+                      value={form.isolationLocation}
+                    />
+                  </View>
+
+                  <View style={styles.field}>
+                    <Text style={styles.label}>Итог разделения</Text>
+                    <Text style={localStyles.fieldHint}>
+                      Исходная партия: {Math.max(getCardCurrentQuantity(selectedCard) - (Number(form.isolationQuantity) || 0), 0)} шт.
+                    </Text>
+                    <Text style={localStyles.fieldHint}>
+                      Новая изолированная партия: {Number(form.isolationQuantity) || 0} шт. QR ожидает печати.
+                    </Text>
+                  </View>
+
+                  <View style={styles.field}>
+                    <Text style={styles.label}>Комментарий</Text>
+                    <TextInput
+                      multiline
+                      onChangeText={(value) => onChangeField('isolationComment', value)}
+                      placeholder="Комментарий"
+                      placeholderTextColor="#7C8A80"
+                      style={[styles.input, styles.multilineInput]}
+                      value={form.isolationComment}
+                    />
+                  </View>
+                </>
+              )}
+
               {eventType === 'transplant' && (
                 <>
                   <View style={styles.field}>
@@ -1115,7 +1201,7 @@ export default function StatusChangeFormScreen({
                 </View>
               )}
 
-              {!isMovementEvent && eventType !== 'problem' && eventType !== 'problemRecovery' && eventType !== 'greenhouseObservation' && eventType !== 'introLoss' && (
+              {!isMovementEvent && eventType !== 'problem' && eventType !== 'problemRecovery' && eventType !== 'problemIsolation' && eventType !== 'greenhouseObservation' && eventType !== 'introLoss' && (
                 <>
                   {/* Общие поля есть у всех событий. */}
                   <View style={styles.field}>
@@ -1159,6 +1245,7 @@ export default function StatusChangeFormScreen({
           <View style={localStyles.footer}>
             <Pressable
               accessibilityRole="button"
+              disabled={isSaving}
               onPress={handleSavePress}
               style={({ pressed }) => [
                 styles.primaryButton,

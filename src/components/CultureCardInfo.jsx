@@ -2,11 +2,15 @@
 import { StyleSheet, Text, View } from 'react-native';
 import CardStatusLine from './CardStatusLine';
 
-function MetaItem({ icon, value, width }) {
+function MetaItem({ accessibilityLabel, icon, value, width }) {
   return (
-    <View style={[styles.metaItem, width ? { width } : null]}>
+    <View
+      accessibilityLabel={accessibilityLabel || value}
+      accessible
+      style={[styles.metaItem, width ? { width } : null]}
+    >
       {icon}
-      <Text numberOfLines={1} style={styles.metaValue}>
+      <Text style={styles.metaValue}>
         {value}
       </Text>
     </View>
@@ -22,6 +26,7 @@ export default function CultureCardInfo({
       <View style={styles.metaGrid}>
         {meta.map((item) => (
           <MetaItem
+            accessibilityLabel={item.accessibilityLabel}
             icon={item.icon}
             key={item.key}
             value={item.value}
@@ -33,6 +38,7 @@ export default function CultureCardInfo({
       {statuses.map((status) => (
         <CardStatusLine
           icon={status.icon}
+          accessibilityLabel={status.accessibilityLabel}
           key={status.key}
           text={status.text}
           textStyle={status.textStyle}
@@ -44,15 +50,19 @@ export default function CultureCardInfo({
 
 const styles = StyleSheet.create({
   metaGrid: {
+    alignItems: 'flex-start',
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 14,
     marginTop: 12,
+    rowGap: 8,
   },
   metaItem: {
     alignItems: 'center',
     flexDirection: 'row',
-    flexShrink: 0,
+    flexShrink: 1,
     gap: 6,
+    maxWidth: '100%',
   },
   metaValue: {
     color: '#6B7280',

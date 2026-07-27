@@ -1,4 +1,4 @@
-﻿// Р’РєР»Р°РґРєР° Р¶СѓСЂРЅР°Р»Р° РєСѓР»СЊС‚СѓСЂС‹ СЃРѕ СЃРїРёСЃРєРѕРј РѕРїРµСЂР°С†РёР№.
+// Вкладка журнала культуры со списком операций.
 import { Fragment, useMemo, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import styles from '../../styles';
@@ -97,7 +97,7 @@ export default function CultureJournalTab({
           showsVerticalScrollIndicator={false}
           style={localStyles.journalScroll}
         >
-          {operations.length === 0 && <Text style={styles.journalEmpty}>РЎРѕР±С‹С‚РёР№ РїРѕРєР° РЅРµС‚</Text>}
+          {operations.length === 0 && <Text style={styles.journalEmpty}>Событий пока нет</Text>}
 
           {groupedOperations.map((group) => {
             const groupDate = group.operations[0]?.date || group.operations[0]?.createdAt || '';
