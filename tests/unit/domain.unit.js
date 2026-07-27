@@ -66,6 +66,87 @@ test('full-batch contamination keeps remaining plants active after partial isola
   assert.equal(getCardRemainingProblemQuantity(parentCard), 60);
 });
 
+test('problem journal overrides stale stored active quantity after full recovery', () => {
+  const state = getProblemStateFromOperations([
+    { type: 'problem', affectedQuantity: 40, createdAt: '2026-07-27T16:00:00.000Z' },
+    { type: 'problemRecovery', recoveredQuantity: 40, createdAt: '2026-07-27T17:00:00.000Z' },
+  ], {
+    activeProblemQuantity: 40,
+    currentQuantity: 100,
+    stage: INTRO_STAGE,
+  });
+
+  assert.equal(state.activeProblemQuantity, 0);
+  assert.equal(state.isActive, false);
+});
+
+test('problem journal calculates partial recovery without stale stored maximum', () => {
+  const state = getProblemStateFromOperations([
+    { type: 'problem', affectedQuantity: 50, createdAt: '2026-07-27T16:00:00.000Z' },
+    { type: 'problemRecovery', recoveredQuantity: 20, createdAt: '2026-07-27T17:00:00.000Z' },
+  ], {
+    activeProblemQuantity: 80,
+    currentQuantity: 100,
+    stage: INTRO_STAGE,
+  });
+
+  assert.equal(state.activeProblemQuantity, 30);
+});
+
+test('problem journal clamps several consecutive recoveries to zero', () => {
+  const state = getProblemStateFromOperations([
+    { type: 'problem', affectedQuantity: 50, createdAt: '2026-07-27T16:00:00.000Z' },
+    { type: 'problemRecovery', recoveredQuantity: 20, createdAt: '2026-07-27T17:00:00.000Z' },
+    { type: 'problemRecovery', recoveredQuantity: 50, createdAt: '2026-07-27T18:00:00.000Z' },
+  ], {
+    activeProblemQuantity: 50,
+    currentQuantity: 100,
+    stage: INTRO_STAGE,
+  });
+
+  assert.equal(state.activeProblemQuantity, 0);
+  assert.equal(state.isActive, false);
+});
+
+test('problem journal handles new problem after recovery', () => {
+  const state = getProblemStateFromOperations([
+    { type: 'problem', affectedQuantity: 50, createdAt: '2026-07-27T16:00:00.000Z' },
+    { type: 'problemRecovery', recoveredQuantity: 50, createdAt: '2026-07-27T17:00:00.000Z' },
+    { type: 'problem', affectedQuantity: 15, createdAt: '2026-07-27T18:00:00.000Z' },
+  ], {
+    activeProblemQuantity: 50,
+    currentQuantity: 100,
+    stage: INTRO_STAGE,
+  });
+
+  assert.equal(state.activeProblemQuantity, 15);
+});
+
+test('problem journal sums two consecutive problem events', () => {
+  const state = getProblemStateFromOperations([
+    { type: 'problem', affectedQuantity: 20, createdAt: '2026-07-27T16:00:00.000Z' },
+    { type: 'problem', affectedQuantity: 15, createdAt: '2026-07-27T17:00:00.000Z' },
+  ], {
+    currentQuantity: 100,
+    stage: INTRO_STAGE,
+  });
+
+  assert.equal(state.activeProblemQuantity, 35);
+});
+
+test('legacy stored active quantity is used only without problem journal events', () => {
+  const legacyCard = {
+    quantity: 100,
+    activeProblemQuantity: 12,
+    stage: INTRO_STAGE,
+    operations: [
+      { type: 'batchCreated', quantity: 100, createdAt: '2026-07-27T16:00:00.000Z' },
+    ],
+  };
+
+  assert.equal(getCardActiveProblemQuantity(legacyCard), 12);
+});
+
 test('problem state keeps isolated child marked as problem but without parent isolation notice', () => {
   const childState = getProblemStateFromOperations([
     { type: 'contamination', createdAt: '2026-07-27T16:16:00.000Z' },

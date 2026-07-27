@@ -426,6 +426,7 @@ export function formatQuantityDisplay(currentQuantity, totalQuantity) {
 
 export function getCardActiveProblemQuantity(card) {
   return getProblemStateFromOperations(card?.operations || [], {
+    activeProblemQuantity: card?.activeProblemQuantity,
     currentQuantity: getCardCurrentQuantity(card),
     originType: card?.originType || '',
     stage: card?.stage || '',

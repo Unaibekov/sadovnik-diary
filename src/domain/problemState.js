@@ -65,6 +65,16 @@ export function getLatestProblemRiskLevelFromOperations(operations = []) {
   ))?.riskLevel || '';
 }
 
+function hasProblemStateOperations(operations = []) {
+  return operations.some((operation) => [
+    'problem',
+    'contamination',
+    'quarantine',
+    'problemRecovery',
+    'problemIsolation',
+  ].includes(operation.type));
+}
+
 export function getProblemStateFromOperations(operations = [], {
   activeProblemQuantity = null,
   currentQuantity = null,
@@ -72,8 +82,10 @@ export function getProblemStateFromOperations(operations = [], {
   stage = '',
 } = {}) {
   const calculatedActiveProblemQuantity = getActiveProblemQuantityFromOperations(operations, currentQuantity);
-  const normalizedActiveProblemQuantity = Number.isFinite(Number(activeProblemQuantity))
-    ? Math.max(Number(activeProblemQuantity), calculatedActiveProblemQuantity)
+  const canUseStoredActiveProblemQuantity = !hasProblemStateOperations(operations) &&
+    Number.isFinite(Number(activeProblemQuantity));
+  const normalizedActiveProblemQuantity = canUseStoredActiveProblemQuantity
+    ? Number(activeProblemQuantity)
     : calculatedActiveProblemQuantity;
   const remainingProblemQuantity = originType === 'problemIsolation'
     ? 0
