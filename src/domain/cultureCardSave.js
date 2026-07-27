@@ -20,6 +20,7 @@ export function buildCultureCardSaveResult({
   nowIso,
 }) {
   const nextCard = buildCultureCardPayload({
+    cultureCards,
     cultureForm,
     editingCardId,
     selectedStage,

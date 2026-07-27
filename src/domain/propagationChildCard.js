@@ -1,31 +1,6 @@
-import { createBatchCreatedOperation, generatePlantingCode, getCardDisplayName } from './batch';
+import { createBatchCreatedOperation, getCardDisplayName } from './batch';
+import { buildUniqueCardId, buildUniquePlantingCode } from './codeGeneration';
 import { INTRO_STAGE, stages } from './constants';
-
-function buildUniqueId(existingIds, prefix = 'card') {
-  let index = 0;
-  let id = `${prefix}-${Date.now()}`;
-
-  while (existingIds.has(id)) {
-    index += 1;
-    id = `${prefix}-${Date.now()}-${index}`;
-  }
-
-  existingIds.add(id);
-  return id;
-}
-
-function buildUniqueCode(existingCodes, createdAt, stage) {
-  let index = 0;
-  let code = generatePlantingCode(createdAt, stage);
-
-  while (existingCodes.has(code.toLowerCase())) {
-    index += 1;
-    code = `${generatePlantingCode(createdAt, stage)}-${index}`;
-  }
-
-  existingCodes.add(code.toLowerCase());
-  return code;
-}
 
 function getParentGeneration(parentCard) {
   return Number(parentCard?.generation) || 0;
@@ -79,14 +54,12 @@ export function buildDerivedChildBatch({
   const createdAt = sourceOperation?.date || new Date().toISOString().slice(0, 10);
   const createdAtIso = sourceOperation?.createdAt || new Date().toISOString();
   const childStage = stage || parentCard?.stage || INTRO_STAGE;
-  const existingIds = new Set((cultureCards || []).map((card) => `${card.id || ''}`));
-  const existingCodes = new Set(
-    (cultureCards || [])
-      .map((card) => `${card.code || ''}`.trim().toLowerCase())
-      .filter(Boolean),
-  );
-  const childId = buildUniqueId(existingIds, `${originType || 'child'}-card`);
-  const childCode = buildUniqueCode(existingCodes, createdAt, childStage);
+  const childId = buildUniqueCardId(cultureCards, `${originType || 'child'}-card`);
+  const childCode = buildUniquePlantingCode({
+    cultureCards,
+    createdAt,
+    selectedStage: childStage,
+  });
   const generation = getParentGeneration(parentCard) + 1;
   const childCardBase = {
     id: childId,

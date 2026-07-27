@@ -1,6 +1,7 @@
 // Построение карточки после удаления операции.
 import { getResolvedBatchStatus } from './cardSelectors';
 import { buildProblemQuantityPatch } from './batch';
+import { getLatestOperation } from './operationTimeline';
 
 export function buildDeletedOperationCard(card, operationId) {
   const deletedOperation = (card.operations || []).find((operation) => operation.id === operationId);
@@ -10,7 +11,7 @@ export function buildDeletedOperationCard(card, operationId) {
     operations: remainingOperations,
     ...(deletedOperation?.type === 'movement'
       ? {
-        locationDescription: remainingOperations.find((operation) => operation.type === 'movement')?.nextLocation || '',
+        locationDescription: getLatestOperation(remainingOperations, 'movement')?.nextLocation || '',
       }
       : {}),
   };

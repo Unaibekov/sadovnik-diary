@@ -13,6 +13,7 @@ import {
   getLatestProblemRiskLevelFromOperations,
   getProblemStateFromOperations,
 } from './problemState';
+import { getLatestOperation, getLatestOperationValue } from './operationTimeline';
 
 export function generatePlantingCode(createdAt, stage) {
   const prefix = stage === 'Клонирование'
@@ -38,7 +39,7 @@ export function getCardDisplayName(card) {
 }
 
 export function getCardLocationDescription(card) {
-  const latestMovement = (card?.operations || []).find((operation) => operation.type === 'movement');
+  const latestMovement = getLatestOperation(card?.operations || [], 'movement');
 
   return latestMovement?.nextLocation || card?.locationDescription || '';
 }
@@ -104,14 +105,32 @@ export function normalizeCultureCard(card) {
       createBatchCreatedOperation(normalizedCard, normalizedCard.createdAt || new Date().toISOString()),
       ...normalizedExistingOperations,
     ];
-
-  return {
+  const cardWithOperations = {
     ...normalizedCard,
     operations: normalizedOperations,
-    activeProblemQuantity: getCardActiveProblemQuantity({
-      ...normalizedCard,
-      operations: normalizedOperations,
-    }),
+  };
+  const calculatedCurrentQuantity = calculateCurrentQuantity(cardWithOperations);
+  const savedCurrentQuantity = Number(normalizedCard.currentQuantity);
+
+  if (
+    typeof process !== 'undefined' &&
+    process.env?.NODE_ENV === 'development' &&
+    normalizedCard.currentQuantity !== undefined &&
+    Number.isFinite(savedCurrentQuantity) &&
+    savedCurrentQuantity !== calculatedCurrentQuantity
+  ) {
+    console.warn('Culture card currentQuantity cache differs from operation journal', {
+      calculatedCurrentQuantity,
+      cardId: normalizedCard.id,
+      savedCurrentQuantity,
+    });
+  }
+
+  return {
+    ...cardWithOperations,
+    currentQuantity: calculatedCurrentQuantity,
+    operations: normalizedOperations,
+    activeProblemQuantity: getCardActiveProblemQuantity(cardWithOperations),
   };
 }
 
@@ -520,7 +539,8 @@ export function buildProblemQuantityPatch(card) {
   };
 }
 
-export function getCardCurrentQuantity(card) {
+// Журнал событий - источник истины для текущего остатка; currentQuantity хранится только как кэш/снимок.
+export function calculateCurrentQuantity(card) {
   const initialQuantity = Number(card?.quantity) || 0;
   const operations = card?.operations || [];
 
@@ -552,6 +572,10 @@ export function getCardCurrentQuantity(card) {
 
     return quantity;
   }, initialQuantity);
+}
+
+export function getCardCurrentQuantity(card) {
+  return calculateCurrentQuantity(card);
 }
 
 export function getCloneStats(card) {
@@ -651,12 +675,6 @@ export function getIntroStats(card) {
   };
 }
 
-export function getLatestOperationValue(operations, types, field) {
-  const operation = operations.find((item) => types.includes(item.type) && item[field]);
-
-  return operation?.[field] || '';
-}
-
 export function getAdaptationStats(card) {
   const operations = card?.operations || [];
   const currentQuantity = getCardCurrentQuantity(card);
@@ -745,8 +763,7 @@ export function getGreenhouseStats(card) {
     ['greenhouseObservation', 'greenhouseCare', 'transplant'],
     'stability',
   ) || 'Не указана';
-  const criticalDiseaseOperation = operations.find((operation) => (
-    operation.type === 'problem' &&
+  const criticalDiseaseOperation = getLatestOperation(operations, 'problem', (operation) => (
     (operation.diseaseSeverity === 'Критическая' || operation.riskLevel === 'Критический')
   ));
   const introLossCount = operations.reduce((sum, operation) => (
@@ -854,8 +871,8 @@ export function getAdaptationCareSchedules(card) {
   const todayDate = dateFromIso(todayIso);
 
   return careTypes.map(({ careType, emptyStatus, defaultIntervalDays }) => {
-    const latestCare = operations.find((operation) => (
-      operation.type === 'adaptationCare' && operation.careType === careType
+    const latestCare = getLatestOperation(operations, 'adaptationCare', (operation) => (
+      operation.careType === careType
     ));
     const savedInterval = card?.adaptationCareIntervals?.[careType];
     const intervalDays = Number(savedInterval || defaultIntervalDays) || defaultIntervalDays;
@@ -902,8 +919,8 @@ export function getGreenhouseCareSchedules(card) {
   const todayDate = dateFromIso(todayIso);
 
   return careTypes.map(({ careType, emptyStatus, defaultIntervalDays }) => {
-    const latestCare = operations.find((operation) => (
-      operation.type === 'greenhouseCare' && operation.careType === careType
+    const latestCare = getLatestOperation(operations, 'greenhouseCare', (operation) => (
+      operation.careType === careType
     ));
     const savedInterval = card?.greenhouseCareIntervals?.[careType];
     const intervalDays = Number(
@@ -957,8 +974,8 @@ export function getHardeningCareSchedules(card) {
   const todayDate = dateFromIso(todayIso);
 
   return careTypes.map(({ careType, emptyStatus, defaultIntervalDays }) => {
-    const latestCare = operations.find((operation) => (
-      operation.type === 'hardeningCare' && operation.careType === careType
+    const latestCare = getLatestOperation(operations, 'hardeningCare', (operation) => (
+      operation.careType === careType
     ));
     const savedInterval = card?.hardeningCareIntervals?.[careType];
     const intervalDays = Number(savedInterval || defaultIntervalDays) || defaultIntervalDays;

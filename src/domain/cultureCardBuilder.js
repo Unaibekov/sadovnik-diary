@@ -1,9 +1,11 @@
 // Построение карточек культуры и операций по ним.
 import { createBatchCreatedOperation, getCardDisplayName } from './batch';
+import { buildUniqueCardId } from './codeGeneration';
 import { removeRecommendationFields } from './recommendations';
 
 export function buildCultureCardPayload({
   cultureForm,
+  cultureCards,
   editingCardId,
   selectedStage,
   createdAt,
@@ -34,13 +36,14 @@ export function buildCultureCardPayload({
 
   return {
     ...cultureFormWithoutRecommendations,
-    id: editingCardId || `${Date.now()}`,
+    id: editingCardId || buildUniqueCardId(cultureCards, 'card'),
     createdAt,
     cultureName,
     speciesName,
     varietyName,
     code,
     quantity,
+    currentQuantity: Number(quantity) || 0,
     sourceMaterial,
     locationDescription: cultureForm.locationDescription?.trim() || '',
     parentBatch,

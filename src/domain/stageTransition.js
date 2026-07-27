@@ -44,6 +44,7 @@ export function buildStageTransitionCard({
     stage: nextStage,
     stageChangedAt: selectedCalendarDate,
     stageChangedBy: userId,
+    currentQuantity: nextOperation.currentQuantity,
     stageHistory: [
       {
         fromStage: selectedStage,

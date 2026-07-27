@@ -67,6 +67,7 @@ export function buildUpdatedStatusCard(card, {
 
   return {
     ...nextCardWithStatus,
+    currentQuantity: nextQuantity,
     ...problemQuantityPatch,
     ...(introActionType === 'problemRecovery' && problemQuantityPatch.activeProblemQuantity <= 0
       ? {

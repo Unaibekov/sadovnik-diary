@@ -7,6 +7,7 @@ import { formatDisplayDate } from '../domain/dates';
 import {
   formatQuantityDisplay,
   getCardActiveProblemQuantity,
+  getCardCurrentQuantity,
   getCardHealthyQuantity,
   getCardLocationDescription,
   getCardPropagationQuantity,
@@ -289,7 +290,7 @@ export default function CulturePassportTab({
             >
               <Text style={styles.passportLabel}>{childCard.code || 'Без кода'}</Text>
               <Text style={styles.passportValue}>
-                {formatQuantityDisplay(childCard.quantity, childCard.quantity)}
+                {formatQuantityDisplay(getCardCurrentQuantity(childCard), childCard.quantity)}
               </Text>
               <Pressable
                 accessibilityLabel={`Перейти к дочерней партии ${childCard.code || ''}`}

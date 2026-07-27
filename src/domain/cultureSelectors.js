@@ -1,5 +1,6 @@
 // Селекторы для группировки карточек по журналу культур.
 import { INTRO_STAGE, stages } from './constants';
+import { getOperationTimestampValue } from './operationTimeline';
 import { hasProblemOperation } from './statusProblemValidation';
 
 function hasOperationType(card, operationTypes) {
@@ -7,21 +8,15 @@ function hasOperationType(card, operationTypes) {
   return (card?.operations || []).some((operation) => types.includes(operation.type));
 }
 
-function getTimestamp(value) {
-  const timestamp = new Date(value || 0).getTime();
-  return Number.isNaN(timestamp) ? 0 : timestamp;
-}
-
 function getLatestCardActionTimestamp(card) {
   const latestOperationTimestamp = (card?.operations || []).reduce((latest, operation) => Math.max(
     latest,
-    getTimestamp(operation.updatedAt || operation.createdAt || operation.date),
+    getOperationTimestampValue(operation),
   ), 0);
 
   return Math.max(
     latestOperationTimestamp,
-    getTimestamp(card?.updatedAt),
-    getTimestamp(card?.createdAt),
+    getOperationTimestampValue({ updatedAt: card?.updatedAt, createdAt: card?.createdAt }),
   );
 }
 
@@ -153,12 +148,12 @@ export function buildGroupedGlobalJournalCards(
       return {
         card,
         events: cardEvents,
-        latestEventAt: cardEvents[0]?.createdAt || cardEvents[0]?.date || '',
+        latestEventAt: getOperationTimestampValue(cardEvents[0]),
       };
     })
     .filter((group) => group.events.length > 0)
     .sort((first, second) => (
-      new Date(second.latestEventAt || 0) - new Date(first.latestEventAt || 0)
+      second.latestEventAt - first.latestEventAt
     ));
 }
 

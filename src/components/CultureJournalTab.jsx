@@ -6,6 +6,7 @@ import { INTRO_STAGE, stages } from '../domain/constants';
 import { formatDisplayLongDate, formatDisplayTime } from '../domain/dates';
 import { getOperationSummaryItems } from '../domain/batch';
 import { getOperationEffectiveStage } from '../domain/journal';
+import { getOperationTimestampValue } from '../domain/operationTimeline';
 import { isRenderablePhotoUri } from '../domain/photoUri';
 import PhotoViewerModal from './PhotoViewerModal';
 import { EditIcon } from './icons';
@@ -38,11 +39,6 @@ export default function CultureJournalTab({
     return index === -1 ? stageOrder.length : index;
   };
 
-  const getOperationTimestamp = (operation) => {
-    const timestamp = new Date(operation.createdAt || operation.date || 0).getTime();
-    return Number.isNaN(timestamp) ? 0 : timestamp;
-  };
-
   const groupedOperations = useMemo(
     () =>
       operations
@@ -66,11 +62,12 @@ export default function CultureJournalTab({
         .map((group) => ({
           ...group,
           operations: [...group.operations].sort((first, second) => (
-            getOperationTimestamp(second) - getOperationTimestamp(first)
+            getOperationTimestampValue(second) - getOperationTimestampValue(first)
           )),
         }))
         .sort((first, second) => {
-          const timeDiff = getOperationTimestamp(second.operations[0]) - getOperationTimestamp(first.operations[0]);
+          const timeDiff = getOperationTimestampValue(second.operations[0]) -
+            getOperationTimestampValue(first.operations[0]);
           if (timeDiff !== 0) {
             return timeDiff;
           }

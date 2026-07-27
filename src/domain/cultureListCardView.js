@@ -51,13 +51,7 @@ function formatDaysInStage(days) {
 }
 
 export function formatBatchQuantity(card) {
-  const explicitCurrentQuantity = Number(card?.currentQuantity);
-  const hasExplicitCurrentQuantity = card?.currentQuantity !== undefined &&
-    card.currentQuantity !== null &&
-    card.currentQuantity !== '';
-  const currentQuantity = hasExplicitCurrentQuantity && Number.isFinite(explicitCurrentQuantity)
-    ? explicitCurrentQuantity
-    : getCardCurrentQuantity(card);
+  const currentQuantity = getCardCurrentQuantity(card);
 
   return `${currentQuantity} ${getPlantsWord(currentQuantity)}`;
 }

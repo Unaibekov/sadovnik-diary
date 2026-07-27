@@ -2,6 +2,7 @@ import * as XLSX from 'xlsx';
 import { BATCH_STATUS_LABELS, INTRO_STAGE } from '../domain/constants';
 import { getCardLocationDescription } from '../domain/batch';
 import { formatDisplayDate, formatDisplayDateTime } from '../domain/dates';
+import { getOperationTimestampValue } from '../domain/operationTimeline';
 
 export function normalizeReportCell(value) {
   if (value === undefined || value === null) {
@@ -94,7 +95,7 @@ export function buildCultureCardsReportWorkbook(cards, helpers) {
               .join('; ');
 
             return {
-              sortDate: operation.createdAt || operation.date || '',
+              sortDate: getOperationTimestampValue(operation),
               row: [
                 card.code,
                 card.cultureName,
@@ -120,7 +121,7 @@ export function buildCultureCardsReportWorkbook(cards, helpers) {
             };
           });
       })
-      .sort((first, second) => new Date(second.sortDate || 0) - new Date(first.sortDate || 0))
+      .sort((first, second) => second.sortDate - first.sortDate)
       .map(({ row }) => row),
   ];
 

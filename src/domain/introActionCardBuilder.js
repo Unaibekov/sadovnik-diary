@@ -35,16 +35,18 @@ export function buildIntroActionUpdatedCard(card, {
     operations: nextOperations,
   };
   const problemQuantityPatch = buildProblemQuantityPatch(nextCard);
+  const nextQuantity = getCardCurrentQuantity(nextCard);
   const hasResolvedActiveProblem = problemQuantityPatch.activeProblemQuantity <= 0 &&
     ['problem', 'quarantine'].includes(nextCard.batchStatus);
   const finalBatchStatus = hasResolvedActiveProblem
-    ? getCardCurrentQuantity(nextCard) < Number(card.quantity || 0)
+    ? nextQuantity < Number(card.quantity || 0)
       ? 'partial'
       : 'active'
     : nextCard.batchStatus;
 
   return {
     ...nextCard,
+    currentQuantity: nextQuantity,
     ...problemQuantityPatch,
     ...(introActionType === 'problemRecovery' && problemQuantityPatch.activeProblemQuantity <= 0
       ? {

@@ -1,5 +1,6 @@
 ﻿// Экран формы создания и редактирования культуры.
 import { StatusBar } from 'expo-status-bar';
+import { useState } from 'react';
 import {
   Pressable,
   KeyboardAvoidingView,
@@ -49,6 +50,20 @@ export default function CultureFormScreen({
   updateCultureForm,
   varietyOptions,
 }) {
+  const [isSaving, setIsSaving] = useState(false);
+  async function handleSavePress() {
+    if (isSaving) {
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await handleSaveCultureCard();
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   const title = isEditingCard
     ? 'Паспорт партии'
     : isCultureIntroStage
@@ -428,7 +443,8 @@ export default function CultureFormScreen({
               {canSaveCultureForm && (
                 <Pressable
                   accessibilityRole="button"
-                  onPress={handleSaveCultureCard}
+                  disabled={isSaving}
+                  onPress={handleSavePress}
                   style={({ pressed }) => [
                     styles.primaryButton,
                     pressed && styles.pressedButton,

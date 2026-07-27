@@ -2,6 +2,7 @@
 import { getCardDisplayName } from './batch';
 import { INTRO_STAGE, stages } from './constants';
 import { getTodayIsoDate } from './dates';
+import { getOperationTimestampValue } from './operationTimeline';
 
 const MAIN_FILTER_LABELS = {
   all: 'Все',
@@ -79,7 +80,7 @@ function matchesImportantRisk(event) {
 }
 
 export function getOperationTimestamp(operation) {
-  return operation?.createdAt || operation?.date || '';
+  return operation?.updatedAt || operation?.createdAt || operation?.date || '';
 }
 
 export function getChangeTimestamp(change) {
@@ -240,7 +241,7 @@ export function getGlobalJournalEvents(cards) {
         varietyName: card.varietyName,
       })))
     .sort((first, second) => (
-      new Date(second.createdAt || second.date || 0) - new Date(first.createdAt || first.date || 0)
+      getOperationTimestampValue(second) - getOperationTimestampValue(first)
     ));
 }
 

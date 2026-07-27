@@ -1,6 +1,6 @@
 // Создание и подготовка формы культуры.
 import { EMPTY_CATALOG_VALUE } from './constants';
-import { generatePlantingCode } from './batch';
+import { buildUniquePlantingCode } from './codeGeneration';
 import { createEmptyCultureForm } from './forms';
 import { removeRecommendationFields } from './recommendations';
 
@@ -50,7 +50,12 @@ export function buildGeneratedPlantingCode({
   selectedStage,
   editingCardId,
 }) {
-  const code = generatePlantingCode(createdAt, selectedStage);
+  const code = buildUniquePlantingCode({
+    cultureCards,
+    createdAt,
+    selectedStage,
+    editingCardId,
+  });
   const isDuplicateCode = isDuplicateCardCode(cultureCards, code, editingCardId);
 
   return { code, isDuplicateCode };

@@ -254,6 +254,78 @@ function buildRiskAndActiveProblemCards() {
   ];
 }
 
+function buildParentWithSpentChildCards() {
+  const [baseCard] = buildSeededCards();
+  const todayIso = localIsoDate();
+  const parentCard = {
+    ...baseCard,
+    id: 'stage5-parent-card',
+    code: 'STAGE5-PARENT',
+    varietyName: 'Parent Stage5',
+    name: 'Томат Solanum lycopersicum Parent Stage5',
+    locationDescription: 'Старое место',
+    operations: [
+      {
+        id: 'stage5-old-movement',
+        type: 'movement',
+        title: 'Перемещение',
+        stage: INTRO_STAGE,
+        date: todayIso,
+        previousLocation: 'Старт',
+        nextLocation: 'Теплица Старая · Стеллаж A · Полка 1',
+        createdAt: `${todayIso}T08:00:00.000Z`,
+        createdBy: 'local-user',
+      },
+      {
+        id: 'stage5-new-movement',
+        type: 'movement',
+        title: 'Перемещение',
+        stage: INTRO_STAGE,
+        date: todayIso,
+        previousLocation: 'Теплица Старая · Стеллаж A · Полка 1',
+        nextLocation: 'Теплица Новая · Стеллаж N · Полка 2',
+        createdAt: `${todayIso}T12:00:00.000Z`,
+        createdBy: 'local-user',
+      },
+      ...baseCard.operations,
+    ],
+  };
+  const childCard = {
+    ...baseCard,
+    id: 'stage5-child-card',
+    code: 'STAGE5-CHILD',
+    varietyName: 'Child Stage5',
+    name: 'Томат Solanum lycopersicum Child Stage5',
+    quantity: 10,
+    currentQuantity: 10,
+    parentCardId: parentCard.id,
+    parentCode: parentCard.code,
+    originType: 'cloned',
+    operations: [
+      {
+        id: 'stage5-child-sale',
+        type: 'sale',
+        title: 'Продажа',
+        stage: INTRO_STAGE,
+        date: todayIso,
+        count: 3,
+        currentQuantity: 7,
+        createdAt: `${todayIso}T10:00:00.000Z`,
+        createdBy: 'local-user',
+      },
+      {
+        ...baseCard.operations[0],
+        id: 'stage5-child-created',
+        quantity: 10,
+        code: 'STAGE5-CHILD',
+        createdAt: `${todayIso}T09:00:00.000Z`,
+      },
+    ],
+  };
+
+  return [parentCard, childCard];
+}
+
 async function enterPin(page) {
   for (const digit of ['1', '2', '3', '4']) {
     await page.getByRole('button', { name: digit }).click();
@@ -449,6 +521,91 @@ test('problem filter excludes critical risk cards without active problem', async
   await expect(problemCard).toContainText('Контаминация · 3 шт. · высокий риск');
   await expect(problemCard).not.toContainText('Активна:');
   await expect(problemCard).not.toContainText('Изолировать:');
+});
+
+test('passport shows latest location and current child quantity', async ({ page }) => {
+  const cards = buildParentWithSpentChildCards();
+
+  await page.evaluate(
+    ({ cardsKey, seededCards }) => {
+      localStorage.setItem(cardsKey, JSON.stringify({
+        schemaVersion: 1,
+        cards: seededCards,
+      }));
+    },
+    {
+      cardsKey: CULTURE_CARDS_STORAGE_KEY,
+      seededCards: cards,
+    },
+  );
+
+  await page.reload();
+  await expect(page.getByText('Введите пин-код')).toBeVisible();
+  await enterPin(page);
+  await openIntroStage(page);
+
+  await page.getByTestId('culture-card').filter({ hasText: 'Parent Stage5' }).click();
+  await page.getByRole('button', { name: 'Паспорт' }).click();
+
+  await expect(page.getByText('Теплица Новая · Стеллаж N · Полка 2')).toBeVisible();
+  await expect(page.getByText('STAGE5-CHILD')).toBeVisible();
+  await expect(page.getByText('7 из 10 шт.')).toBeVisible();
+});
+
+test('generated culture code avoids existing code collision', async ({ page }) => {
+  const cards = buildSeededCards().map((card) => ({
+    ...card,
+    code: 'VK-20260727-123456',
+    operations: (card.operations || []).map((operation) => ({
+      ...operation,
+      code: operation.type === 'batchCreated' ? 'VK-20260727-123456' : operation.code,
+    })),
+  }));
+
+  await page.addInitScript(() => {
+    const OriginalDate = Date;
+    const fixedDate = new OriginalDate(2026, 6, 27, 12, 34, 56);
+
+    class FixedDate extends OriginalDate {
+      constructor(...args) {
+        super(...(args.length ? args : [fixedDate.getTime()]));
+      }
+
+      static now() {
+        return fixedDate.getTime();
+      }
+    }
+
+    FixedDate.UTC = OriginalDate.UTC;
+    FixedDate.parse = OriginalDate.parse;
+    globalThis.Date = FixedDate;
+  });
+
+  await page.evaluate(
+    ({ cardsKey, seededCards }) => {
+      localStorage.setItem(cardsKey, JSON.stringify({
+        schemaVersion: 1,
+        cards: seededCards,
+      }));
+    },
+    {
+      cardsKey: CULTURE_CARDS_STORAGE_KEY,
+      seededCards: cards,
+    },
+  );
+
+  await page.reload();
+  await expect(page.getByText('Введите пин-код')).toBeVisible();
+  await enterPin(page);
+  await openIntroStage(page);
+  await page.getByRole('button', { name: 'Создать партию' }).click();
+  await page.getByRole('button', { name: 'Сгенерировать код партии' }).click();
+
+  const inputValues = await page.locator('input').evaluateAll((inputs) => (
+    inputs.map((input) => input.value)
+  ));
+
+  expect(inputValues).toContain('VK-20260727-123456-01');
 });
 
 test('full client flow moves one card through all stages and writes records', async ({ page }) => {

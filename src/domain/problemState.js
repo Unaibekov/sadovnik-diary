@@ -1,22 +1,5 @@
 import { stages } from './constants';
-
-function getTimestamp(value) {
-  const timestamp = new Date(value || 0).getTime();
-  return Number.isNaN(timestamp) ? 0 : timestamp;
-}
-
-function sortOperationsByLatest(operations = []) {
-  return [...operations].sort((first, second) => {
-    const timeDiff = getTimestamp(second.updatedAt || second.createdAt || second.date) -
-      getTimestamp(first.updatedAt || first.createdAt || first.date);
-
-    if (timeDiff !== 0) {
-      return timeDiff;
-    }
-
-    return 0;
-  });
-}
+import { getLatestOperation } from './operationTimeline';
 
 export function getProblemBatchStatus(problemType, riskLevel, stage = '') {
   if (!problemType) {
@@ -73,15 +56,12 @@ export function getActiveProblemQuantityFromOperations(operations = [], currentQ
 }
 
 export function getLatestProblemOperation(operations = []) {
-  return sortOperationsByLatest(operations).find((operation) => (
-    ['problem', 'contamination', 'quarantine'].includes(operation.type)
-  )) || null;
+  return getLatestOperation(operations, ['problem', 'contamination', 'quarantine']);
 }
 
 export function getLatestProblemRiskLevelFromOperations(operations = []) {
-  return sortOperationsByLatest(operations).find((operation) => (
-    ['problemRecovery', 'problem'].includes(operation.type) &&
-    operation.riskLevel
+  return getLatestOperation(operations, ['problemRecovery', 'problem'], (operation) => (
+    Boolean(operation.riskLevel)
   ))?.riskLevel || '';
 }
 
