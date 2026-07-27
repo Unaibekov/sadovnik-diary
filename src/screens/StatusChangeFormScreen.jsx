@@ -12,6 +12,7 @@ import {
   getCardDisplayName,
   getCardUnisolatedProblemQuantity,
 } from '../domain/batch';
+import { createAsyncActionGuard } from '../domain/asyncActionGuard';
 import StageHeader from '../components/StageHeader';
 import StatusFilterTabs from '../components/StatusFilterTabs';
 import SelectBottomSheet from '../components/SelectBottomSheet';
@@ -81,6 +82,7 @@ export default function StatusChangeFormScreen({
   const [isSaving, setIsSaving] = useState(false);
   const [saveAttemptCount, setSaveAttemptCount] = useState(0);
   const seenAlertRef = useRef('');
+  const saveGuardRef = useRef(createAsyncActionGuard());
   const isMovementEvent = eventType === 'movement';
   const alertMessage = formError || formNotice || '';
   const activeProblemQuantity = getCardActiveProblemQuantity(selectedCard);
@@ -221,13 +223,15 @@ export default function StatusChangeFormScreen({
       return;
     }
 
-    setIsSaving(true);
-    setSaveAttemptCount((current) => current + 1);
-    try {
-      await onSave();
-    } finally {
-      setIsSaving(false);
-    }
+    return saveGuardRef.current.run('save', async () => {
+      setIsSaving(true);
+      setSaveAttemptCount((current) => current + 1);
+      try {
+        await onSave();
+      } finally {
+        setIsSaving(false);
+      }
+    });
   }
 
   function selectCareType(value) {

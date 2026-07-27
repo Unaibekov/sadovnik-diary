@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+﻿import { useEffect, useRef, useState } from "react";
 import { Platform } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
@@ -84,6 +84,7 @@ import {
 } from "./src/domain/testDataGenerator";
 import { validateCultureCardInput } from "./src/domain/cultureFormValidation";
 import { updateFormField } from "./src/domain/formState";
+import { createAsyncActionGuard } from "./src/domain/asyncActionGuard";
 import { isRenderablePhotoUri } from "./src/domain/photoUri";
 import { cultureCardRepository } from "./src/repositories/cultureCardRepository";
 import {
@@ -211,6 +212,7 @@ const NATIVE_PHOTO_COMPRESSION = 0.7;
 function AppContent() {
   const safeAreaInsets = useSafeAreaInsets();
   const bottomInset = getBottomInset(safeAreaInsets);
+  const asyncActionGuardRef = useRef(createAsyncActionGuard());
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -419,6 +421,10 @@ function AppContent() {
       console.error("cultureCardRepository.saveAll failed", saveError);
       setStorageError("Не удалось сохранить локальные данные");
     }
+  }
+
+  function runAsyncAction(key, task, duplicateResult) {
+    return asyncActionGuardRef.current.run(key, task, duplicateResult);
   }
 
   function resetSelectedCardContext() {
@@ -1025,63 +1031,69 @@ function AppContent() {
   }
 
   async function handleClearTestData() {
-    try {
-      await cultureCardRepository.clearForTests();
-      const resetState = buildTestDataResetState();
-      setCultureCards(resetState.cultureCards);
-      setSelectedStage(resetState.selectedStage);
-      setSelectedCardId(resetState.selectedCardId);
-      setSelectedCalendarDate(resetState.selectedCalendarDate);
-      setEditingCardId(resetState.editingCardId);
-      setEditingOperationId(resetState.editingOperationId);
-      setCultureForm(resetState.cultureForm);
-      setStatusForm(resetState.statusForm);
-      setIntroActionForm(resetState.introActionForm);
-      setIntroActionType(resetState.introActionType);
-      setCultureCalendarTab(resetState.cultureCalendarTab);
-      setIsDateEntryExpanded(resetState.isDateEntryExpanded);
-      setCurrentScreen(resetState.currentScreen);
-      setStorageError(resetState.storageError);
-      setNotice(resetState.notice);
-    } catch (clearError) {
-      setStorageError("Не удалось очистить карточки стадий");
-    }
+    return runAsyncAction('clear-test-data', async () => {
+      try {
+        await cultureCardRepository.clearForTests();
+        const resetState = buildTestDataResetState();
+        setCultureCards(resetState.cultureCards);
+        setSelectedStage(resetState.selectedStage);
+        setSelectedCardId(resetState.selectedCardId);
+        setSelectedCalendarDate(resetState.selectedCalendarDate);
+        setEditingCardId(resetState.editingCardId);
+        setEditingOperationId(resetState.editingOperationId);
+        setCultureForm(resetState.cultureForm);
+        setStatusForm(resetState.statusForm);
+        setIntroActionForm(resetState.introActionForm);
+        setIntroActionType(resetState.introActionType);
+        setCultureCalendarTab(resetState.cultureCalendarTab);
+        setIsDateEntryExpanded(resetState.isDateEntryExpanded);
+        setCurrentScreen(resetState.currentScreen);
+        setStorageError(resetState.storageError);
+        setNotice(resetState.notice);
+      } catch (clearError) {
+        setStorageError("Не удалось очистить карточки стадий");
+      }
+    });
   }
 
   async function handleGenerateCoverageTestData() {
-    try {
-      const result = buildDevelopmentCoverageTestCultureCards(cultureCards, {
-        seed: 'coverage-seed-v1',
-      });
-      await cultureCardRepository.replaceAll(result.nextCards);
-      setCultureCards(result.nextCards);
-      setStorageError("");
-      setCurrentScreen("stages");
-      setNotice(
-        `Создано ${result.createdCardsCount} карточек и ${result.journalRecordsCount} записей журнала.`,
-      );
-    } catch (generateError) {
-      console.error("handleGenerateCoverageTestData failed", generateError);
-      setStorageError("Не удалось заполнить тестовыми данными");
-    }
+    return runAsyncAction('generate-coverage-test-data', async () => {
+      try {
+        const result = buildDevelopmentCoverageTestCultureCards(cultureCards, {
+          seed: 'coverage-seed-v1',
+        });
+        await cultureCardRepository.replaceAll(result.nextCards);
+        setCultureCards(result.nextCards);
+        setStorageError("");
+        setCurrentScreen("stages");
+        setNotice(
+          `Создано ${result.createdCardsCount} карточек и ${result.journalRecordsCount} записей журнала.`,
+        );
+      } catch (generateError) {
+        console.error("handleGenerateCoverageTestData failed", generateError);
+        setStorageError("Не удалось заполнить тестовыми данными");
+      }
+    });
   }
 
   async function handleGenerateIntroSeedCards() {
-    try {
-      const result = buildEmptyIntroCultureCards(cultureCards, {
-        count: 10,
-      });
-      await cultureCardRepository.replaceAll(result.nextCards);
-      setCultureCards(result.nextCards);
-      setStorageError("");
-      setCurrentScreen("stages");
-      setNotice(
-        `Создано ${result.createdCardsCount} партий в стадии «Введение в культуру» и ${result.journalRecordsCount} записей журнала.`,
-      );
-    } catch (generateError) {
-      console.error("handleGenerateIntroSeedCards failed", generateError);
-      setStorageError("Не удалось создать партии для ручного заполнения");
-    }
+    return runAsyncAction('generate-intro-seed-cards', async () => {
+      try {
+        const result = buildEmptyIntroCultureCards(cultureCards, {
+          count: 10,
+        });
+        await cultureCardRepository.replaceAll(result.nextCards);
+        setCultureCards(result.nextCards);
+        setStorageError("");
+        setCurrentScreen("stages");
+        setNotice(
+          `Создано ${result.createdCardsCount} партий в стадии «Введение в культуру» и ${result.journalRecordsCount} записей журнала.`,
+        );
+      } catch (generateError) {
+        console.error("handleGenerateIntroSeedCards failed", generateError);
+        setStorageError("Не удалось создать партии для ручного заполнения");
+      }
+    });
   }
 
   function updateCultureForm(field, value) {
@@ -1703,24 +1715,26 @@ function AppContent() {
   }
 
   async function deleteOperation(operationId) {
-    if (!selectedCard || !operationId) {
-      return;
-    }
+    return runAsyncAction(`delete-operation:${operationId || ''}`, async () => {
+      if (!selectedCard || !operationId) {
+        return;
+      }
 
-    const nextCards = buildDeletedOperationCards(
-      cultureCards,
-      selectedCard.id,
-      operationId,
-    );
+      const nextCards = buildDeletedOperationCards(
+        cultureCards,
+        selectedCard.id,
+        operationId,
+      );
 
-    await saveCultureCards(nextCards);
+      await saveCultureCards(nextCards);
 
-    if (editingOperationId === operationId) {
-      setEditingOperationId(null);
-      setIntroActionType("");
-      setIntroActionForm(createEmptyIntroActionForm());
-      setStatusForm(createEmptyStatusForm());
-    }
+      if (editingOperationId === operationId) {
+        setEditingOperationId(null);
+        setIntroActionType("");
+        setIntroActionForm(createEmptyIntroActionForm());
+        setStatusForm(createEmptyStatusForm());
+      }
+    });
   }
 
   function requestDeleteOperation(operationId) {
@@ -1836,75 +1850,78 @@ function AppContent() {
   }
 
   async function handleAddStageChange() {
-    if (!selectedCard || !selectedCalendarDate) {
-      return;
-    }
-
-    const nextStage = getNextStage(selectedCard.stage);
-
-    if (!nextStage) {
-      return;
-    }
-
-    const stageMoveValidationError = getStageMoveValidationError({
-      selectedCard,
-      qrStatus: getQrStatus(selectedCard),
-      cloneStats:
-        selectedCard.stage === stages[1] ? getCloneStats(selectedCard) : null,
-      adaptationStats:
-        selectedCard.stage === stages[2]
-          ? getAdaptationStats(selectedCard)
-          : null,
-      greenhouseStats:
-        selectedCard.stage === stages[3]
-          ? getGreenhouseStats(selectedCard)
-          : null,
-    });
-
-    if (stageMoveValidationError) {
-      setStageActionError(stageMoveValidationError);
-      return;
-    }
-
-    const cloneTransitionStats =
-      selectedCard.stage === stages[1] ? getCloneStats(selectedCard) : null;
-    const nextOperation = buildStageChangeOperation({
-      cloneTransitionStats,
-      currentQuantity: getCardCurrentQuantity(selectedCard),
-      nextStage,
-      nowIso: new Date().toISOString(),
-      selectedCard,
-      selectedCalendarDate,
-    });
-    const nextCards = cultureCards.map((card) => {
-      if (card.id !== selectedCard.id) {
-        return card;
+    return runAsyncAction(`stage-change:${selectedCard?.id || ''}`, async () => {
+      if (!selectedCard || !selectedCalendarDate) {
+        return;
       }
 
-      return buildStageTransitionCard({
-        card,
-        nextOperation,
+      const nextStage = getNextStage(selectedCard.stage);
+
+      if (!nextStage) {
+        return;
+      }
+
+      const stageMoveValidationError = getStageMoveValidationError({
+        selectedCard,
+        qrStatus: getQrStatus(selectedCard),
+        cloneStats:
+          selectedCard.stage === stages[1] ? getCloneStats(selectedCard) : null,
+        adaptationStats:
+          selectedCard.stage === stages[2]
+            ? getAdaptationStats(selectedCard)
+            : null,
+        greenhouseStats:
+          selectedCard.stage === stages[3]
+            ? getGreenhouseStats(selectedCard)
+            : null,
+      });
+
+      if (stageMoveValidationError) {
+        setStageActionError(stageMoveValidationError);
+        return;
+      }
+
+      const cloneTransitionStats =
+        selectedCard.stage === stages[1] ? getCloneStats(selectedCard) : null;
+      const nextOperation = buildStageChangeOperation({
+        cloneTransitionStats,
+        currentQuantity: getCardCurrentQuantity(selectedCard),
         nextStage,
         nowIso: new Date().toISOString(),
+        selectedCard,
         selectedCalendarDate,
-        selectedStage: selectedCard.stage,
-        userId: currentUser.id,
       });
-    });
+      const nextCards = cultureCards.map((card) => {
+        if (card.id !== selectedCard.id) {
+          return card;
+        }
 
-    await saveCultureCards(nextCards);
-    setIsStageMoveConfirmVisible(false);
-    setStageActionError("");
-    setSelectedStage(nextStage);
-    setCurrentScreen("cultureList");
-    setSelectedCardId(null);
-    setSelectedCalendarDate("");
+        return buildStageTransitionCard({
+          card,
+          nextOperation,
+          nextStage,
+          nowIso: new Date().toISOString(),
+          selectedCalendarDate,
+          selectedStage: selectedCard.stage,
+          userId: currentUser.id,
+        });
+      });
+
+      await saveCultureCards(nextCards);
+      setIsStageMoveConfirmVisible(false);
+      setStageActionError("");
+      setSelectedStage(nextStage);
+      setCurrentScreen("cultureList");
+      setSelectedCardId(null);
+      setSelectedCalendarDate("");
+    });
   }
 
   async function handleSaveStatusChange() {
-    if (!selectedCard || !selectedCalendarDate) {
-      return;
-    }
+    return runAsyncAction(`status-change:${selectedCard?.id || ''}:${editingOperationId || 'new'}`, async () => {
+      if (!selectedCard || !selectedCalendarDate) {
+        return;
+      }
 
     const { cardWithoutEditedOperation, editedOperation, currentQuantity } = buildStatusOperationContext({
       editingOperationId,
@@ -2083,23 +2100,25 @@ function AppContent() {
     setEditingOperationId(null);
     setStatusFormError("");
     setStatusFormNotice("");
-    setCurrentScreen("cultureCalendar");
+      setCurrentScreen("cultureCalendar");
+    });
   }
 
   async function handleSaveIntroAction() {
-    const introActionDate = selectedCalendarDate || getTodayIsoDate();
+    return runAsyncAction(`intro-action:${selectedCard?.id || ''}:${editingOperationId || 'new'}`, async () => {
+      const introActionDate = selectedCalendarDate || getTodayIsoDate();
 
-    if (!selectedCard || !introActionType) {
-      return false;
-    }
+      if (!selectedCard || !introActionType) {
+        return false;
+      }
 
-    if (!editingOperationId && introActionDate !== getTodayIsoDate()) {
-      setStageActionError(STATUS_DATE_NOT_TODAY_MESSAGE);
-      setIsDateActionErrorVisible(true);
-      return false;
-    }
+      if (!editingOperationId && introActionDate !== getTodayIsoDate()) {
+        setStageActionError(STATUS_DATE_NOT_TODAY_MESSAGE);
+        setIsDateActionErrorVisible(true);
+        return false;
+      }
 
-    setCalendarMonth(dateFromIso(introActionDate));
+      setCalendarMonth(dateFromIso(introActionDate));
 
     const nowIso = new Date().toISOString();
     const actionConfig = getIntroActionConfig(introActionType);
@@ -2168,11 +2187,13 @@ function AppContent() {
     setEditingOperationId(null);
     setIntroActionType("");
     setStageActionError("");
-    return true;
+      return true;
+    }, false);
   }
 
   async function handleSaveCultureCard() {
-    setTouchedSubmit(true);
+    return runAsyncAction(`culture-card:${editingCardId || 'new'}`, async () => {
+      setTouchedSubmit(true);
 
     const createdAt = cultureForm.createdAt.trim();
     const cultureName = cultureForm.cultureName.trim();
@@ -2236,13 +2257,15 @@ function AppContent() {
     });
 
     await saveCultureCards(nextCards);
-    closeCultureForm();
+      closeCultureForm();
+    }, false);
   }
 
   async function handleCancelCultureCard() {
-    if (!editingCardId) {
-      return;
-    }
+    return runAsyncAction(`cancel-culture-card:${editingCardId || ''}`, async () => {
+      if (!editingCardId) {
+        return;
+      }
 
     const nowIso = new Date().toISOString();
     const { nextCards } = buildCultureCardCancelResult({
@@ -2253,7 +2276,8 @@ function AppContent() {
     });
 
     await saveCultureCards(nextCards);
-    closeCultureForm();
+      closeCultureForm();
+    });
   }
 
   function isRequiredFieldMissing(field) {

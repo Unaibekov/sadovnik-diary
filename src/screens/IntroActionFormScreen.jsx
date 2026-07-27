@@ -19,6 +19,7 @@ import StageHeader from '../components/StageHeader';
 import StatusFilterTabs from '../components/StatusFilterTabs';
 import SelectBottomSheet from '../components/SelectBottomSheet';
 import { CalendarIcon, ChevronDownIcon, LeaveIcon } from '../components/icons';
+import { createAsyncActionGuard } from '../domain/asyncActionGuard';
 import { INTRO_STAGE } from '../domain/constants';
 import { formatDisplayDate } from '../domain/dates';
 import {
@@ -60,6 +61,7 @@ export default function IntroActionFormScreen({
   const [isProblemTypeDropdownOpen, setIsProblemTypeDropdownOpen] = useState(false);
   const [isRiskDropdownOpen, setIsRiskDropdownOpen] = useState(false);
   const seenAlertRef = useRef('');
+  const saveGuardRef = useRef(createAsyncActionGuard());
   const activeProblemQuantity = getCardActiveProblemQuantity(selectedCard);
   const unisolatedProblemQuantity = getCardUnisolatedProblemQuantity(selectedCard);
   const canRecordProblemRecovery = activeProblemQuantity > 0 || actionType === 'problemRecovery';
@@ -124,13 +126,15 @@ export default function IntroActionFormScreen({
       return;
     }
 
-    setIsSaving(true);
-    setSaveAttemptCount((current) => current + 1);
-    try {
-      await onSave();
-    } finally {
-      setIsSaving(false);
-    }
+    return saveGuardRef.current.run('save', async () => {
+      setIsSaving(true);
+      setSaveAttemptCount((current) => current + 1);
+      try {
+        await onSave();
+      } finally {
+        setIsSaving(false);
+      }
+    });
   }
 
   function selectProblemType(value) {

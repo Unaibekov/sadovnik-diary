@@ -1,6 +1,6 @@
 ﻿// Экран формы создания и редактирования культуры.
 import { StatusBar } from 'expo-status-bar';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   Pressable,
   KeyboardAvoidingView,
@@ -15,6 +15,7 @@ import styles from '../../styles';
 import SelectBottomSheet from '../components/SelectBottomSheet';
 import { ChevronDownIcon, QrGenerateIcon } from '../components/icons';
 import StageHeader from '../components/StageHeader';
+import { createAsyncActionGuard } from '../domain/asyncActionGuard';
 import { dateFromIso, formatDisplayDate, parseDisplayDate } from '../domain/dates';
 
 const NativeDateTimePicker = Platform.OS === 'web'
@@ -51,17 +52,20 @@ export default function CultureFormScreen({
   varietyOptions,
 }) {
   const [isSaving, setIsSaving] = useState(false);
+  const saveGuardRef = useRef(createAsyncActionGuard());
   async function handleSavePress() {
     if (isSaving) {
       return;
     }
 
-    setIsSaving(true);
-    try {
-      await handleSaveCultureCard();
-    } finally {
-      setIsSaving(false);
-    }
+    return saveGuardRef.current.run('save', async () => {
+      setIsSaving(true);
+      try {
+        await handleSaveCultureCard();
+      } finally {
+        setIsSaving(false);
+      }
+    });
   }
 
   const title = isEditingCard

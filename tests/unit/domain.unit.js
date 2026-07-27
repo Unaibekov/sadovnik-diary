@@ -48,6 +48,9 @@ const {
 const {
   getIntroActionConfig,
 } = require('../../src/domain/statusOperations');
+const {
+  createAsyncActionGuard,
+} = require('../../src/domain/asyncActionGuard');
 
 function createMemoryAsyncStorage(initialValues = {}) {
   const store = new Map(Object.entries(initialValues));
@@ -166,6 +169,21 @@ function assertParentChildValidationCode(input, code) {
     () => validateParentChildIntegrity(input),
     (error) => error.code === code,
   );
+}
+
+function createDeferred() {
+  let resolve;
+  let reject;
+  const promise = new Promise((promiseResolve, promiseReject) => {
+    resolve = promiseResolve;
+    reject = promiseReject;
+  });
+
+  return {
+    promise,
+    reject,
+    resolve,
+  };
 }
 
 test('operation timeline prefers updatedAt over createdAt and date', () => {
@@ -491,6 +509,81 @@ test('intro action save returns original cards when parent-child integrity fails
   assert.equal(result.error, PARENT_CHILD_INTEGRITY_MESSAGE);
   assert.deepEqual(result.nextCards, []);
   assert.equal(result.nextOperation, null);
+});
+
+test('async action guard ignores duplicate calls for the same key', async () => {
+  const guard = createAsyncActionGuard();
+  const deferred = createDeferred();
+  let saveCallCount = 0;
+  const firstRun = guard.run('save', async () => {
+    saveCallCount += 1;
+    await deferred.promise;
+    return 'saved';
+  });
+  const secondRun = guard.run('save', async () => {
+    saveCallCount += 1;
+    return 'duplicate';
+  }, 'ignored');
+
+  assert.equal(await secondRun, 'ignored');
+  assert.equal(saveCallCount, 1);
+  deferred.resolve();
+  assert.equal(await firstRun, 'saved');
+});
+
+test('async action guard allows retry after an error', async () => {
+  const guard = createAsyncActionGuard();
+  let saveCallCount = 0;
+
+  await assert.rejects(
+    () => guard.run('save', async () => {
+      saveCallCount += 1;
+      throw new Error('save failed');
+    }),
+    /save failed/,
+  );
+
+  const result = await guard.run('save', async () => {
+    saveCallCount += 1;
+    return 'saved';
+  });
+
+  assert.equal(result, 'saved');
+  assert.equal(saveCallCount, 2);
+});
+
+test('async action guard clears running state after success', async () => {
+  const guard = createAsyncActionGuard();
+  const deferred = createDeferred();
+  const runPromise = guard.run('save', async () => {
+    await deferred.promise;
+    return 'saved';
+  });
+
+  assert.equal(guard.isRunning('save'), true);
+  deferred.resolve();
+  assert.equal(await runPromise, 'saved');
+  assert.equal(guard.isRunning('save'), false);
+});
+
+test('async action guard does not block different keys', async () => {
+  const guard = createAsyncActionGuard();
+  const firstDeferred = createDeferred();
+  const startedKeys = [];
+  const firstRun = guard.run('save:first', async () => {
+    startedKeys.push('first');
+    await firstDeferred.promise;
+    return 'first';
+  });
+  const secondRun = guard.run('save:second', async () => {
+    startedKeys.push('second');
+    return 'second';
+  });
+
+  assert.equal(await secondRun, 'second');
+  assert.deepEqual(startedKeys, ['first', 'second']);
+  firstDeferred.resolve();
+  assert.equal(await firstRun, 'first');
 });
 
 test('planting codes are case-insensitive and get a suffix on collision', () => {
