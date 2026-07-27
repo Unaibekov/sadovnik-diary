@@ -17,6 +17,11 @@ import {
   getProblemValidationError,
 } from './statusProblemValidation';
 import { attachChildToOperation, buildDerivedChildBatch } from './propagationChildCard';
+import {
+  isParentChildIntegrityError,
+  PARENT_CHILD_INTEGRITY_MESSAGE,
+  validateParentChildIntegrity,
+} from './parentChildIntegrity';
 
 export function buildIntroActionSaveResult({
   actionConfig,
@@ -196,8 +201,33 @@ export function buildIntroActionSaveResult({
     });
   });
 
+  const finalCards = isolationChildCard ? [...nextCards, isolationChildCard] : nextCards;
+
+  if (isolationChildCard) {
+    try {
+      validateParentChildIntegrity({
+        cultureCards: finalCards,
+        parentCard: selectedCard,
+        childCard: isolationChildCard,
+        parentOperation: nextOperation,
+        originType: 'problemIsolation',
+        quantity: Number(introActionForm.isolationQuantity) || 0,
+      });
+    } catch (integrityError) {
+      if (isParentChildIntegrityError(integrityError)) {
+        return {
+          nextCards: cultureCards,
+          nextOperation: null,
+          error: PARENT_CHILD_INTEGRITY_MESSAGE,
+        };
+      }
+
+      throw integrityError;
+    }
+  }
+
   return {
-    nextCards: isolationChildCard ? [...nextCards, isolationChildCard] : nextCards,
+    nextCards: finalCards,
     nextOperation,
   };
 }

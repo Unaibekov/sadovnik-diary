@@ -139,6 +139,11 @@ import {
   buildStatusChangeOpenState,
 } from "./src/domain/statusChangeState";
 import {
+  isParentChildIntegrityError,
+  PARENT_CHILD_INTEGRITY_MESSAGE,
+  validateParentChildIntegrity,
+} from "./src/domain/parentChildIntegrity";
+import {
   buildCultureFormCloseState,
   buildCultureDateChangeResult,
   buildCultureFormEditState,
@@ -2032,7 +2037,31 @@ function AppContent() {
       });
     });
 
-    await saveCultureCards(derivedChildCard ? [...nextCards, derivedChildCard] : nextCards);
+    const finalCards = derivedChildCard ? [...nextCards, derivedChildCard] : nextCards;
+
+    if (derivedChildCard) {
+      try {
+        validateParentChildIntegrity({
+          cultureCards: finalCards,
+          parentCard: selectedCard,
+          childCard: derivedChildCard,
+          parentOperation: nextOperation,
+          originType: introActionType === 'problemIsolation' ? 'problemIsolation' : 'cloned',
+          quantity: introActionType === 'problemIsolation'
+            ? Number(sanitizedStatusForm.isolationQuantity) || 0
+            : Number(count) || 0,
+        });
+      } catch (integrityError) {
+        if (isParentChildIntegrityError(integrityError)) {
+          setStatusFormError(PARENT_CHILD_INTEGRITY_MESSAGE);
+          return;
+        }
+
+        throw integrityError;
+      }
+    }
+
+    await saveCultureCards(finalCards);
 
     if (
       introActionType === "greenhouseCare" &&

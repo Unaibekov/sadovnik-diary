@@ -33,6 +33,21 @@ const {
   buildUniquePlantingCode,
   normalizeCode,
 } = require('../../src/domain/codeGeneration');
+const {
+  attachChildToOperation,
+  buildDerivedChildBatch,
+  buildPropagationChildCard,
+} = require('../../src/domain/propagationChildCard');
+const {
+  PARENT_CHILD_INTEGRITY_MESSAGE,
+  validateParentChildIntegrity,
+} = require('../../src/domain/parentChildIntegrity');
+const {
+  buildIntroActionSaveResult,
+} = require('../../src/domain/introActionSave');
+const {
+  getIntroActionConfig,
+} = require('../../src/domain/statusOperations');
 
 function createMemoryAsyncStorage(initialValues = {}) {
   const store = new Map(Object.entries(initialValues));
@@ -97,6 +112,60 @@ function createRepositoryTestStore(initialCards = [], options = {}) {
       return cloneCards(cards);
     },
   };
+}
+
+function createParentChildTestParent(overrides = {}) {
+  return {
+    id: 'parent-card-1',
+    code: 'VK-20260727-010101',
+    cultureName: 'Аглонема',
+    quantity: 100,
+    currentQuantity: 100,
+    generation: 1,
+    stage: INTRO_STAGE,
+    createdAt: '2026-07-27',
+    locationDescription: 'Бокс',
+    operations: [],
+    ...overrides,
+  };
+}
+
+function buildValidatedPropagationPair() {
+  const parentCard = createParentChildTestParent();
+  const propagationOperation = {
+    id: 'propagation-event-1',
+    type: 'propagation',
+    count: 12,
+    date: '2026-07-27',
+    createdAt: '2026-07-27T12:00:00.000Z',
+    propagationMethod: 'Деление',
+  };
+  const childCard = buildPropagationChildCard({
+    cultureCards: [parentCard],
+    parentCard,
+    propagationOperation,
+    quantity: 12,
+    userId: 'tester',
+  });
+  const parentOperation = attachChildToOperation(propagationOperation, childCard);
+  const updatedParentCard = {
+    ...parentCard,
+    operations: [parentOperation],
+  };
+
+  return {
+    childCard,
+    cultureCards: [updatedParentCard, childCard],
+    parentCard,
+    parentOperation,
+  };
+}
+
+function assertParentChildValidationCode(input, code) {
+  assert.throws(
+    () => validateParentChildIntegrity(input),
+    (error) => error.code === code,
+  );
 }
 
 test('operation timeline prefers updatedAt over createdAt and date', () => {
@@ -268,6 +337,160 @@ test('mixed problem breakdown is shown only when healthy and problem quantities 
   };
 
   assert.equal(formatMixedBatchProblemBreakdown(mixedCard), '60 здоровых · 40 с проблемой');
+});
+
+test('parent-child integrity accepts valid propagation child links', () => {
+  const pair = buildValidatedPropagationPair();
+
+  assert.equal(validateParentChildIntegrity({
+    ...pair,
+    originType: 'cloned',
+    quantity: 12,
+  }), true);
+});
+
+test('parent-child integrity accepts valid problem isolation child links', () => {
+  const parentCard = createParentChildTestParent({
+    operations: [
+      { id: 'problem-event-1', type: 'problem', affectedQuantity: 20, createdAt: '2026-07-27T11:00:00.000Z' },
+    ],
+  });
+  const isolationOperation = {
+    id: 'isolation-event-1',
+    type: 'problemIsolation',
+    count: 20,
+    quantity: 20,
+    date: '2026-07-27',
+    createdAt: '2026-07-27T12:00:00.000Z',
+  };
+  const childCard = buildDerivedChildBatch({
+    cultureCards: [parentCard],
+    parentCard,
+    sourceOperation: isolationOperation,
+    quantity: 20,
+    userId: 'tester',
+    originType: 'problemIsolation',
+    stage: INTRO_STAGE,
+    locationDescription: 'Изолятор',
+    batchStatus: 'problem',
+    healthStatus: 'problem',
+    isolationStatus: 'isolated',
+    sourceProblemOperation: parentCard.operations[0],
+  });
+  const parentOperation = attachChildToOperation(isolationOperation, childCard);
+
+  assert.equal(validateParentChildIntegrity({
+    cultureCards: [{ ...parentCard, operations: [parentOperation] }, childCard],
+    parentCard,
+    childCard,
+    parentOperation,
+    originType: 'problemIsolation',
+    quantity: 20,
+  }), true);
+});
+
+test('parent-child integrity rejects duplicate child card ids and codes', () => {
+  const pair = buildValidatedPropagationPair();
+
+  assertParentChildValidationCode({
+    ...pair,
+    cultureCards: [
+      ...pair.cultureCards,
+      { id: pair.childCard.id, code: 'UNIQUE-CODE' },
+    ],
+    originType: 'cloned',
+    quantity: 12,
+  }, 'child_id_not_unique');
+
+  assertParentChildValidationCode({
+    ...pair,
+    cultureCards: [
+      ...pair.cultureCards,
+      { id: 'other-card', code: ` ${pair.childCard.code.toLowerCase()} ` },
+    ],
+    originType: 'cloned',
+    quantity: 12,
+  }, 'child_code_not_unique');
+});
+
+test('parent-child integrity rejects broken parent and source links', () => {
+  const pair = buildValidatedPropagationPair();
+
+  assertParentChildValidationCode({
+    ...pair,
+    childCard: { ...pair.childCard, parentCardId: 'wrong-parent' },
+    originType: 'cloned',
+    quantity: 12,
+  }, 'child_parent_id_mismatch');
+
+  assertParentChildValidationCode({
+    ...pair,
+    childCard: { ...pair.childCard, sourceEventId: 'wrong-event' },
+    originType: 'cloned',
+    quantity: 12,
+  }, 'child_source_event_mismatch');
+
+  assertParentChildValidationCode({
+    ...pair,
+    parentOperation: { ...pair.parentOperation, childCardId: 'wrong-child' },
+    originType: 'cloned',
+    quantity: 12,
+  }, 'parent_operation_child_id_mismatch');
+});
+
+test('parent-child integrity rejects generation and quantity mismatches', () => {
+  const pair = buildValidatedPropagationPair();
+
+  assertParentChildValidationCode({
+    ...pair,
+    childCard: { ...pair.childCard, generation: 99 },
+    originType: 'cloned',
+    quantity: 12,
+  }, 'child_generation_mismatch');
+
+  assertParentChildValidationCode({
+    ...pair,
+    childCard: { ...pair.childCard, quantity: 11 },
+    originType: 'cloned',
+    quantity: 12,
+  }, 'child_quantity_mismatch');
+
+  assertParentChildValidationCode({
+    ...pair,
+    parentOperation: { ...pair.parentOperation, count: 11 },
+    originType: 'cloned',
+    quantity: 12,
+  }, 'parent_operation_quantity_mismatch');
+});
+
+test('intro action save returns original cards when parent-child integrity fails', () => {
+  const selectedCard = createParentChildTestParent({
+    operations: [
+      { id: 'problem-event-1', type: 'problem', affectedQuantity: 10, createdAt: '2026-07-27T11:00:00.000Z' },
+    ],
+  });
+  const result = buildIntroActionSaveResult({
+    actionConfig: getIntroActionConfig('problemIsolation'),
+    cultureCards: [],
+    editingOperationId: '',
+    introActionType: 'problemIsolation',
+    introActionForm: {
+      isolationQuantity: '10',
+      isolationLocation: 'Изолятор',
+      isolationComment: '',
+      sourceProblemEventId: 'problem-event-1',
+    },
+    movementDetails: {},
+    nowIso: '2026-07-27T12:00:00.000Z',
+    selectedCard,
+    selectedCalendarDate: '2026-07-27',
+    selectedCardOperations: selectedCard.operations,
+    userId: 'tester',
+  });
+
+  assert.equal(result.error, PARENT_CHILD_INTEGRITY_MESSAGE);
+  assert.deepEqual(result.nextCards, []);
+  assert.equal(result.nextOperation, null);
 });
 
 test('planting codes are case-insensitive and get a suffix on collision', () => {
