@@ -1,6 +1,6 @@
 // Вкладки переключения режимов календаря.
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import appStyles from '../../styles';
 
 const calendarTabs = [
@@ -17,6 +17,7 @@ export default function CalendarTabs({ activeTab, onChangeTab }) {
     calendarTabs.findIndex(([value]) => value === activeTab),
   );
   const tabWidth = tabBarWidth > 0 ? tabBarWidth / calendarTabs.length : 0;
+  const supportsNativeDriver = Platform.OS !== 'web';
 
   useEffect(() => {
     if (!tabWidth) {
@@ -26,7 +27,7 @@ export default function CalendarTabs({ activeTab, onChangeTab }) {
     Animated.timing(indicatorX, {
       duration: 220,
       toValue: activeIndex * tabWidth,
-      useNativeDriver: true,
+      useNativeDriver: supportsNativeDriver,
     }).start();
   }, [activeIndex, indicatorX, tabWidth]);
 
@@ -38,10 +39,10 @@ export default function CalendarTabs({ activeTab, onChangeTab }) {
       >
         {tabWidth > 0 && (
           <Animated.View
-            pointerEvents="none"
             style={[
               styles.calendarTabIndicator,
               {
+                pointerEvents: 'none',
                 width: tabWidth - 8,
                 transform: [{ translateX: indicatorX }],
               },
@@ -87,10 +88,17 @@ const styles = StyleSheet.create({
     marginBottom: 0,
     padding: 4,
     position: 'relative',
-    shadowColor: '#102015',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
+    ...Platform.select({
+      web: {
+        boxShadow: '0 2px 6px rgba(16, 32, 21, 0.06)',
+      },
+      default: {
+        shadowColor: '#102015',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 6,
+      },
+    }),
   },
   calendarTab: {
     alignItems: 'center',

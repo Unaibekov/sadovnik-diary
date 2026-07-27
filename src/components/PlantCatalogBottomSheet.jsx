@@ -21,6 +21,7 @@ import { LogoElementIcon } from './icons';
 
 const SWIPE_CLOSE_DISTANCE = 80;
 const ANIMATION_DURATION = 220;
+const supportsNativeDriver = Platform.OS !== 'web';
 
 function getSearchText(plant) {
   return [
@@ -89,12 +90,12 @@ export default function PlantCatalogBottomSheet({ visible, onClose }) {
         Animated.timing(translateY, {
           toValue: 0,
           duration: ANIMATION_DURATION,
-          useNativeDriver: true,
+          useNativeDriver: supportsNativeDriver,
         }),
         Animated.timing(backdropOpacity, {
           toValue: 1,
           duration: ANIMATION_DURATION,
-          useNativeDriver: true,
+          useNativeDriver: supportsNativeDriver,
         }),
       ]).start();
     });
@@ -111,12 +112,12 @@ export default function PlantCatalogBottomSheet({ visible, onClose }) {
       Animated.timing(translateY, {
         toValue: height,
         duration: ANIMATION_DURATION,
-        useNativeDriver: true,
+        useNativeDriver: supportsNativeDriver,
       }),
       Animated.timing(backdropOpacity, {
         toValue: 0,
         duration: ANIMATION_DURATION,
-        useNativeDriver: true,
+        useNativeDriver: supportsNativeDriver,
       }),
     ]).start(() => {
       setIsMounted(false);
@@ -161,7 +162,7 @@ export default function PlantCatalogBottomSheet({ visible, onClose }) {
 
           Animated.spring(translateY, {
             toValue: 0,
-            useNativeDriver: true,
+            useNativeDriver: supportsNativeDriver,
           }).start();
         },
       }),

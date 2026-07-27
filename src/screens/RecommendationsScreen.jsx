@@ -1,7 +1,7 @@
 // Экран рекомендаций по уходу и действиям.
 import { useEffect, useRef, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Animated, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import appStyles from '../../styles';
 import StageHeader from '../components/StageHeader';
@@ -31,6 +31,7 @@ export default function RecommendationsScreen({
     recommendationTabs.findIndex(([value]) => value === mode),
   );
   const tabWidth = tabBarWidth > 0 ? tabBarWidth / recommendationTabs.length : 0;
+  const supportsNativeDriver = Platform.OS !== 'web';
 
   useEffect(() => {
     if (!tabWidth) {
@@ -40,7 +41,7 @@ export default function RecommendationsScreen({
     Animated.timing(indicatorX, {
       duration: 220,
       toValue: activeIndex * tabWidth,
-      useNativeDriver: true,
+      useNativeDriver: supportsNativeDriver,
     }).start();
   }, [activeIndex, indicatorX, tabWidth]);
 
@@ -62,10 +63,10 @@ export default function RecommendationsScreen({
             >
               {tabWidth > 0 && (
                 <Animated.View
-                  pointerEvents="none"
                   style={[
                     styles.recommendationTabIndicator,
                     {
+                      pointerEvents: 'none',
                       width: tabWidth - 8,
                       transform: [{ translateX: indicatorX }],
                     },

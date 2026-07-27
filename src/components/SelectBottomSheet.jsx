@@ -19,6 +19,7 @@ import styles from '../../styles';
 
 const SWIPE_CLOSE_DISTANCE = 80;
 const ANIMATION_DURATION = 220;
+const supportsNativeDriver = Platform.OS !== 'web';
 
 export default function SelectBottomSheet({
   visible,
@@ -55,12 +56,12 @@ export default function SelectBottomSheet({
         Animated.timing(translateY, {
           toValue: 0,
           duration: ANIMATION_DURATION,
-          useNativeDriver: true,
+          useNativeDriver: supportsNativeDriver,
         }),
         Animated.timing(backdropOpacity, {
           toValue: 1,
           duration: ANIMATION_DURATION,
-          useNativeDriver: true,
+          useNativeDriver: supportsNativeDriver,
         }),
       ]).start();
     });
@@ -91,12 +92,12 @@ export default function SelectBottomSheet({
       Animated.timing(translateY, {
         toValue: height,
         duration: ANIMATION_DURATION,
-        useNativeDriver: true,
+        useNativeDriver: supportsNativeDriver,
       }),
       Animated.timing(backdropOpacity, {
         toValue: 0,
         duration: ANIMATION_DURATION,
-        useNativeDriver: true,
+        useNativeDriver: supportsNativeDriver,
       }),
     ]).start(() => {
       clearTimeout(fallbackTimer);
@@ -136,7 +137,7 @@ export default function SelectBottomSheet({
 
           Animated.spring(translateY, {
             toValue: 0,
-            useNativeDriver: true,
+            useNativeDriver: supportsNativeDriver,
           }).start();
         },
       }),

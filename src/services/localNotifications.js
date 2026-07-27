@@ -1,21 +1,23 @@
 import { getCardDisplayName } from '../domain/batch';
 import { formatDisplayDate } from '../domain/dates';
-import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
 const CARE_CHANNEL_ID = 'care-reminders';
+const Notifications = Platform.OS === 'web' ? null : require('expo-notifications');
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+if (Notifications) {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+      shouldShowBanner: true,
+      shouldShowList: true,
+    }),
+  });
+}
 
 export async function initializeLocalNotifications() {
-  if (Platform.OS === 'web') {
+  if (!Notifications || Platform.OS === 'web') {
     return false;
   }
 
