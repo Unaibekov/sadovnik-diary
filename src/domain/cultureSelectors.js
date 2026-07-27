@@ -1,12 +1,4 @@
 // Селекторы для группировки карточек по журналу культур.
-import {
-  getAdaptationStats,
-  getCloneStats,
-  getGreenhouseStats,
-  getHardeningStats,
-  getIntroStats,
-  getPlantingStats,
-} from './batch';
 import { INTRO_STAGE, stages } from './constants';
 import { hasProblemOperation } from './statusProblemValidation';
 
@@ -33,9 +25,9 @@ function getLatestCardActionTimestamp(card) {
   );
 }
 
-function isIntroStageFilterMatch(card, batchStatus, filter, isProblemStatus, isCriticalProblemVisual) {
+function isIntroStageFilterMatch(card, batchStatus, filter, isProblemStatus) {
   if (filter === 'problem') {
-    return isProblemStatus || isCriticalProblemVisual;
+    return isProblemStatus;
   }
 
   if (filter === 'movement') {
@@ -49,9 +41,9 @@ function isIntroStageFilterMatch(card, batchStatus, filter, isProblemStatus, isC
   return batchStatus === filter;
 }
 
-function isProductionStageFilterMatch(card, batchStatus, filter, isProblemStatus, isCriticalProblemVisual) {
+function isProductionStageFilterMatch(card, batchStatus, filter, isProblemStatus) {
   if (filter === 'problem') {
-    return isProblemStatus || isCriticalProblemVisual;
+    return isProblemStatus;
   }
 
   const filterToOperationTypes = {
@@ -79,44 +71,6 @@ function isProductionStageFilterMatch(card, batchStatus, filter, isProblemStatus
   }
 
   return batchStatus === filter;
-}
-
-function hasCriticalProblemVisual(card, {
-  isAdaptationStage,
-  isCloneStage,
-  isCultureIntroStage,
-  isGreenhouseStage,
-  isHardeningStage,
-  isPlantingStage,
-}) {
-  if (isCultureIntroStage) {
-    return getIntroStats(card).riskStatus === 'Критический';
-  }
-
-  if (isCloneStage) {
-    return getCloneStats(card).riskStatus === 'Критический';
-  }
-
-  if (isAdaptationStage) {
-    return getAdaptationStats(card).riskStatus === 'Критический';
-  }
-
-  if (isGreenhouseStage) {
-    return getGreenhouseStats(card).riskStatus === 'Критический';
-  }
-
-  if (isHardeningStage) {
-    return getHardeningStats(card).riskStatus === 'Критический';
-  }
-
-  if (isPlantingStage) {
-    return (typeof getPlantingStats === 'function'
-      ? getPlantingStats(card)
-      : { riskStatus: 'Нормальный' }
-    ).riskStatus === 'Критический';
-  }
-
-  return false;
 }
 
 export function getStageStatusFilterItems(selectedStage) {
@@ -231,14 +185,6 @@ export function filterCultureCards(cultureCards, options) {
     const cardStage = card.stage || INTRO_STAGE;
     const batchStatus = getResolvedBatchStatus(card);
     const isProblemStatus = hasProblemOperation(card) || batchStatus === 'problem' || batchStatus === 'quarantine';
-    const isCriticalProblemVisual = hasCriticalProblemVisual(card, {
-      isAdaptationStage,
-      isCloneStage,
-      isCultureIntroStage,
-      isGreenhouseStage,
-      isHardeningStage,
-      isPlantingStage,
-    });
 
     if (card.status === 'cancelled' || (card.status === 'archived' && batchStatus === 'sold')) {
       return false;
@@ -258,14 +204,12 @@ export function filterCultureCards(cultureCards, options) {
             batchStatus,
             normalizedBatchStatusFilter,
             isProblemStatus,
-            isCriticalProblemVisual,
           )
           : isProductionStageFilterMatch(
             card,
             batchStatus,
             normalizedBatchStatusFilter,
             isProblemStatus,
-            isCriticalProblemVisual,
           )
       )
     ) {

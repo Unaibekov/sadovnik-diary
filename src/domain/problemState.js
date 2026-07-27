@@ -91,9 +91,10 @@ export function getProblemStateFromOperations(operations = [], {
   originType = '',
   stage = '',
 } = {}) {
+  const calculatedActiveProblemQuantity = getActiveProblemQuantityFromOperations(operations, currentQuantity);
   const normalizedActiveProblemQuantity = Number.isFinite(Number(activeProblemQuantity))
-    ? Number(activeProblemQuantity)
-    : getActiveProblemQuantityFromOperations(operations, currentQuantity);
+    ? Math.max(Number(activeProblemQuantity), calculatedActiveProblemQuantity)
+    : calculatedActiveProblemQuantity;
   const remainingProblemQuantity = originType === 'problemIsolation'
     ? 0
     : normalizedActiveProblemQuantity;

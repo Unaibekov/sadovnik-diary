@@ -191,6 +191,69 @@ function buildFullyIsolatedProblemCards() {
   ];
 }
 
+function buildRiskAndActiveProblemCards() {
+  const [baseCard] = buildSeededCards();
+  const todayIso = localIsoDate();
+
+  return [
+    {
+      ...baseCard,
+      id: 'critical-risk-card',
+      code: 'RISK-0001',
+      varietyName: 'Risk Only',
+      name: 'Томат Solanum lycopersicum Risk Only',
+      quantity: 20,
+      currentQuantity: 12,
+      batchStatus: 'active',
+      sterilityStatus: 'unchecked',
+      operations: [
+        {
+          id: 'risk-loss-001',
+          type: 'introLoss',
+          title: 'Потери',
+          stage: INTRO_STAGE,
+          date: todayIso,
+          count: 8,
+          previousQuantity: 20,
+          currentQuantity: 12,
+          reason: 'Высокие потери',
+          createdAt: `${todayIso}T10:00:00.000Z`,
+          createdBy: 'local-user',
+        },
+        ...baseCard.operations,
+      ],
+    },
+    {
+      ...baseCard,
+      id: 'active-problem-card',
+      code: 'PROBLEM-0001',
+      varietyName: 'Active Problem',
+      name: 'Томат Solanum lycopersicum Active Problem',
+      quantity: 20,
+      currentQuantity: 20,
+      batchStatus: 'problem',
+      sterilityStatus: 'contaminated',
+      operations: [
+        {
+          id: 'active-problem-001',
+          type: 'problem',
+          title: 'Проблема',
+          stage: INTRO_STAGE,
+          date: todayIso,
+          problemType: 'Контаминация',
+          riskLevel: 'Высокий',
+          affectedQuantity: 3,
+          currentQuantity: 20,
+          problemDescription: 'Активная проблема',
+          createdAt: `${todayIso}T11:00:00.000Z`,
+          createdBy: 'local-user',
+        },
+        ...baseCard.operations,
+      ],
+    },
+  ];
+}
+
 async function enterPin(page) {
   for (const digit of ['1', '2', '3', '4']) {
     await page.getByRole('button', { name: digit }).click();
@@ -350,6 +413,42 @@ test('parent batch is healthy after all problem plants are isolated', async ({ p
   await page.getByRole('button', { name: 'Паспорт' }).click();
 
   await expect(page.getByText('Без отклонений')).toBeVisible();
+});
+
+test('problem filter excludes critical risk cards without active problem', async ({ page }) => {
+  const cards = buildRiskAndActiveProblemCards();
+
+  await page.evaluate(
+    ({ cardsKey, seededCards }) => {
+      localStorage.setItem(cardsKey, JSON.stringify({
+        schemaVersion: 1,
+        cards: seededCards,
+      }));
+    },
+    {
+      cardsKey: CULTURE_CARDS_STORAGE_KEY,
+      seededCards: cards,
+    },
+  );
+
+  await page.reload();
+  await expect(page.getByText('Введите пин-код')).toBeVisible();
+  await enterPin(page);
+  await openIntroStage(page);
+
+  await expect(page.getByTestId('culture-card').filter({ hasText: 'Risk Only' })).toBeVisible();
+  await expect(page.getByTestId('culture-card').filter({ hasText: 'Active Problem' })).toBeVisible();
+  await expect(page.getByTestId('culture-card').filter({ hasText: 'Risk Only' })).toContainText('Риск: Критический');
+
+  await page.getByRole('button', { name: /Проблема\s+1/ }).click();
+
+  await expect(page.getByTestId('culture-card').filter({ hasText: 'Risk Only' })).toHaveCount(0);
+  const problemCard = page.getByTestId('culture-card').filter({ hasText: 'Active Problem' });
+
+  await expect(problemCard).toBeVisible();
+  await expect(problemCard).toContainText('Контаминация · 3 шт. · высокий риск');
+  await expect(problemCard).not.toContainText('Активна:');
+  await expect(problemCard).not.toContainText('Изолировать:');
 });
 
 test('full client flow moves one card through all stages and writes records', async ({ page }) => {

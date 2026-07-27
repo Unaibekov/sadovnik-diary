@@ -222,24 +222,16 @@ export function getBatchSecondaryRows(card, options = {}) {
   if (problemStatus.isActive) {
     const problemSummaryParts = [
       problemStatus.problemType || 'Проблема',
+      problemStatus.activeProblemQuantity > 0 ? `${problemStatus.activeProblemQuantity} шт.` : '',
       problemStatus.riskLevel ? `${problemStatus.riskLevel.toLowerCase()} риск` : '',
     ].filter(Boolean);
 
     rows.push({
       accessibilityLabel: `Проблема активна: ${problemSummaryParts.join(', ')}`,
       key: 'problem-summary',
-      text: `Активна: ${problemSummaryParts.join(' · ')}`,
+      text: problemSummaryParts.join(' · '),
       tone: 'problemStrong',
     });
-
-    if (problemStatus.activeProblemQuantity > 0 && card?.originType !== 'problemIsolation') {
-      rows.push({
-        accessibilityLabel: `Нужно изолировать проблемных растений: ${problemStatus.activeProblemQuantity}`,
-        key: 'isolation-needed',
-        text: `Изолировать: ${problemStatus.activeProblemQuantity}`,
-        tone: 'problem',
-      });
-    }
   } else if (stageRiskStatus && !['Нормальный', 'Низкий'].includes(stageRiskStatus)) {
     rows.push({
       accessibilityLabel: `Риск: ${stageRiskStatus}`,
