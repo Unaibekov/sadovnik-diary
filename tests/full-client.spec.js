@@ -454,6 +454,21 @@ test('saved culture cards use the versioned storage envelope', async ({ page }) 
   expect(Array.isArray(savedCardsStorage.cards)).toBe(true);
 });
 
+test('repository-backed seed generation saves the versioned envelope', async ({ page }) => {
+  await page.getByRole('button', { name: 'Меню' }).click();
+  await page.getByTestId('menu-item-generateIntroSeedCards').click();
+  await expect(page.getByText(/Создано 10 партий/)).toBeVisible();
+
+  const savedCardsStorageValue = await page.evaluate(
+    (cardsKey) => localStorage.getItem(cardsKey),
+    CULTURE_CARDS_STORAGE_KEY,
+  );
+  const savedCardsStorage = JSON.parse(savedCardsStorageValue);
+
+  expect(savedCardsStorage.schemaVersion).toBe(CULTURE_CARDS_STORAGE_SCHEMA_VERSION);
+  expect(savedCardsStorage.cards).toHaveLength(11);
+});
+
 test('parent batch is healthy after all problem plants are isolated', async ({ page }) => {
   const cards = buildFullyIsolatedProblemCards();
 

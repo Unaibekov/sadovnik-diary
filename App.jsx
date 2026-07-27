@@ -85,11 +85,7 @@ import {
 import { validateCultureCardInput } from "./src/domain/cultureFormValidation";
 import { updateFormField } from "./src/domain/formState";
 import { isRenderablePhotoUri } from "./src/domain/photoUri";
-import {
-  clearCultureCardsForTests,
-  loadCultureCardsFromStorage,
-  saveCultureCardsToStorage,
-} from "./src/services/cultureCardsStorage";
+import { cultureCardRepository } from "./src/repositories/cultureCardRepository";
 import {
   buildWateringReminderPayload,
   initializeLocalNotifications,
@@ -390,7 +386,7 @@ function AppContent() {
 
   async function loadCultureCards() {
     try {
-      const savedCards = (await loadCultureCardsFromStorage()).map(
+      const savedCards = (await cultureCardRepository.getAll()).map(
         removeRecommendationFields,
       );
       setCultureCards(savedCards);
@@ -411,11 +407,11 @@ function AppContent() {
     );
 
     try {
-      await saveCultureCardsToStorage(compactCards);
+      await cultureCardRepository.saveAll(compactCards);
       setCultureCards(compactCards);
       setStorageError("");
     } catch (saveError) {
-      console.error("saveCultureCardsToStorage failed", saveError);
+      console.error("cultureCardRepository.saveAll failed", saveError);
       setStorageError("Не удалось сохранить локальные данные");
     }
   }
@@ -1025,7 +1021,7 @@ function AppContent() {
 
   async function handleClearTestData() {
     try {
-      await clearCultureCardsForTests();
+      await cultureCardRepository.clearForTests();
       const resetState = buildTestDataResetState();
       setCultureCards(resetState.cultureCards);
       setSelectedStage(resetState.selectedStage);
@@ -1052,7 +1048,7 @@ function AppContent() {
       const result = buildDevelopmentCoverageTestCultureCards(cultureCards, {
         seed: 'coverage-seed-v1',
       });
-      await saveCultureCardsToStorage(result.nextCards);
+      await cultureCardRepository.replaceAll(result.nextCards);
       setCultureCards(result.nextCards);
       setStorageError("");
       setCurrentScreen("stages");
@@ -1070,7 +1066,7 @@ function AppContent() {
       const result = buildEmptyIntroCultureCards(cultureCards, {
         count: 10,
       });
-      await saveCultureCardsToStorage(result.nextCards);
+      await cultureCardRepository.replaceAll(result.nextCards);
       setCultureCards(result.nextCards);
       setStorageError("");
       setCurrentScreen("stages");
