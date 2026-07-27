@@ -53,6 +53,52 @@ function createMemoryAsyncStorage(initialValues = {}) {
   };
 }
 
+function cloneCards(cards) {
+  return cards.map((card) => ({ ...card }));
+}
+
+function createRepositoryTestStore(initialCards = [], options = {}) {
+  let cards = cloneCards(initialCards);
+  let failNextSaveError = null;
+  const events = [];
+  const repository = createCultureCardRepository({
+    clearStoredCardsForTests: async () => {
+      events.push('clear');
+      cards = [];
+    },
+    loadStoredCards: async () => {
+      events.push('load');
+      return cloneCards(cards);
+    },
+    restoreStoredCardsBackup: async () => {
+      events.push('restore');
+      cards = cloneCards(options.restoredCards || []);
+      return cloneCards(cards);
+    },
+    saveStoredCards: async (nextCards) => {
+      events.push(`save:${nextCards.map((card) => card.id).join(',')}`);
+      if (failNextSaveError) {
+        const error = failNextSaveError;
+        failNextSaveError = null;
+        throw error;
+      }
+
+      cards = cloneCards(nextCards);
+    },
+  });
+
+  return {
+    events,
+    repository,
+    failNextSave(error = new Error('save failed')) {
+      failNextSaveError = error;
+    },
+    getCards() {
+      return cloneCards(cards);
+    },
+  };
+}
+
 test('operation timeline prefers updatedAt over createdAt and date', () => {
   const operations = [
     { type: 'problem', riskLevel: 'old', date: '2026-07-20', createdAt: '2026-07-20T10:00:00.000Z' },
@@ -433,4 +479,78 @@ test('repository exposes explicit backup restore', async () => {
 
   assert.equal(restoreCallCount, 1);
   assert.deepEqual(restoredCards, [{ id: 'restored-card-1' }]);
+});
+
+test('repository sequential create operations keep all cards', async () => {
+  const store = createRepositoryTestStore();
+
+  await store.repository.create({ id: 'card-a' });
+  await store.repository.create({ id: 'card-b' });
+
+  assert.deepEqual(store.getCards().map((card) => card.id), ['card-b', 'card-a']);
+});
+
+test('repository parallel create operations do not lose cards', async () => {
+  const store = createRepositoryTestStore();
+
+  await Promise.all([
+    store.repository.create({ id: 'card-a' }),
+    store.repository.create({ id: 'card-b' }),
+  ]);
+
+  assert.deepEqual(
+    store.getCards().map((card) => card.id).sort(),
+    ['card-a', 'card-b'],
+  );
+});
+
+test('repository parallel updates for different cards do not overwrite each other', async () => {
+  const store = createRepositoryTestStore([
+    { id: 'card-a', count: 1 },
+    { id: 'card-b', count: 1 },
+  ]);
+
+  await Promise.all([
+    store.repository.update('card-a', { count: 2 }),
+    store.repository.update('card-b', { count: 3 }),
+  ]);
+
+  assert.deepEqual(store.getCards(), [
+    { id: 'card-a', count: 2 },
+    { id: 'card-b', count: 3 },
+  ]);
+});
+
+test('repository write queue continues after a failed save', async () => {
+  const store = createRepositoryTestStore();
+  store.failNextSave();
+
+  await assert.rejects(() => store.repository.create({ id: 'failed-card' }), /save failed/);
+  await store.repository.create({ id: 'saved-card' });
+
+  assert.deepEqual(store.getCards(), [{ id: 'saved-card' }]);
+});
+
+test('repository saveAll participates in the write queue', async () => {
+  const store = createRepositoryTestStore();
+
+  const saveAllPromise = store.repository.saveAll([{ id: 'base-card' }]);
+  const createPromise = store.repository.create({ id: 'created-card' });
+
+  await Promise.all([saveAllPromise, createPromise]);
+
+  assert.deepEqual(store.getCards().map((card) => card.id), ['created-card', 'base-card']);
+});
+
+test('repository restoreBackup participates in the write queue', async () => {
+  const store = createRepositoryTestStore([], {
+    restoredCards: [{ id: 'restored-card' }],
+  });
+
+  const restorePromise = store.repository.restoreBackup();
+  const createPromise = store.repository.create({ id: 'created-card' });
+
+  await Promise.all([restorePromise, createPromise]);
+
+  assert.deepEqual(store.getCards().map((card) => card.id), ['created-card', 'restored-card']);
 });

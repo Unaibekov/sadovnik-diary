@@ -11,6 +11,14 @@ export function createCultureCardRepository({
   restoreStoredCardsBackup,
   saveStoredCards,
 }) {
+  let writeQueue = Promise.resolve();
+
+  function enqueueWrite(task) {
+    const nextTask = writeQueue.then(task, task);
+    writeQueue = nextTask.catch(() => {});
+    return nextTask;
+  }
+
   return {
     async getAll() {
       return loadStoredCards();
@@ -23,45 +31,53 @@ export function createCultureCardRepository({
     },
 
     async saveAll(cards) {
-      await saveStoredCards(cards);
-      return cards;
+      return enqueueWrite(async () => {
+        await saveStoredCards(cards);
+        return cards;
+      });
     },
 
     async replaceAll(cards) {
-      await saveStoredCards(cards);
-      return cards;
+      return enqueueWrite(async () => {
+        await saveStoredCards(cards);
+        return cards;
+      });
     },
 
     async create(card) {
-      const cards = await loadStoredCards();
-      const nextCards = [card, ...cards];
+      return enqueueWrite(async () => {
+        const cards = await loadStoredCards();
+        const nextCards = [card, ...cards];
 
-      await saveStoredCards(nextCards);
-      return {
-        card,
-        cards: nextCards,
-      };
+        await saveStoredCards(nextCards);
+        return {
+          card,
+          cards: nextCards,
+        };
+      });
     },
 
     async update(cardId, updater) {
-      const cards = await loadStoredCards();
-      let updatedCard = null;
-      const nextCards = cards.map((card) => {
-        if (card.id !== cardId) {
-          return card;
-        }
+      return enqueueWrite(async () => {
+        const cards = await loadStoredCards();
+        let updatedCard = null;
+        const nextCards = cards.map((card) => {
+          if (card.id !== cardId) {
+            return card;
+          }
 
-        updatedCard = typeof updater === 'function'
-          ? updater(card)
-          : { ...card, ...updater };
-        return updatedCard;
+          updatedCard = typeof updater === 'function'
+            ? updater(card)
+            : { ...card, ...updater };
+          return updatedCard;
+        });
+
+        await saveStoredCards(nextCards);
+        return {
+          card: updatedCard,
+          cards: nextCards,
+        };
       });
-
-      await saveStoredCards(nextCards);
-      return {
-        card: updatedCard,
-        cards: nextCards,
-      };
     },
 
     async exportSnapshot() {
@@ -69,16 +85,18 @@ export function createCultureCardRepository({
     },
 
     async importSnapshot(cards) {
-      await saveStoredCards(cards);
-      return cards;
+      return enqueueWrite(async () => {
+        await saveStoredCards(cards);
+        return cards;
+      });
     },
 
     async restoreBackup() {
-      return restoreStoredCardsBackup();
+      return enqueueWrite(() => restoreStoredCardsBackup());
     },
 
     async clearForTests() {
-      await clearStoredCardsForTests();
+      return enqueueWrite(() => clearStoredCardsForTests());
     },
   };
 }
