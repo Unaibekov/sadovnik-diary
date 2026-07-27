@@ -17,10 +17,38 @@ const {
   getCardUnisolatedProblemQuantity,
 } = require('../../src/domain/batch');
 const {
+  CULTURE_CARDS_STORAGE_BACKUP_KEY,
+  CULTURE_CARDS_RESET_KEY,
+  CULTURE_CARDS_STORAGE_KEY,
+  CULTURE_CARDS_STORAGE_SCHEMA_VERSION,
+  INTRO_STAGE,
+} = require('../../src/domain/constants');
+const {
+  createCultureCardsStorage,
+} = require('../../src/services/cultureCardsStorage');
+const {
   buildUniquePlantingCode,
   normalizeCode,
 } = require('../../src/domain/codeGeneration');
-const { INTRO_STAGE } = require('../../src/domain/constants');
+
+function createMemoryAsyncStorage(initialValues = {}) {
+  const store = new Map(Object.entries(initialValues));
+  const setCalls = [];
+
+  return {
+    setCalls,
+    async getItem(key) {
+      return store.has(key) ? store.get(key) : null;
+    },
+    async setItem(key, value) {
+      setCalls.push([key, value]);
+      store.set(key, value);
+    },
+    async removeItem(key) {
+      store.delete(key);
+    },
+  };
+}
 
 test('operation timeline prefers updatedAt over createdAt and date', () => {
   const operations = [
@@ -222,4 +250,107 @@ test('planting codes are case-insensitive and get a suffix on collision', () => 
   } finally {
     global.Date = OriginalDate;
   }
+});
+
+test('legacy array storage is migrated to the current envelope after normalization', async () => {
+  const legacyCards = [{
+    id: 'legacy-card-1',
+    code: 'VK-20260727-000001',
+    cultureName: 'Аглонема',
+    quantity: 12,
+    stage: INTRO_STAGE,
+    createdAt: '2026-07-27',
+  }];
+  const storage = createMemoryAsyncStorage({
+    [CULTURE_CARDS_RESET_KEY]: 'true',
+    [CULTURE_CARDS_STORAGE_KEY]: JSON.stringify(legacyCards),
+  });
+  const service = createCultureCardsStorage(storage);
+
+  const loadedCards = await service.loadCultureCardsFromStorage();
+  const migratedValue = JSON.parse(await storage.getItem(CULTURE_CARDS_STORAGE_KEY));
+
+  assert.equal(loadedCards.length, 1);
+  assert.equal(migratedValue.schemaVersion, CULTURE_CARDS_STORAGE_SCHEMA_VERSION);
+  assert.equal(Array.isArray(migratedValue.cards), true);
+  assert.equal(migratedValue.cards[0].id, 'legacy-card-1');
+  assert.equal(await storage.getItem(CULTURE_CARDS_STORAGE_BACKUP_KEY), JSON.stringify(legacyCards));
+
+  const setCallCountAfterMigration = storage.setCalls.length;
+  await service.loadCultureCardsFromStorage();
+
+  assert.equal(storage.setCalls.length, setCallCountAfterMigration);
+});
+
+test('current envelope storage is loaded without rewriting it', async () => {
+  const envelope = {
+    schemaVersion: CULTURE_CARDS_STORAGE_SCHEMA_VERSION,
+    savedAt: '2026-07-27T00:00:00.000Z',
+    cards: [{
+      id: 'envelope-card-1',
+      code: 'VK-20260727-000002',
+      quantity: 7,
+      stage: INTRO_STAGE,
+      createdAt: '2026-07-27',
+    }],
+  };
+  const storage = createMemoryAsyncStorage({
+    [CULTURE_CARDS_RESET_KEY]: 'true',
+    [CULTURE_CARDS_STORAGE_KEY]: JSON.stringify(envelope),
+  });
+  const service = createCultureCardsStorage(storage);
+
+  const loadedCards = await service.loadCultureCardsFromStorage();
+
+  assert.equal(loadedCards.length, 1);
+  assert.equal(storage.setCalls.length, 0);
+});
+
+test('invalid storage json is not overwritten during migration', async () => {
+  const invalidJson = '{not json';
+  const storage = createMemoryAsyncStorage({
+    [CULTURE_CARDS_RESET_KEY]: 'true',
+    [CULTURE_CARDS_STORAGE_KEY]: invalidJson,
+  });
+  const service = createCultureCardsStorage(storage);
+
+  await assert.rejects(() => service.loadCultureCardsFromStorage(), /invalid JSON/i);
+
+  assert.equal(await storage.getItem(CULTURE_CARDS_STORAGE_KEY), invalidJson);
+  assert.equal(await storage.getItem(CULTURE_CARDS_STORAGE_BACKUP_KEY), null);
+  assert.equal(storage.setCalls.length, 0);
+});
+
+test('unsupported storage schema is not overwritten during migration', async () => {
+  const unsupportedEnvelope = JSON.stringify({
+    schemaVersion: CULTURE_CARDS_STORAGE_SCHEMA_VERSION + 1,
+    savedAt: '2026-07-27T00:00:00.000Z',
+    cards: [],
+  });
+  const storage = createMemoryAsyncStorage({
+    [CULTURE_CARDS_RESET_KEY]: 'true',
+    [CULTURE_CARDS_STORAGE_KEY]: unsupportedEnvelope,
+  });
+  const service = createCultureCardsStorage(storage);
+
+  await assert.rejects(() => service.loadCultureCardsFromStorage(), /newer than this app supports/i);
+
+  assert.equal(await storage.getItem(CULTURE_CARDS_STORAGE_KEY), unsupportedEnvelope);
+  assert.equal(await storage.getItem(CULTURE_CARDS_STORAGE_BACKUP_KEY), null);
+  assert.equal(storage.setCalls.length, 0);
+});
+
+test('normalization errors do not overwrite legacy storage', async () => {
+  const invalidLegacyCards = JSON.stringify([null]);
+  const storage = createMemoryAsyncStorage({
+    [CULTURE_CARDS_RESET_KEY]: 'true',
+    [CULTURE_CARDS_STORAGE_KEY]: invalidLegacyCards,
+  });
+  const service = createCultureCardsStorage(storage);
+
+  await assert.rejects(() => service.loadCultureCardsFromStorage());
+
+  assert.equal(await storage.getItem(CULTURE_CARDS_STORAGE_KEY), invalidLegacyCards);
+  assert.equal(await storage.getItem(CULTURE_CARDS_STORAGE_BACKUP_KEY), null);
+  assert.equal(storage.setCalls.length, 0);
 });

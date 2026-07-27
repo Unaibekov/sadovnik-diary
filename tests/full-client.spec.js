@@ -437,6 +437,13 @@ test('legacy culture cards load without the reset marker', async ({ page }) => {
   await enterPin(page);
   await openIntroStage(page);
   await expect(page.getByTestId('culture-card').first()).toContainText('Томат');
+  const migratedCardsStorageValue = await page.evaluate(
+    (cardsKey) => localStorage.getItem(cardsKey),
+    CULTURE_CARDS_STORAGE_KEY,
+  );
+  const migratedCardsStorage = JSON.parse(migratedCardsStorageValue);
+  expect(migratedCardsStorage.schemaVersion).toBe(CULTURE_CARDS_STORAGE_SCHEMA_VERSION);
+  expect(Array.isArray(migratedCardsStorage.cards)).toBe(true);
 });
 
 test('saved culture cards use the versioned storage envelope', async ({ page }) => {
