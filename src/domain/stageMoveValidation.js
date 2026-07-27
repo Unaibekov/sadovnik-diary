@@ -23,12 +23,16 @@ export function getStageMoveValidationError({
     return 'В изолированной партии есть активная проблема. Сначала решите проблему.';
   }
 
-  if (selectedCard.sterilityStatus === 'contaminated') {
+  if (selectedCard.sterilityStatus === 'contaminated' && activeProblemQuantity > 0) {
     return 'Материал заражён: переход стадии заблокирован до решения администратора или агронома';
   }
 
   if (selectedCard.stage === INTRO_STAGE) {
-    if ((selectedCard.batchStatus || 'active') !== 'active') {
+    const batchStatus = selectedCard.batchStatus || 'active';
+    const hasResolvedProblemStatus = ['problem', 'quarantine'].includes(batchStatus) &&
+      activeProblemQuantity <= 0;
+
+    if (batchStatus !== 'active' && !hasResolvedProblemStatus) {
       return 'Перевести можно только активную партию';
     }
 

@@ -68,8 +68,10 @@ async function seedLocalStorage(page) {
   const cards = buildSeededCards();
   await page.addInitScript(
     ({ cardsKey, resetKey, cards: seededCards }) => {
-      localStorage.setItem(resetKey, 'true');
-      localStorage.setItem(cardsKey, JSON.stringify(seededCards));
+      if (!localStorage.getItem(cardsKey)) {
+        localStorage.setItem(resetKey, 'true');
+        localStorage.setItem(cardsKey, JSON.stringify(seededCards));
+      }
     },
     {
       cardsKey: CULTURE_CARDS_STORAGE_KEY,
@@ -77,6 +79,116 @@ async function seedLocalStorage(page) {
       cards,
     },
   );
+}
+
+function buildFullyIsolatedProblemCards() {
+  const [parentCard] = buildSeededCards();
+  const problemDate = localIsoDate();
+  const problemCreatedAt = `${problemDate}T16:16:00.000Z`;
+  const isolationCreatedAt = `${problemDate}T16:21:00.000Z`;
+
+  return [
+    {
+      ...parentCard,
+      id: 'problem-parent-001',
+      code: 'VK-20260727-191538',
+      quantity: 1234,
+      currentQuantity: 234,
+      batchStatus: 'problem',
+      sterilityStatus: 'contaminated',
+      operations: [
+        {
+          id: 'problem-isolation-001',
+          type: 'problemIsolation',
+          title: 'Изолировать растения',
+          stage: INTRO_STAGE,
+          date: problemDate,
+          count: 1000,
+          quantity: 1000,
+          currentQuantity: 234,
+          sourceProblemEventId: 'problem-001',
+          childCardId: 'problem-child-001',
+          childCode: 'VK-20260727-192105',
+          location: 'Изолятор 1',
+          nextLocation: 'Изолятор 1',
+          createdAt: isolationCreatedAt,
+          createdBy: 'local-user',
+        },
+        {
+          id: 'problem-001',
+          type: 'problem',
+          title: 'Проблема',
+          stage: INTRO_STAGE,
+          date: problemDate,
+          problemType: 'Контаминация',
+          riskLevel: 'Высокий',
+          affectedQuantity: 1000,
+          currentQuantity: 1234,
+          problemDescription: 'Заражение',
+          createdAt: problemCreatedAt,
+          createdBy: 'local-user',
+        },
+        ...parentCard.operations,
+      ],
+    },
+    {
+      ...parentCard,
+      id: 'problem-child-001',
+      code: 'VK-20260727-192105',
+      quantity: 1000,
+      currentQuantity: 1000,
+      batchStatus: 'problem',
+      sterilityStatus: 'contaminated',
+      healthStatus: 'problem',
+      activeProblemQuantity: 1000,
+      originType: 'problemIsolation',
+      isolationStatus: 'isolated',
+      parentCardId: 'problem-parent-001',
+      parentCode: 'VK-20260727-191538',
+      sourceEventId: 'problem-isolation-001',
+      sourceProblemEventId: 'problem-001',
+      locationDescription: 'Изолятор 1',
+      operations: [
+        {
+          id: 'isolated-problem-problem-child-001',
+          type: 'problem',
+          title: 'Проблема',
+          stage: INTRO_STAGE,
+          date: problemDate,
+          problemType: 'Контаминация',
+          riskLevel: 'Высокий',
+          affectedQuantity: 1000,
+          currentQuantity: 1000,
+          sourceProblemEventId: 'problem-001',
+          parentProblemEventId: 'problem-001',
+          createdAt: isolationCreatedAt,
+          createdBy: 'local-user',
+        },
+        {
+          id: 'isolated-from-parent-001',
+          type: 'isolatedFromParent',
+          title: 'Создана из изоляции проблемы',
+          stage: INTRO_STAGE,
+          date: problemDate,
+          quantity: 1000,
+          parentCardId: 'problem-parent-001',
+          parentCode: 'VK-20260727-191538',
+          sourceEventId: 'problem-isolation-001',
+          sourceProblemEventId: 'problem-001',
+          location: 'Изолятор 1',
+          createdAt: isolationCreatedAt,
+          createdBy: 'local-user',
+        },
+        {
+          ...parentCard.operations[0],
+          id: 'problem-child-001-batch-created',
+          quantity: 1000,
+          code: 'VK-20260727-192105',
+          createdAt: isolationCreatedAt,
+        },
+      ],
+    },
+  ];
 }
 
 async function enterPin(page) {
@@ -104,7 +216,7 @@ async function login(page) {
 
 async function openIntroStage(page) {
   await page.getByTestId('stage-home-intro').click();
-  await expect(page.getByTestId('culture-card')).toBeVisible();
+  await expect(page.getByTestId('culture-card').first()).toBeVisible();
 }
 
 async function openFirstCard(page) {
@@ -205,6 +317,39 @@ test('saved culture cards use the versioned storage envelope', async ({ page }) 
 
   expect(savedCardsStorage.schemaVersion).toBe(CULTURE_CARDS_STORAGE_SCHEMA_VERSION);
   expect(Array.isArray(savedCardsStorage.cards)).toBe(true);
+});
+
+test('parent batch is healthy after all problem plants are isolated', async ({ page }) => {
+  const cards = buildFullyIsolatedProblemCards();
+
+  await page.evaluate(
+    ({ cardsKey, seededCards }) => {
+      localStorage.setItem(cardsKey, JSON.stringify({
+        schemaVersion: 1,
+        cards: seededCards,
+      }));
+    },
+    {
+      cardsKey: CULTURE_CARDS_STORAGE_KEY,
+      seededCards: cards,
+    },
+  );
+
+  await page.reload();
+  await expect(page.getByText('Введите пин-код')).toBeVisible();
+  await enterPin(page);
+  await openIntroStage(page);
+
+  const parentCard = page.getByTestId('culture-card').filter({ hasText: '234 растения' });
+
+  await expect(parentCard).toBeVisible();
+  await expect(parentCard).not.toContainText('Активная:');
+  await expect(parentCard).not.toContainText('Изолировать:');
+
+  await parentCard.click();
+  await page.getByRole('button', { name: 'Паспорт' }).click();
+
+  await expect(page.getByText('Без отклонений')).toBeVisible();
 });
 
 test('full client flow moves one card through all stages and writes records', async ({ page }) => {

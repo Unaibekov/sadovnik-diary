@@ -9,12 +9,11 @@ import {
   getGreenhouseStats,
   getHardeningStats,
   getIntroStats,
-  getLatestProblemRiskLevel,
   getPlantingStats,
   getQrStatus,
 } from './batch';
 import { INTRO_STAGE, stages } from './constants';
-import { getProblemBatchStatusFromOperations } from './statusProblemValidation';
+import { getProblemStateFromOperations } from './problemState';
 
 function getPlantsWord(quantity) {
   const value = Math.abs(Number(quantity) || 0);
@@ -49,14 +48,6 @@ function formatDaysInStage(days) {
         : 'дней';
 
   return `${value} ${suffix} в стадии`;
-}
-
-function getLatestOperationByType(card, type) {
-  return [...(card?.operations || [])]
-    .filter((operation) => operation.type === type)
-    .sort((first, second) => (
-      new Date(second.createdAt || second.date || 0) - new Date(first.createdAt || first.date || 0)
-    ))[0] || null;
 }
 
 export function formatBatchQuantity(card) {
@@ -95,27 +86,19 @@ export function getBatchQrLabel(card) {
 
 export function getBatchProblemStatus(card) {
   const activeProblemQuantity = getCardActiveProblemQuantity(card);
-  const batchStatus = getProblemBatchStatusFromOperations(
-    card?.operations || [],
-    card?.stage || '',
+  const problemState = getProblemStateFromOperations(card?.operations || [], {
     activeProblemQuantity,
-  );
-  const isActive = activeProblemQuantity > 0 && Boolean(batchStatus);
-  const latestProblem = isActive ? getLatestOperationByType(card, 'problem') : null;
-  const fallbackProblem = isActive
-    ? getLatestOperationByType(card, 'contamination') || getLatestOperationByType(card, 'quarantine')
-    : null;
-  const problemType = latestProblem?.problemType ||
-    fallbackProblem?.problemType ||
-    (batchStatus === 'quarantine' ? 'Карантин' : batchStatus === 'problem' ? 'Контаминация' : '');
-  const riskLevel = latestProblem?.riskLevel || getLatestProblemRiskLevel(card);
+    currentQuantity: getCardCurrentQuantity(card),
+    originType: card?.originType || '',
+    stage: card?.stage || '',
+  });
 
   return {
-    activeProblemQuantity,
-    batchStatus,
-    isActive,
-    problemType,
-    riskLevel,
+    activeProblemQuantity: problemState.activeProblemQuantity,
+    batchStatus: problemState.batchStatus,
+    isActive: problemState.isActive,
+    problemType: problemState.problemType,
+    riskLevel: problemState.riskLevel,
   };
 }
 

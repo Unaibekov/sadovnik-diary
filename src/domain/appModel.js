@@ -52,15 +52,7 @@ export function getRecommendationStage(
 }
 
 export function isSelectedCardActionLocked(selectedCard) {
-  const activeProblemQuantity = getCardActiveProblemQuantity(selectedCard);
-
-  return (
-    activeProblemQuantity <= 0 &&
-    (
-      selectedCard?.batchStatus === 'quarantine' ||
-      selectedCard?.sterilityStatus === 'contaminated'
-    )
-  );
+  return false;
 }
 
 export function isSupportedPlantingStageForStage(selectedStage) {

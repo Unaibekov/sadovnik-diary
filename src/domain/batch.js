@@ -9,6 +9,10 @@ import {
 } from './constants';
 import { dateFromIso, getTodayIsoDate, isoFromDate } from './dates';
 import { getProblemBatchStatusFromOperations } from './statusProblemValidation';
+import {
+  getLatestProblemRiskLevelFromOperations,
+  getProblemStateFromOperations,
+} from './problemState';
 
 export function generatePlantingCode(createdAt, stage) {
   const prefix = stage === 'Клонирование'
@@ -402,47 +406,29 @@ export function formatQuantityDisplay(currentQuantity, totalQuantity) {
 }
 
 export function getCardActiveProblemQuantity(card) {
-  const currentQuantity = getCardCurrentQuantity(card);
-  const operations = card?.operations || [];
-  const hasFullBatchProblem = operations.some((operation) => (
-    ['contamination', 'quarantine'].includes(operation.type)
-  ));
-  const affectedQuantity = operations.reduce((sum, operation) => {
-    if (operation.type === 'problem') {
-      return sum + (Number(operation.affectedQuantity) || 0);
-    }
-
-    if (operation.type === 'problemRecovery') {
-      return sum - (Number(operation.recoveredQuantity) || 0);
-    }
-
-    if (operation.type === 'problemIsolation') {
-      return sum - (Number(operation.count || operation.quantity) || 0);
-    }
-
-    return sum;
-  }, hasFullBatchProblem ? currentQuantity : 0);
-
-  return Math.min(Math.max(affectedQuantity, 0), currentQuantity);
+  return getProblemStateFromOperations(card?.operations || [], {
+    currentQuantity: getCardCurrentQuantity(card),
+    originType: card?.originType || '',
+    stage: card?.stage || '',
+  }).activeProblemQuantity;
 }
 
 export function getCardRemainingProblemQuantity(card) {
-  if (card?.originType === 'problemIsolation') {
-    return 0;
-  }
-
-  return getCardActiveProblemQuantity(card);
+  return getProblemStateFromOperations(card?.operations || [], {
+    activeProblemQuantity: getCardActiveProblemQuantity(card),
+    currentQuantity: getCardCurrentQuantity(card),
+    originType: card?.originType || '',
+    stage: card?.stage || '',
+  }).remainingProblemQuantity;
 }
 
 export function getLatestActiveProblemOperation(card) {
-  const operations = card?.operations || [];
-  const remainingProblemQuantity = getCardRemainingProblemQuantity(card);
-
-  if (remainingProblemQuantity <= 0) {
-    return null;
-  }
-
-  return operations.find((operation) => operation.type === 'problem') || null;
+  return getProblemStateFromOperations(card?.operations || [], {
+    activeProblemQuantity: getCardActiveProblemQuantity(card),
+    currentQuantity: getCardCurrentQuantity(card),
+    originType: card?.originType || '',
+    stage: card?.stage || '',
+  }).latestProblemOperation;
 }
 
 export function getCardHealthyQuantity(card) {
@@ -450,10 +436,7 @@ export function getCardHealthyQuantity(card) {
 }
 
 export function getLatestProblemRiskLevel(card) {
-  return (card?.operations || []).find((operation) => (
-    ['problemRecovery', 'problem'].includes(operation.type) &&
-    operation.riskLevel
-  ))?.riskLevel || '';
+  return getLatestProblemRiskLevelFromOperations(card?.operations || []);
 }
 
 export function formatProblemAwareQuantityDisplay(card) {
