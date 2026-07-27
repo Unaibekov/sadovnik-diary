@@ -22,7 +22,7 @@ import { CalendarIcon, ChevronDownIcon, LeaveIcon } from '../components/icons';
 import { INTRO_STAGE } from '../domain/constants';
 import { formatDisplayDate } from '../domain/dates';
 import {
-  formatProblemAwareQuantityDisplay,
+  formatActionCardQuantityDisplay,
   getCardActiveProblemQuantity,
   getCardCurrentQuantity,
   getCardDisplayName,
@@ -172,7 +172,7 @@ export default function IntroActionFormScreen({
                 <View style={styles.cardsMetaItem}>
                   <LeaveIcon color="#15863F" size={16} />
                   <Text style={styles.cardsMetaText}>
-                    {formatProblemAwareQuantityDisplay(selectedCard)}
+                    {formatActionCardQuantityDisplay(selectedCard)}
                   </Text>
                 </View>
               </View>

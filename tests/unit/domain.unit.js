@@ -11,6 +11,8 @@ const {
 } = require('../../src/domain/problemState');
 const {
   calculateCurrentQuantity,
+  formatActionCardQuantityDisplay,
+  formatMixedBatchProblemBreakdown,
   getCardActiveProblemQuantity,
   getCardUnisolatedProblemQuantity,
 } = require('../../src/domain/batch');
@@ -148,10 +150,11 @@ test('legacy stored active quantity is used only without problem journal events'
 });
 
 test('problem state keeps isolated child marked as problem but without parent isolation notice', () => {
-  const childState = getProblemStateFromOperations([
+  const childOperations = [
     { type: 'contamination', createdAt: '2026-07-27T16:16:00.000Z' },
     { type: 'isolatedFromParent', parentCode: 'VK-20260727-191538', quantity: 1000, createdAt: '2026-07-27T16:21:00.000Z' },
-  ], {
+  ];
+  const childState = getProblemStateFromOperations(childOperations, {
     currentQuantity: 1000,
     originType: 'problemIsolation',
     stage: INTRO_STAGE,
@@ -161,6 +164,33 @@ test('problem state keeps isolated child marked as problem but without parent is
   assert.equal(childState.unisolatedProblemQuantity, 0);
   assert.equal(childState.batchStatus, 'problem');
   assert.equal(childState.isActive, true);
+});
+
+test('mixed problem breakdown is not used for isolated child batches', () => {
+  const isolatedChildCard = {
+    quantity: 1000,
+    originType: 'problemIsolation',
+    stage: INTRO_STAGE,
+    operations: [
+      { type: 'contamination', createdAt: '2026-07-27T16:16:00.000Z' },
+      { type: 'isolatedFromParent', parentCode: 'VK-20260727-191538', quantity: 1000, createdAt: '2026-07-27T16:21:00.000Z' },
+    ],
+  };
+
+  assert.equal(formatMixedBatchProblemBreakdown(isolatedChildCard), '');
+  assert.equal(formatActionCardQuantityDisplay(isolatedChildCard), '1000 шт.');
+});
+
+test('mixed problem breakdown is shown only when healthy and problem quantities coexist', () => {
+  const mixedCard = {
+    quantity: 100,
+    stage: INTRO_STAGE,
+    operations: [
+      { type: 'problem', affectedQuantity: 40, createdAt: '2026-07-27T16:16:00.000Z' },
+    ],
+  };
+
+  assert.equal(formatMixedBatchProblemBreakdown(mixedCard), '60 здоровых · 40 с проблемой');
 });
 
 test('planting codes are case-insensitive and get a suffix on collision', () => {

@@ -462,26 +462,42 @@ export function getLatestProblemRiskLevel(card) {
   return getLatestProblemRiskLevelFromOperations(card?.operations || []);
 }
 
-export function formatProblemAwareQuantityDisplay(card) {
+export function formatMixedBatchProblemBreakdown(card) {
+  if (card?.originType === 'problemIsolation') {
+    return '';
+  }
+
   const activeProblemQuantity = getCardActiveProblemQuantity(card);
+  const healthyQuantity = getCardHealthyQuantity(card);
+
+  if (activeProblemQuantity <= 0 || healthyQuantity <= 0) {
+    return '';
+  }
+
+  return `${healthyQuantity} здоровых · ${activeProblemQuantity} с проблемой`;
+}
+
+export function formatActionCardQuantityDisplay(card) {
+  const mixedBatchProblemBreakdown = formatMixedBatchProblemBreakdown(card);
+
+  if (mixedBatchProblemBreakdown) {
+    return mixedBatchProblemBreakdown;
+  }
+
   const propagationQuantity = getCardPropagationQuantity(card);
   const sourceQuantity = getCardSourceQuantity(card);
   const lossQuantity = getCardLossQuantity(card);
 
-  if (activeProblemQuantity <= 0) {
-    if (propagationQuantity > 0) {
-      return [
-        `${getCardCurrentQuantity(card)} всего`,
-        `${sourceQuantity} исходных`,
-        `${propagationQuantity} размножено`,
-        lossQuantity > 0 ? `потери ${lossQuantity}` : '',
-      ].filter(Boolean).join(' · ');
-    }
-
-    return formatQuantityDisplay(sourceQuantity, card?.quantity);
+  if (propagationQuantity > 0) {
+    return [
+      `${getCardCurrentQuantity(card)} всего`,
+      `${sourceQuantity} исходных`,
+      `${propagationQuantity} размножено`,
+      lossQuantity > 0 ? `потери ${lossQuantity}` : '',
+    ].filter(Boolean).join(' · ');
   }
 
-  return `${getCardHealthyQuantity(card)} здоровых · ${activeProblemQuantity} с проблемой`;
+  return formatQuantityDisplay(sourceQuantity, card?.quantity);
 }
 
 export function getCardPropagationQuantity(card) {
