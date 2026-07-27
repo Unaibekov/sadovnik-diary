@@ -41,7 +41,7 @@ test('problem state removes isolated problem quantity from a parent batch', () =
     quantity: 1234,
     stage: INTRO_STAGE,
     operations: [
-      { type: 'contamination', createdAt: '2026-07-27T16:16:00.000Z' },
+      { type: 'problem', affectedQuantity: 1000, createdAt: '2026-07-27T16:16:00.000Z' },
       { type: 'problemIsolation', count: 1000, childCode: 'VK-20260727-192105', createdAt: '2026-07-27T16:21:00.000Z' },
     ],
   };
@@ -49,6 +49,21 @@ test('problem state removes isolated problem quantity from a parent batch', () =
   assert.equal(calculateCurrentQuantity(parentCard), 234);
   assert.equal(getCardActiveProblemQuantity(parentCard), 0);
   assert.equal(getCardRemainingProblemQuantity(parentCard), 0);
+});
+
+test('full-batch contamination keeps remaining plants active after partial isolation', () => {
+  const parentCard = {
+    quantity: 100,
+    stage: INTRO_STAGE,
+    operations: [
+      { type: 'contamination', createdAt: '2026-07-27T16:16:00.000Z' },
+      { type: 'problemIsolation', count: 40, childCode: 'VK-20260727-192105', createdAt: '2026-07-27T16:21:00.000Z' },
+    ],
+  };
+
+  assert.equal(calculateCurrentQuantity(parentCard), 60);
+  assert.equal(getCardActiveProblemQuantity(parentCard), 60);
+  assert.equal(getCardRemainingProblemQuantity(parentCard), 60);
 });
 
 test('problem state keeps isolated child marked as problem but without parent isolation notice', () => {

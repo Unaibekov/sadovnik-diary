@@ -42,7 +42,7 @@ export function getActiveProblemQuantityFromOperations(operations = [], currentQ
       return sum - (Number(operation.recoveredQuantity) || 0);
     }
 
-    if (operation.type === 'problemIsolation') {
+    if (operation.type === 'problemIsolation' && !hasFullBatchProblem) {
       return sum - (Number(operation.count || operation.quantity) || 0);
     }
 
