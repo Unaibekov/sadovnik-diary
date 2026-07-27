@@ -27,6 +27,9 @@ const {
   createCultureCardsStorage,
 } = require('../../src/services/cultureCardsStorage');
 const {
+  createCultureCardRepository,
+} = require('../../src/repositories/cultureCardRepository');
+const {
   buildUniquePlantingCode,
   normalizeCode,
 } = require('../../src/domain/codeGeneration');
@@ -353,4 +356,81 @@ test('normalization errors do not overwrite legacy storage', async () => {
   assert.equal(await storage.getItem(CULTURE_CARDS_STORAGE_KEY), invalidLegacyCards);
   assert.equal(await storage.getItem(CULTURE_CARDS_STORAGE_BACKUP_KEY), null);
   assert.equal(storage.setCalls.length, 0);
+});
+
+test('valid backup can be restored to the current storage envelope', async () => {
+  const backupCards = [{
+    id: 'backup-card-1',
+    code: 'VK-20260727-000003',
+    cultureName: 'Каладиум',
+    quantity: 15,
+    stage: INTRO_STAGE,
+    createdAt: '2026-07-27',
+  }];
+  const storage = createMemoryAsyncStorage({
+    [CULTURE_CARDS_STORAGE_KEY]: '{broken main',
+    [CULTURE_CARDS_STORAGE_BACKUP_KEY]: JSON.stringify(backupCards),
+  });
+  const service = createCultureCardsStorage(storage);
+
+  const restoredCards = await service.restoreCultureCardsBackupFromStorage();
+  const restoredValue = JSON.parse(await storage.getItem(CULTURE_CARDS_STORAGE_KEY));
+
+  assert.equal(restoredCards.length, 1);
+  assert.equal(restoredCards[0].id, 'backup-card-1');
+  assert.equal(restoredValue.schemaVersion, CULTURE_CARDS_STORAGE_SCHEMA_VERSION);
+  assert.equal(restoredValue.cards[0].id, 'backup-card-1');
+  assert.equal(await storage.getItem(CULTURE_CARDS_STORAGE_BACKUP_KEY), JSON.stringify(backupCards));
+});
+
+test('missing backup cannot be restored and leaves current storage unchanged', async () => {
+  const currentValue = '{broken main';
+  const storage = createMemoryAsyncStorage({
+    [CULTURE_CARDS_STORAGE_KEY]: currentValue,
+  });
+  const service = createCultureCardsStorage(storage);
+
+  await assert.rejects(
+    () => service.restoreCultureCardsBackupFromStorage(),
+    (error) => error.code === 'backup_not_found',
+  );
+
+  assert.equal(await storage.getItem(CULTURE_CARDS_STORAGE_KEY), currentValue);
+  assert.equal(storage.setCalls.length, 0);
+});
+
+test('invalid backup cannot be restored and leaves current storage unchanged', async () => {
+  const currentValue = '{broken main';
+  const storage = createMemoryAsyncStorage({
+    [CULTURE_CARDS_STORAGE_KEY]: currentValue,
+    [CULTURE_CARDS_STORAGE_BACKUP_KEY]: '{broken backup',
+  });
+  const service = createCultureCardsStorage(storage);
+
+  await assert.rejects(
+    () => service.restoreCultureCardsBackupFromStorage(),
+    (error) => error.code === 'invalid_backup',
+  );
+
+  assert.equal(await storage.getItem(CULTURE_CARDS_STORAGE_KEY), currentValue);
+  assert.equal(await storage.getItem(CULTURE_CARDS_STORAGE_BACKUP_KEY), '{broken backup');
+  assert.equal(storage.setCalls.length, 0);
+});
+
+test('repository exposes explicit backup restore', async () => {
+  let restoreCallCount = 0;
+  const repository = createCultureCardRepository({
+    clearStoredCardsForTests: async () => {},
+    loadStoredCards: async () => [],
+    restoreStoredCardsBackup: async () => {
+      restoreCallCount += 1;
+      return [{ id: 'restored-card-1' }];
+    },
+    saveStoredCards: async () => {},
+  });
+
+  const restoredCards = await repository.restoreBackup();
+
+  assert.equal(restoreCallCount, 1);
+  assert.deepEqual(restoredCards, [{ id: 'restored-card-1' }]);
 });

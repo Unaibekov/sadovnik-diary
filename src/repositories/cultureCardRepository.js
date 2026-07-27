@@ -1,12 +1,14 @@
 import {
   clearCultureCardsForTests,
   loadCultureCardsFromStorage,
+  restoreCultureCardsBackupFromStorage,
   saveCultureCardsToStorage,
 } from '../services/cultureCardsStorage';
 
 export function createCultureCardRepository({
   clearStoredCardsForTests,
   loadStoredCards,
+  restoreStoredCardsBackup,
   saveStoredCards,
 }) {
   return {
@@ -71,6 +73,10 @@ export function createCultureCardRepository({
       return cards;
     },
 
+    async restoreBackup() {
+      return restoreStoredCardsBackup();
+    },
+
     async clearForTests() {
       await clearStoredCardsForTests();
     },
@@ -80,5 +86,6 @@ export function createCultureCardRepository({
 export const cultureCardRepository = createCultureCardRepository({
   clearStoredCardsForTests: clearCultureCardsForTests,
   loadStoredCards: loadCultureCardsFromStorage,
+  restoreStoredCardsBackup: restoreCultureCardsBackupFromStorage,
   saveStoredCards: saveCultureCardsToStorage,
 });

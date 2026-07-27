@@ -7,8 +7,13 @@ import {
 import { normalizeCultureCard } from '../domain/batch';
 import {
   buildCultureCardsStorageEnvelope,
+  CultureCardsStorageError,
   parseCultureCardsStorageValue,
 } from './cultureCardsStorageEnvelope';
+
+function normalizeStorageCards(cards) {
+  return cards.map(normalizeCultureCard);
+}
 
 export function createCultureCardsStorage(storage = AsyncStorage) {
   return {
@@ -21,7 +26,7 @@ export function createCultureCardsStorage(storage = AsyncStorage) {
 
       const savedCards = await storage.getItem(CULTURE_CARDS_STORAGE_KEY);
       const parsedStorage = parseCultureCardsStorageValue(savedCards);
-      const cards = parsedStorage.cards.map(normalizeCultureCard);
+      const cards = normalizeStorageCards(parsedStorage.cards);
 
       if (savedCards && parsedStorage.format !== 'envelope') {
         await storage.setItem(CULTURE_CARDS_STORAGE_BACKUP_KEY, savedCards);
@@ -47,6 +52,34 @@ export function createCultureCardsStorage(storage = AsyncStorage) {
       );
     },
 
+    async restoreCultureCardsBackupFromStorage() {
+      const backupStorageValue = await storage.getItem(CULTURE_CARDS_STORAGE_BACKUP_KEY);
+
+      if (!backupStorageValue) {
+        throw new CultureCardsStorageError(
+          'backup_not_found',
+          'Culture cards storage backup is missing',
+        );
+      }
+
+      let cards;
+      try {
+        cards = normalizeStorageCards(parseCultureCardsStorageValue(backupStorageValue).cards);
+      } catch {
+        throw new CultureCardsStorageError(
+          'invalid_backup',
+          'Culture cards storage backup cannot be restored',
+        );
+      }
+
+      await storage.setItem(
+        CULTURE_CARDS_STORAGE_KEY,
+        JSON.stringify(buildCultureCardsStorageEnvelope(cards)),
+      );
+
+      return cards;
+    },
+
     async clearCultureCardsForTests() {
       await storage.removeItem(CULTURE_CARDS_STORAGE_KEY);
       await storage.setItem(CULTURE_CARDS_RESET_KEY, 'true');
@@ -58,4 +91,5 @@ const defaultCultureCardsStorage = createCultureCardsStorage();
 
 export const loadCultureCardsFromStorage = defaultCultureCardsStorage.loadCultureCardsFromStorage;
 export const saveCultureCardsToStorage = defaultCultureCardsStorage.saveCultureCardsToStorage;
+export const restoreCultureCardsBackupFromStorage = defaultCultureCardsStorage.restoreCultureCardsBackupFromStorage;
 export const clearCultureCardsForTests = defaultCultureCardsStorage.clearCultureCardsForTests;
