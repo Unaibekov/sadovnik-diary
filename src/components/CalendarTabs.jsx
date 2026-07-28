@@ -29,7 +29,7 @@ export default function CalendarTabs({ activeTab, onChangeTab }) {
       toValue: activeIndex * tabWidth,
       useNativeDriver: supportsNativeDriver,
     }).start();
-  }, [activeIndex, indicatorX, tabWidth]);
+  }, [activeIndex, indicatorX, supportsNativeDriver, tabWidth]);
 
   return (
     <View style={appStyles.calendarPinnedContent}>

@@ -51,7 +51,7 @@ export function getRecommendationStage(
   return recommendationsContext?.stage || selectedCard?.stage || selectedStage;
 }
 
-export function isSelectedCardActionLocked(selectedCard) {
+export function isSelectedCardActionLocked(_selectedCard) {
   return false;
 }
 

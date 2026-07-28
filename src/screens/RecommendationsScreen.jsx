@@ -43,7 +43,7 @@ export default function RecommendationsScreen({
       toValue: activeIndex * tabWidth,
       useNativeDriver: supportsNativeDriver,
     }).start();
-  }, [activeIndex, indicatorX, tabWidth]);
+  }, [activeIndex, indicatorX, supportsNativeDriver, tabWidth]);
 
   return (
     <SafeAreaView style={appStyles.safeArea}>

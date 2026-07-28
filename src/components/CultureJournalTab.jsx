@@ -11,12 +11,17 @@ import { isRenderablePhotoUri } from '../domain/photoUri';
 import PhotoViewerModal from './PhotoViewerModal';
 import { EditIcon } from './icons';
 
+const stageOrder = [INTRO_STAGE, ...stages.filter((stage) => stage !== INTRO_STAGE)];
+
+function getStageRank(stage) {
+  const index = stageOrder.indexOf(stage);
+  return index === -1 ? stageOrder.length : index;
+}
+
 export default function CultureJournalTab({
-  canDeleteOperation,
   canEditOperation,
   card,
   operations,
-  onDeleteOperation,
   onEditOperation,
 }) {
   const [isViewerVisible, setIsViewerVisible] = useState(false);
@@ -32,12 +37,6 @@ export default function CultureJournalTab({
   function getOperationKey(operation, index) {
     return operation.id || `${operation.type || 'operation'}-${operation.createdAt || operation.date || 'unknown'}-${index}`;
   }
-
-  const stageOrder = [INTRO_STAGE, ...stages.filter((stage) => stage !== INTRO_STAGE)];
-  const getStageRank = (stage) => {
-    const index = stageOrder.indexOf(stage);
-    return index === -1 ? stageOrder.length : index;
-  };
 
   const groupedOperations = useMemo(
     () =>

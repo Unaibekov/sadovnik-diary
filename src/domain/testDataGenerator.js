@@ -118,33 +118,6 @@ function getUniqueIntroPlantProfiles(existingCards, count) {
   return uniquePlants;
 }
 
-function buildOperationBase({
-  cardId,
-  createdAt,
-  index,
-  stage,
-  type,
-  title,
-  field,
-  value,
-  user,
-}) {
-  const createdAtIso = createdAt.toISOString();
-  const operationId = `${cardId}-${type}-${index}-${createdAt.getTime().toString(36)}`;
-
-  return {
-    id: operationId,
-    type,
-    title,
-    stage,
-    date: toIsoDate(createdAt),
-    createdAt: createdAtIso,
-    createdBy: user.id,
-    createdByName: user.fullName || user.id,
-    [field]: value,
-  };
-}
-
 function buildTransitionOperation({
   createdAt,
   fromStage,
@@ -724,7 +697,6 @@ function buildCoverageCard({
 
   const baseCard = normalizeCultureCard({
     id: cardId,
-    name: '',
     createdAt: toIsoDate(createdAt),
     updatedAt: updatedAt.toISOString(),
     updatedBy: user.id,

@@ -1,5 +1,4 @@
 // Селекторы и вычисления для отображения карточек.
-import styles from '../../styles';
 import { getCardActiveProblemQuantity, getCardCurrentQuantity } from './batch';
 import { EMPTY_CATALOG_VALUE } from './constants';
 import { getProblemBatchStatusFromOperations } from './statusProblemValidation';
@@ -46,7 +45,6 @@ export function getResolvedBatchStatus(card) {
   const currentQuantity = getCardCurrentQuantity(card);
   const activeProblemQuantity = getCardActiveProblemQuantity(card);
   const hasSale = hasSaleOperation(card);
-  const totalQuantity = Number(card?.quantity) || 0;
   const problemBatchStatus = getProblemBatchStatusFromOperations(
     card?.operations || [],
     card?.stage || '',

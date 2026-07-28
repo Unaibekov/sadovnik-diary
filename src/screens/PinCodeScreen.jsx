@@ -9,7 +9,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { DeleteIcon, LogoElementIcon } from '../components/icons';
+import { LogoElementIcon } from '../components/icons';
 
 function PinDots({ length }) {
   return (

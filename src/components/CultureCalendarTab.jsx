@@ -38,11 +38,9 @@ function getCalendarOperationTitle(operation, card) {
 export default function CultureCalendarTab({
   calendarDays,
   calendarMonth,
-  canDeleteOperation,
   canEditOperation,
   card,
   onChangeMonth,
-  onDeleteOperation,
   onEditOperation,
   onSelectDate,
   operationDates,

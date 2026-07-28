@@ -60,7 +60,6 @@ function buildCardInfoProps(cardView) {
 
 
 export default function CultureListScreen({
-  allVisibleStageCardsCount,
   batchStatusFilter,
   bottomInset,
   cardSearch,

@@ -12,7 +12,6 @@ import plantsCatalog from '../../data/plantsCatalog';
 import styles from '../../styles';
 import BottomTabBar from '../components/BottomTabBar';
 import StageHeader from '../components/StageHeader';
-import { LogoElementIcon } from '../components/icons';
 
 function getPlantTitle(plant) {
   return plant.originalName || [
@@ -102,7 +101,6 @@ export default function PlantCatalogScreen({
       }));
   }, [filteredPlants]);
 
-  const normalizedSearchTerm = searchTerm.trim();
   useEffect(() => {
     sectionOffsetsRef.current = new Map();
     pendingScrollKeyRef.current = null;

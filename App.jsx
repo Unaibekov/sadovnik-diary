@@ -10,9 +10,7 @@ import {
 } from "react-native-safe-area-context";
 import { CameraView } from "expo-camera";
 import plantsCatalog from "./data/plantsCatalog";
-import styles from "./styles";
 import {
-  BATCH_STATUS_LABELS,
   AUTH_TEST_LOGIN,
   AUTH_TEST_PASSWORD,
   INTRO_STAGE,
@@ -34,7 +32,6 @@ import {
   getCardCurrentQuantity,
   getCardDisplayName,
   getCloneStats,
-  getDaysInCurrentStage,
   getGreenhouseStats,
   getLatestActiveProblemOperation,
   getNextStage,
@@ -45,8 +42,6 @@ import {
 } from "./src/domain/cardSelectors";
 import {
   introOperationFields,
-  protectedOperationTypes,
-  stageHomeItems as stageHomeItemsConfig,
   statusEventCountFields,
 } from "./src/domain/operationConfig";
 import { removeRecommendationFields } from "./src/domain/recommendations";
@@ -74,10 +69,7 @@ import {
   buildCultureFormSelectionResult,
   isRequiredFieldMissingInForm,
 } from "./src/domain/cultureForm";
-import {
-  buildCultureCardCancelResult,
-  buildCultureCardSaveResult,
-} from "./src/domain/cultureCardSave";
+import { buildCultureCardSaveResult } from "./src/domain/cultureCardSave";
 import {
   buildDevelopmentCoverageTestCultureCards,
   buildEmptyIntroCultureCards,
@@ -151,9 +143,6 @@ import {
   buildCultureFormOpenState,
 } from "./src/domain/cultureFormState";
 import { buildLogoutState } from "./src/domain/logoutState";
-import {
-  buildRegisterState,
-} from "./src/domain/authState";
 import { buildTaskCardOpenState } from "./src/domain/tasks";
 import {
   getShareQrNotice,
@@ -266,7 +255,7 @@ function AppContent() {
   const [calendarMonth, setCalendarMonth] = useState(new Date());
   const [selectedCalendarDate, setSelectedCalendarDate] = useState("");
   const [cultureCalendarTab, setCultureCalendarTab] = useState("calendar");
-  const [isDateEntryExpanded, setIsDateEntryExpanded] = useState(false);
+  const [, setIsDateEntryExpanded] = useState(false);
   const [isStageMoveConfirmVisible, setIsStageMoveConfirmVisible] =
     useState(false);
   const [operationDeleteCandidateId, setOperationDeleteCandidateId] =
@@ -280,22 +269,17 @@ function AppContent() {
     canEditCurrentIdentity,
     calendarDays,
     cultureOptions,
-    editingCard,
     filteredCultureCards,
-    globalJournalEvents,
     groupedGlobalJournalCards,
     journalSubFilterCounts,
-    isSelectedCloneCard,
     isSupportedPlantingStage,
     operationDates,
     recommendationCard,
     recommendationEntries,
-    recommendationSourceCards,
     recommendationStage,
     selectedCard,
     selectedCardActionLocked,
     selectedCardAdaptationStats,
-    selectedCardCalendarOperations,
     selectedCardCloneStats,
     selectedCardCurrentQuantity,
     selectedCardDaysInStage,
@@ -303,7 +287,6 @@ function AppContent() {
     selectedCardNextStage,
     selectedCardOperations,
     selectedDateOperations,
-    selectedStageCardsCount,
     stageStatusFilterCounts,
     selectedStageFlags,
     showIdentityAsText,
@@ -398,7 +381,7 @@ function AppContent() {
       );
       setCultureCards(savedCards);
       setStorageError("");
-    } catch (loadError) {
+    } catch {
       setStorageError("Не удалось загрузить локальные данные");
     } finally {
       setIsCardsLoading(false);
@@ -814,13 +797,6 @@ function AppContent() {
     }
   }
 
-  function handleRegister() {
-    const nextState = buildRegisterState();
-
-    setError(nextState.error);
-    setNotice(nextState.notice);
-  }
-
   function toggleJournalCard(cardId) {
     setExpandedJournalCardIds((currentIds) =>
       currentIds.includes(cardId)
@@ -909,7 +885,7 @@ function AppContent() {
       await CameraView.launchScanner({
         barcodeTypes: ["qr"],
       });
-    } catch (scanError) {
+    } catch {
       setNotice(getScanErrorNotice());
     } finally {
       subscription?.remove();
@@ -923,7 +899,7 @@ function AppContent() {
         generatedAt: new Date(),
       });
       setNotice(getShareQrNotice(shareResult));
-    } catch (shareError) {
+    } catch {
       setNotice("Не удалось отправить QR-код.");
     }
   }
@@ -955,7 +931,7 @@ function AppContent() {
         testLocation: "",
       });
       setNotice(getShareZipReportNotice(shareResult));
-    } catch (shareError) {
+    } catch {
       setNotice("Не удалось подготовить ZIP-отчет.");
     } finally {
       setIsReportGenerating(false);
@@ -968,7 +944,7 @@ function AppContent() {
         date: new Date(Date.now() + 60 * 1000),
       });
       setNotice(getWateringReminderNotice("scheduled"));
-    } catch (notificationError) {
+    } catch {
       setNotice(getWateringReminderNotice("error"));
     }
   }
@@ -1050,7 +1026,7 @@ function AppContent() {
         setCurrentScreen(resetState.currentScreen);
         setStorageError(resetState.storageError);
         setNotice(resetState.notice);
-      } catch (clearError) {
+      } catch {
         setStorageError("Не удалось очистить карточки стадий");
       }
     });
@@ -2261,25 +2237,6 @@ function AppContent() {
     }, false);
   }
 
-  async function handleCancelCultureCard() {
-    return runAsyncAction(`cancel-culture-card:${editingCardId || ''}`, async () => {
-      if (!editingCardId) {
-        return;
-      }
-
-    const nowIso = new Date().toISOString();
-    const { nextCards } = buildCultureCardCancelResult({
-      cultureCards,
-      editingCardId,
-      userId: currentUser.id,
-      nowIso,
-    });
-
-    await saveCultureCards(nextCards);
-      closeCultureForm();
-    });
-  }
-
   function isRequiredFieldMissing(field) {
     return isRequiredFieldMissingInForm(cultureForm, touchedSubmit, field);
   }
@@ -2324,7 +2281,6 @@ function AppContent() {
     isSupportedPlantingStage,
     journalFilter,
     journalSubFilter,
-    login,
     notice,
     openDropdown,
     operationDates,
@@ -2347,7 +2303,6 @@ function AppContent() {
     selectedCalendarDate,
     selectedDateOperations,
     selectedStage,
-    selectedStageCardsCount,
     stageStatusFilterCounts,
     showDatePicker,
     showIdentityAsText,
@@ -2384,15 +2339,6 @@ function AppContent() {
     handleSaveCultureCard,
     handleSaveIntroAction,
     handleSaveStatusChange,
-    handleAddCulturePhoto,
-    handleReplaceCulturePhoto,
-    handleRemoveCulturePhoto,
-    handlePickIntroActionPhoto,
-    handleReplaceIntroActionPhoto,
-    handleRemoveIntroActionPhoto,
-    handleAddStatusPhoto,
-    handleRemoveStatusPhoto,
-    handleReplaceStatusPhoto,
     handleScanPress,
     handleScheduleWateringReminder,
     handleShareZipData,

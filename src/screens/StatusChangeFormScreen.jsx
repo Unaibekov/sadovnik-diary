@@ -73,7 +73,6 @@ export default function StatusChangeFormScreen({
   const [isProblemTypeDropdownOpen, setIsProblemTypeDropdownOpen] = useState(false);
   const [isRiskDropdownOpen, setIsRiskDropdownOpen] = useState(false);
   const [isStressDropdownOpen, setIsStressDropdownOpen] = useState(false);
-  const [isStabilityDropdownOpen, setIsStabilityDropdownOpen] = useState(false);
   const [isTurgorDropdownOpen, setIsTurgorDropdownOpen] = useState(false);
   const [isReadinessDropdownOpen, setIsReadinessDropdownOpen] = useState(false);
   const [isSurvivalDropdownOpen, setIsSurvivalDropdownOpen] = useState(false);
@@ -186,7 +185,6 @@ export default function StatusChangeFormScreen({
     setIsProblemTypeDropdownOpen(false);
     setIsRiskDropdownOpen(false);
     setIsStressDropdownOpen(false);
-    setIsStabilityDropdownOpen(false);
     setIsTurgorDropdownOpen(false);
     setIsReadinessDropdownOpen(false);
     setIsSurvivalDropdownOpen(false);
@@ -252,11 +250,6 @@ export default function StatusChangeFormScreen({
   function selectStressLevel(value) {
     onChangeField('stressLevel', value);
     setIsStressDropdownOpen(false);
-  }
-
-  function selectStability(value) {
-    onChangeField('stability', value);
-    setIsStabilityDropdownOpen(false);
   }
 
   function selectTurgor(value) {
