@@ -857,6 +857,43 @@ test('invalid backup cannot be restored and leaves current storage unchanged', a
   assert.equal(storage.setCalls.length, 0);
 });
 
+test('backup status is reported as valid for a readable backup', async () => {
+  const backupCards = [{
+    id: 'backup-card-1',
+    code: 'VK-20260727-000006',
+    quantity: 5,
+    stage: INTRO_STAGE,
+    createdAt: '2026-07-27',
+  }];
+  const storage = createMemoryAsyncStorage({
+    [CULTURE_CARDS_STORAGE_BACKUP_KEY]: JSON.stringify(backupCards),
+  });
+  const service = createCultureCardsStorage(storage);
+
+  const result = await service.getCultureCardsBackupStatusFromStorage();
+
+  assert.deepEqual(result, { status: 'valid' });
+});
+
+test('backup status is reported as missing when no backup exists', async () => {
+  const service = createCultureCardsStorage(createMemoryAsyncStorage());
+
+  const result = await service.getCultureCardsBackupStatusFromStorage();
+
+  assert.deepEqual(result, { status: 'missing' });
+});
+
+test('backup status is reported as invalid for a broken backup', async () => {
+  const storage = createMemoryAsyncStorage({
+    [CULTURE_CARDS_STORAGE_BACKUP_KEY]: '{broken backup',
+  });
+  const service = createCultureCardsStorage(storage);
+
+  const result = await service.getCultureCardsBackupStatusFromStorage();
+
+  assert.deepEqual(result, { status: 'invalid' });
+});
+
 test('repository exposes explicit backup restore', async () => {
   let restoreCallCount = 0;
   const repository = createCultureCardRepository({
@@ -923,6 +960,7 @@ test('repository update with an unknown card id leaves cards unchanged', async (
   assert.equal(result.card, null);
   assert.deepEqual(result.cards, [{ id: 'card-a', count: 1 }]);
   assert.deepEqual(store.getCards(), [{ id: 'card-a', count: 1 }]);
+  assert.deepEqual(store.events, ['load']);
 });
 
 test('repository write queue continues after a failed save', async () => {

@@ -102,6 +102,9 @@ export default function AppRouter({ actions, state }) {
     stageMoveButtonLabel,
     stageMoveHint,
     storageError,
+    storageRecoveryActionLabel,
+    canRestoreStorageBackup,
+    isStorageRestoreInProgress,
     statusForm,
     statusFormError,
     statusFormNotice,
@@ -129,6 +132,7 @@ export default function AppRouter({ actions, state }) {
     handleSaveIntroAction,
     handleSaveStatusChange,
     handleScanPress,
+    handleRestoreCultureCardsBackup,
     handleScheduleWateringReminder,
     handleShareZipData,
     handleChangePermanentPassword,
@@ -522,6 +526,10 @@ export default function AppRouter({ actions, state }) {
         selectedStage={selectedStage}
         stageStatusFilterCounts={stageStatusFilterCounts}
         storageError={storageError}
+        storageRecoveryActionLabel={storageRecoveryActionLabel}
+        canRestoreStorageBackup={canRestoreStorageBackup}
+        isStorageRestoreInProgress={isStorageRestoreInProgress}
+        onRestoreStorageBackup={handleRestoreCultureCardsBackup}
       />
     );
   }
@@ -667,7 +675,27 @@ export default function AppRouter({ actions, state }) {
 
               {!!notice && <Text style={styles.homeNoticeText}>{notice}</Text>}
               {!!storageError && (
-                <Text style={styles.homeErrorText}>{storageError}</Text>
+                <View style={{ marginTop: 16 }}>
+                  <Text style={styles.homeErrorText}>{storageError}</Text>
+                  {canRestoreStorageBackup && (
+                    <Pressable
+                      accessibilityRole="button"
+                      disabled={isStorageRestoreInProgress}
+                      onPress={handleRestoreCultureCardsBackup}
+                      style={({ pressed }) => [
+                        styles.secondaryOutlineButton,
+                        styles.transparentOutlineButton,
+                        { alignSelf: "center", marginTop: 12, minWidth: 176 },
+                        isStorageRestoreInProgress && { opacity: 0.6 },
+                        pressed && !isStorageRestoreInProgress && styles.pressedButton,
+                      ]}
+                    >
+                      <Text style={styles.secondaryOutlineButtonText}>
+                        {storageRecoveryActionLabel}
+                      </Text>
+                    </Pressable>
+                  )}
+                </View>
               )}
             </View>
           </ScrollView>

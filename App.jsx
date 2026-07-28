@@ -84,6 +84,7 @@ import {
   initializeLocalNotifications,
   scheduleWateringReminder,
 } from "./src/services/localNotifications";
+import { getCultureCardsBackupStatusFromStorage } from "./src/services/cultureCardsStorage";
 import { shareQrCode } from "./src/services/shareQrCodeService";
 import { shareAdminReportZip } from "./src/services/shareZipReportService";
 import {
@@ -198,6 +199,36 @@ function beginPinAuthFlow({
 const NATIVE_PHOTO_MAX_SIDE = 1600;
 const NATIVE_PHOTO_COMPRESSION = 0.7;
 
+const DAMAGED_STORAGE_ERROR_CODES = new Set(["invalid_json", "invalid_shape"]);
+
+function buildStorageRecoveryState(backupStatus, { restoreFailed = false } = {}) {
+  if (backupStatus === "valid") {
+    return {
+      canRestore: true,
+      code: restoreFailed
+        ? "storage_damaged_restore_failed"
+        : "storage_damaged_backup_valid",
+      message: restoreFailed
+        ? "Основные данные повреждены. Резервная копия найдена, но восстановление не удалось. Попробуйте ещё раз."
+        : "Основные данные повреждены. Найдена резервная копия.",
+    };
+  }
+
+  if (backupStatus === "missing") {
+    return {
+      canRestore: false,
+      code: "storage_damaged_backup_missing",
+      message: "Основные данные повреждены. Резервная копия не найдена.",
+    };
+  }
+
+  return {
+    canRestore: false,
+    code: "storage_damaged_backup_invalid",
+    message: "Основные данные повреждены. Резервная копия повреждена.",
+  };
+}
+
 function AppContent() {
   const safeAreaInsets = useSafeAreaInsets();
   const bottomInset = getBottomInset(safeAreaInsets);
@@ -229,6 +260,8 @@ function AppContent() {
   const [isCardsLoading, setIsCardsLoading] = useState(true);
   const [isReportGenerating, setIsReportGenerating] = useState(false);
   const [storageError, setStorageError] = useState("");
+  const [storageRecoveryState, setStorageRecoveryState] = useState(null);
+  const [isStorageRestoreInProgress, setIsStorageRestoreInProgress] = useState(false);
   const [currentScreen, setCurrentScreen] = useState("stages");
   const [cultureForm, setCultureForm] = useState(createEmptyCultureForm);
   const [statusForm, setStatusForm] = useState(createEmptyStatusForm);
@@ -381,28 +414,76 @@ function AppContent() {
       );
       setCultureCards(savedCards);
       setStorageError("");
-    } catch {
-      setStorageError("Не удалось загрузить локальные данные");
+      setStorageRecoveryState(null);
+      return true;
+    } catch (loadError) {
+      if (DAMAGED_STORAGE_ERROR_CODES.has(loadError?.code)) {
+        const { status } = await getCultureCardsBackupStatusFromStorage();
+        const recoveryState = buildStorageRecoveryState(status);
+        setStorageRecoveryState(recoveryState);
+        setStorageError(recoveryState.message);
+      } else {
+        setStorageRecoveryState(null);
+        setStorageError("Не удалось загрузить локальные данные");
+      }
+
+      return false;
     } finally {
       setIsCardsLoading(false);
     }
   }
 
   async function saveCultureCards(nextCards) {
-    const cardsWithoutRecommendations = nextCards.map(
-      removeRecommendationFields,
-    );
-    const compactCards = await compactCultureCardsForStorage(
-      cardsWithoutRecommendations,
-    );
-
     try {
+      const cardsWithoutRecommendations = nextCards.map(
+        removeRecommendationFields,
+      );
+      const compactCards = await compactCultureCardsForStorage(
+        cardsWithoutRecommendations,
+      );
+
       await cultureCardRepository.saveAll(compactCards);
       setCultureCards(compactCards);
       setStorageError("");
+      return true;
     } catch (saveError) {
       console.error("cultureCardRepository.saveAll failed", saveError);
       setStorageError("Не удалось сохранить локальные данные");
+      return false;
+    }
+  }
+
+  async function handleRestoreCultureCardsBackup() {
+    if (!storageRecoveryState?.canRestore || isStorageRestoreInProgress) {
+      return false;
+    }
+
+    setIsStorageRestoreInProgress(true);
+    try {
+      await cultureCardRepository.restoreBackup();
+      setIsCardsLoading(true);
+      const isReloaded = await loadCultureCards();
+
+      if (!isReloaded) {
+        return false;
+      }
+
+      setStorageError("");
+      setStorageRecoveryState(null);
+      setNotice("Резервная копия восстановлена");
+      return true;
+    } catch (restoreError) {
+      console.error("cultureCardRepository.restoreBackup failed", restoreError);
+      const { status } = await getCultureCardsBackupStatusFromStorage();
+      const nextRecoveryState = buildStorageRecoveryState(status, {
+        restoreFailed: status === "valid",
+      });
+
+      setStorageRecoveryState(nextRecoveryState);
+      setStorageError(nextRecoveryState.message);
+      return false;
+    } finally {
+      setIsStorageRestoreInProgress(false);
     }
   }
 
@@ -1702,7 +1783,9 @@ function AppContent() {
         operationId,
       );
 
-      await saveCultureCards(nextCards);
+      if (!(await saveCultureCards(nextCards))) {
+        return;
+      }
 
       if (editingOperationId === operationId) {
         setEditingOperationId(null);
@@ -1883,7 +1966,10 @@ function AppContent() {
         });
       });
 
-      await saveCultureCards(nextCards);
+      if (!(await saveCultureCards(nextCards))) {
+        return;
+      }
+
       setIsStageMoveConfirmVisible(false);
       setStageActionError("");
       setSelectedStage(nextStage);
@@ -2054,7 +2140,9 @@ function AppContent() {
       }
     }
 
-    await saveCultureCards(finalCards);
+    if (!(await saveCultureCards(finalCards))) {
+      return;
+    }
 
     if (
       introActionType === "greenhouseCare" &&
@@ -2158,7 +2246,10 @@ function AppContent() {
       return false;
     }
 
-    await saveCultureCards(nextCards);
+    if (!(await saveCultureCards(nextCards))) {
+      return false;
+    }
+
     setIntroActionForm(createEmptyIntroActionForm());
     setEditingOperationId(null);
     setIntroActionType("");
@@ -2232,7 +2323,10 @@ function AppContent() {
       nowIso,
     });
 
-    await saveCultureCards(nextCards);
+    if (!(await saveCultureCards(nextCards))) {
+      return;
+    }
+
       closeCultureForm();
     }, false);
   }
@@ -2312,6 +2406,11 @@ function AppContent() {
     stageMoveButtonLabel,
     stageMoveHint,
     storageError,
+    storageRecoveryActionLabel: storageRecoveryState?.canRestore
+      ? (isStorageRestoreInProgress ? "Восстановление..." : "Восстановить")
+      : "",
+    canRestoreStorageBackup: Boolean(storageRecoveryState?.canRestore),
+    isStorageRestoreInProgress,
     statusForm,
     statusFormError,
     statusFormNotice,
@@ -2340,6 +2439,7 @@ function AppContent() {
     handleSaveIntroAction,
     handleSaveStatusChange,
     handleScanPress,
+    handleRestoreCultureCardsBackup,
     handleScheduleWateringReminder,
     handleShareZipData,
     handleShareQrPress,

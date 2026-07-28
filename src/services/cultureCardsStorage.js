@@ -80,6 +80,21 @@ export function createCultureCardsStorage(storage = AsyncStorage) {
       return cards;
     },
 
+    async getCultureCardsBackupStatusFromStorage() {
+      const backupStorageValue = await storage.getItem(CULTURE_CARDS_STORAGE_BACKUP_KEY);
+
+      if (!backupStorageValue) {
+        return { status: 'missing' };
+      }
+
+      try {
+        normalizeStorageCards(parseCultureCardsStorageValue(backupStorageValue).cards);
+        return { status: 'valid' };
+      } catch {
+        return { status: 'invalid' };
+      }
+    },
+
     async clearCultureCardsForTests() {
       await storage.removeItem(CULTURE_CARDS_STORAGE_KEY);
       await storage.setItem(CULTURE_CARDS_RESET_KEY, 'true');
@@ -92,4 +107,5 @@ const defaultCultureCardsStorage = createCultureCardsStorage();
 export const loadCultureCardsFromStorage = defaultCultureCardsStorage.loadCultureCardsFromStorage;
 export const saveCultureCardsToStorage = defaultCultureCardsStorage.saveCultureCardsToStorage;
 export const restoreCultureCardsBackupFromStorage = defaultCultureCardsStorage.restoreCultureCardsBackupFromStorage;
+export const getCultureCardsBackupStatusFromStorage = defaultCultureCardsStorage.getCultureCardsBackupStatusFromStorage;
 export const clearCultureCardsForTests = defaultCultureCardsStorage.clearCultureCardsForTests;

@@ -60,6 +60,13 @@ export function createCultureCardRepository({
     async update(cardId, updater) {
       return enqueueWrite(async () => {
         const cards = await loadStoredCards();
+        if (!cards.some((card) => card.id === cardId)) {
+          return {
+            card: null,
+            cards,
+          };
+        }
+
         let updatedCard = null;
         const nextCards = cards.map((card) => {
           if (card.id !== cardId) {

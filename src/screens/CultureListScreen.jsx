@@ -63,6 +63,7 @@ export default function CultureListScreen({
   batchStatusFilter,
   bottomInset,
   cardSearch,
+  canRestoreStorageBackup = false,
   cards,
   isAdaptationStage,
   isCardsLoading,
@@ -70,15 +71,18 @@ export default function CultureListScreen({
   isCultureIntroStage,
   isGreenhouseStage,
   isHardeningStage,
+  isStorageRestoreInProgress = false,
   isPlantingStage,
   onBack,
   onChangeBatchStatusFilter,
   onChangeSearch,
   onCreateCulture,
   onOpenCultureCalendar,
+  onRestoreStorageBackup,
   selectedStage,
   stageStatusFilterCounts = {},
   storageError,
+  storageRecoveryActionLabel = '',
 }) {
   const isHardeningStageSelected = selectedStage === stages[4];
   const isPlantingStageSelected = selectedStage === stages[5];
@@ -189,8 +193,25 @@ export default function CultureListScreen({
             )}
 
             {!!storageError && (
-              <View style={styles.errorBox}>
+              <View style={localStyles.storageErrorBox}>
                 <Text style={styles.errorText}>{storageError}</Text>
+                {canRestoreStorageBackup && (
+                  <Pressable
+                    accessibilityRole="button"
+                    disabled={isStorageRestoreInProgress}
+                    onPress={onRestoreStorageBackup}
+                    style={({ pressed }) => [
+                      styles.secondaryOutlineButton,
+                      localStyles.storageRestoreButton,
+                      isStorageRestoreInProgress && localStyles.storageRestoreButtonDisabled,
+                      pressed && !isStorageRestoreInProgress && styles.pressedButton,
+                    ]}
+                  >
+                    <Text style={styles.secondaryOutlineButtonText}>
+                      {storageRecoveryActionLabel}
+                    </Text>
+                  </Pressable>
+                )}
               </View>
             )}
 
@@ -326,6 +347,23 @@ const localStyles = StyleSheet.create({
   },
   plantCardList: {
     gap: 10,
+  },
+  storageErrorBox: {
+    backgroundColor: '#FFF1F0',
+    borderColor: '#F3C7C4',
+    borderRadius: 16,
+    borderWidth: 1,
+    gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  storageRestoreButton: {
+    alignSelf: 'flex-start',
+    minHeight: 44,
+    paddingHorizontal: 18,
+  },
+  storageRestoreButtonDisabled: {
+    opacity: 0.6,
   },
   emptyScrollContent: {
     flexGrow: 1,
