@@ -274,6 +274,38 @@ test('problem journal clamps several consecutive recoveries to zero', () => {
   assert.equal(state.isActive, false);
 });
 
+test('problem journal recalculates quantity after a recovery operation is removed', () => {
+  const state = getProblemStateFromOperations([
+    {
+      type: 'problem',
+      problemType: 'Контаминация',
+      riskLevel: 'Высокий',
+      affectedQuantity: 40,
+      createdAt: '2026-07-27T16:00:00.000Z',
+    },
+  ], {
+    activeProblemQuantity: 0,
+    currentQuantity: 100,
+    stage: INTRO_STAGE,
+  });
+
+  assert.equal(state.activeProblemQuantity, 40);
+  assert.equal(state.isActive, true);
+});
+
+test('problem journal reflects an edited affected quantity', () => {
+  const state = getProblemStateFromOperations([
+    { type: 'problem', affectedQuantity: 25, createdAt: '2026-07-27T16:00:00.000Z', updatedAt: '2026-07-27T16:30:00.000Z' },
+    { type: 'problemRecovery', recoveredQuantity: 5, createdAt: '2026-07-27T17:00:00.000Z' },
+  ], {
+    activeProblemQuantity: 80,
+    currentQuantity: 100,
+    stage: INTRO_STAGE,
+  });
+
+  assert.equal(state.activeProblemQuantity, 20);
+});
+
 test('problem journal handles new problem after recovery', () => {
   const state = getProblemStateFromOperations([
     { type: 'problem', affectedQuantity: 50, createdAt: '2026-07-27T16:00:00.000Z' },
@@ -355,6 +387,21 @@ test('mixed problem breakdown is shown only when healthy and problem quantities 
   };
 
   assert.equal(formatMixedBatchProblemBreakdown(mixedCard), '60 здоровых · 40 с проблемой');
+});
+
+test('mixed problem breakdown is cleared after full problem isolation', () => {
+  const parentCard = {
+    quantity: 100,
+    stage: INTRO_STAGE,
+    operations: [
+      { type: 'problem', affectedQuantity: 40, createdAt: '2026-07-27T16:16:00.000Z' },
+      { type: 'problemIsolation', count: 40, childCode: 'VK-20260727-192105', createdAt: '2026-07-27T16:21:00.000Z' },
+    ],
+  };
+
+  assert.equal(calculateCurrentQuantity(parentCard), 60);
+  assert.equal(getCardActiveProblemQuantity(parentCard), 0);
+  assert.equal(formatMixedBatchProblemBreakdown(parentCard), '');
 });
 
 test('parent-child integrity accepts valid propagation child links', () => {
@@ -671,6 +718,37 @@ test('current envelope storage is loaded without rewriting it', async () => {
   assert.equal(storage.setCalls.length, 0);
 });
 
+test('saving culture cards stores a backup of the previous value first', async () => {
+  const currentEnvelope = JSON.stringify({
+    schemaVersion: CULTURE_CARDS_STORAGE_SCHEMA_VERSION,
+    savedAt: '2026-07-27T00:00:00.000Z',
+    cards: [{
+      id: 'current-card',
+      code: 'VK-20260727-000004',
+      quantity: 8,
+      stage: INTRO_STAGE,
+      createdAt: '2026-07-27',
+    }],
+  });
+  const storage = createMemoryAsyncStorage({
+    [CULTURE_CARDS_STORAGE_KEY]: currentEnvelope,
+  });
+  const service = createCultureCardsStorage(storage);
+
+  await service.saveCultureCardsToStorage([{
+    id: 'next-card',
+    code: 'VK-20260727-000005',
+    quantity: 9,
+    stage: INTRO_STAGE,
+    createdAt: '2026-07-27',
+  }]);
+
+  const savedValue = JSON.parse(await storage.getItem(CULTURE_CARDS_STORAGE_KEY));
+  assert.equal(await storage.getItem(CULTURE_CARDS_STORAGE_BACKUP_KEY), currentEnvelope);
+  assert.equal(savedValue.schemaVersion, CULTURE_CARDS_STORAGE_SCHEMA_VERSION);
+  assert.equal(savedValue.cards[0].id, 'next-card');
+});
+
 test('invalid storage json is not overwritten during migration', async () => {
   const invalidJson = '{not json';
   const storage = createMemoryAsyncStorage({
@@ -835,6 +913,16 @@ test('repository parallel updates for different cards do not overwrite each othe
     { id: 'card-a', count: 2 },
     { id: 'card-b', count: 3 },
   ]);
+});
+
+test('repository update with an unknown card id leaves cards unchanged', async () => {
+  const store = createRepositoryTestStore([{ id: 'card-a', count: 1 }]);
+
+  const result = await store.repository.update('missing-card', { count: 2 });
+
+  assert.equal(result.card, null);
+  assert.deepEqual(result.cards, [{ id: 'card-a', count: 1 }]);
+  assert.deepEqual(store.getCards(), [{ id: 'card-a', count: 1 }]);
 });
 
 test('repository write queue continues after a failed save', async () => {
