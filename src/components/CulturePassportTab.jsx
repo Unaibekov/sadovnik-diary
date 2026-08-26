@@ -26,6 +26,7 @@ export default function CulturePassportTab({
   hardeningStats,
   plantingStats,
   getResolvedBatchStatus,
+  onAskAi,
   onOpenRelatedCard,
   onShareQrPress,
 }) {
@@ -66,6 +67,18 @@ export default function CulturePassportTab({
     <View style={styles.passportBlocks}>
       <View style={[appStyles.surfacePanel, styles.passportPanel]}>
         <Text style={styles.passportSectionTitle}>Сводка</Text>
+        <Pressable
+          accessibilityLabel={`Спросить AI по партии ${card.code || card.cultureName || ''}`}
+          accessibilityRole="button"
+          onPress={onAskAi}
+          style={({ pressed }) => [
+            styles.relatedCardButton,
+            styles.askAiButton,
+            pressed && appStyles.linkButtonPressed,
+          ]}
+        >
+          <Text style={styles.relatedCardButtonText}>Спросить AI по этой партии</Text>
+        </Pressable>
         <View style={[styles.passportRow, styles.passportRowFirst]}>
           <Text style={styles.passportLabel}>Статус партии</Text>
           <Text style={styles.passportValue}>{batchStatusLabel}</Text>
@@ -416,6 +429,9 @@ const styles = StyleSheet.create({
     marginTop: 8,
     minHeight: 38,
     paddingHorizontal: 14,
+  },
+  askAiButton: {
+    marginTop: 0,
   },
   relatedCardButtonText: {
     color: '#15863F',

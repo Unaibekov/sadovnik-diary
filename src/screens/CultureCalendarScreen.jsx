@@ -15,6 +15,7 @@ export default function CultureCalendarScreen({
   isOperationDeleteConfirmVisible,
   isStageMoveConfirmVisible,
   onAddEvent,
+  onOpenAiChat,
   onBack,
   onCancelOperationDelete,
   onCancelStageMove,
@@ -73,6 +74,18 @@ export default function CultureCalendarScreen({
             )}
 
             <View style={localStyles.bottomActionsRow}>
+              <Pressable
+                accessibilityRole="button"
+                onPress={onOpenAiChat}
+                style={({ pressed }) => [
+                  styles.secondaryOutlineButton,
+                  localStyles.aiChatButton,
+                  pressed && styles.linkButtonPressed,
+                ]}
+              >
+                <Text style={styles.secondaryOutlineButtonText}>Спросить AI</Text>
+              </Pressable>
+
               {!!stageMoveTarget && !stageMoveBlockedMessage && (
                 <Pressable
                   accessibilityRole="button"
@@ -294,6 +307,10 @@ const localStyles = {
     gap: 12,
     justifyContent: "flex-end",
     width: "100%",
+  },
+  aiChatButton: {
+    minHeight: 44,
+    paddingHorizontal: 16,
   },
   moveBlockedNotice: {
     alignItems: "center",

@@ -27,6 +27,8 @@ yarn-debug.*
 yarn-error.*
 expo-server*.log
 expo-web*.log
+tmp-*.js
+*.zip
 test-results/
 playwright-artifacts/
 docs/reports/

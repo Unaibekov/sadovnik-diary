@@ -11,6 +11,7 @@ import CultureCalendarScreen from "./src/screens/CultureCalendarScreen";
 import CultureFormScreen from "./src/screens/CultureFormScreen";
 import CultureListScreen from "./src/screens/CultureListScreen";
 import GlobalJournalScreen from "./src/screens/GlobalJournalScreen";
+import AiChatScreen from "./src/screens/AiChatScreen";
 import IntroActionFormScreen from "./src/screens/IntroActionFormScreen";
 import MenuScreen from "./src/screens/MenuScreen";
 import PlantCatalogScreen from "./src/screens/PlantCatalogScreen";
@@ -44,6 +45,13 @@ export default function AppRouter({ actions, state }) {
     calendarMonth,
     canEditCurrentIdentity,
     canSaveCultureForm,
+    activeAiChatId,
+    aiChatChats,
+    aiChatDialogueUuid,
+    aiChatError,
+    aiChatInput,
+    aiChatMessages,
+    aiChatVoiceContextualStrings,
     cultureCalendarTab,
     cultureCards,
     cultureForm,
@@ -61,6 +69,7 @@ export default function AppRouter({ actions, state }) {
     isCloneStage,
     isCultureIntroStage,
     isEditingCard,
+    isAiChatSending,
     isGreenhouseStage,
     isHardeningStage,
     isPlantingStage,
@@ -122,14 +131,19 @@ export default function AppRouter({ actions, state }) {
     closeStatusChangeForm,
     confirmDeleteOperation,
     handleAddStageChange,
+    handleAiChatInputChange,
     handleClearTestData,
     handleGenerateCoverageTestData,
     handleGenerateIntroSeedCards,
     handleDateChange,
     handleGenerateCode,
+    handleNewAiChatDialog,
+    handleDeleteAiChat,
+    handleSelectAiChat,
     handleLogout,
     handleSaveCultureCard,
     handleSaveIntroAction,
+    handleSendAiChatMessage,
     handleSaveStatusChange,
     handleScanPress,
     handleRestoreCultureCardsBackup,
@@ -138,6 +152,9 @@ export default function AppRouter({ actions, state }) {
     handleChangePermanentPassword,
     handleShareQrPress,
     handleStagePress,
+    handleCloseAiChat,
+    openAiChat,
+    openAiChatForCard,
     openDirectories,
     openCultureCalendar,
     openCultureForm,
@@ -300,6 +317,10 @@ export default function AppRouter({ actions, state }) {
         isOperationDeleteConfirmVisible={Boolean(operationDeleteCandidateId)}
         isStageMoveConfirmVisible={isStageMoveConfirmVisible}
         onAddEvent={handleAddEventPress}
+        onOpenAiChat={() => openAiChatForCard(selectedCard, {
+          backScreen: "cultureCalendar",
+          cultureCalendarTab,
+        })}
         onBack={closeCultureCalendar}
         onCancelOperationDelete={cancelDeleteOperation}
         onCancelStageMove={() => setIsStageMoveConfirmVisible(false)}
@@ -383,6 +404,10 @@ export default function AppRouter({ actions, state }) {
             hardeningStats={selectedCardHardeningStats}
             plantingStats={selectedCardPlantingStats}
             getResolvedBatchStatus={getResolvedBatchStatus}
+            onAskAi={() => openAiChatForCard(selectedCard, {
+              backScreen: "cultureCalendar",
+              cultureCalendarTab,
+            })}
             onOpenRelatedCard={(relatedCard) => {
               openCultureCalendar(relatedCard);
               setCultureCalendarTab("passport");
@@ -522,6 +547,9 @@ export default function AppRouter({ actions, state }) {
           setBatchStatusFilter("all");
         }}
         onCreateCulture={openCultureForm}
+        onOpenAiChatForCard={(card) => openAiChatForCard(card, {
+          backScreen: "cultureList",
+        })}
         onOpenCultureCalendar={openCultureCalendar}
         selectedStage={selectedStage}
         stageStatusFilterCounts={stageStatusFilterCounts}
@@ -530,6 +558,27 @@ export default function AppRouter({ actions, state }) {
         canRestoreStorageBackup={canRestoreStorageBackup}
         isStorageRestoreInProgress={isStorageRestoreInProgress}
         onRestoreStorageBackup={handleRestoreCultureCardsBackup}
+      />
+    );
+  }
+
+  function renderAiChatScreen() {
+    return (
+      <AiChatScreen
+        activeChatId={activeAiChatId}
+        chats={aiChatChats}
+        dialogueUuid={aiChatDialogueUuid}
+        error={aiChatError}
+        inputValue={aiChatInput}
+        isSending={isAiChatSending}
+        messages={aiChatMessages}
+        onBack={handleCloseAiChat}
+        onChangeInput={handleAiChatInputChange}
+        onDeleteChat={handleDeleteAiChat}
+        onNewDialog={handleNewAiChatDialog}
+        onSelectChat={handleSelectAiChat}
+        onSend={handleSendAiChatMessage}
+        voiceContextualStrings={aiChatVoiceContextualStrings}
       />
     );
   }
@@ -581,6 +630,8 @@ export default function AppRouter({ actions, state }) {
       selectedCard
     ) {
       screenNode = renderStatusChangeFormScreen();
+    } else if (currentScreen === "aiChat") {
+      screenNode = renderAiChatScreen();
     } else if (currentScreen === "recommendations") {
       screenNode = renderRecommendationsScreen();
     } else if (isSupportedPlantingStage && currentScreen === "cultureList") {
@@ -617,6 +668,7 @@ export default function AppRouter({ actions, state }) {
             setCurrentScreen("globalJournal");
           }}
           onLogout={handleLogout}
+          onOpenAiChat={openAiChat}
           onOpenDirectories={openDirectories}
           onClearCards={handleClearTestData}
           onGenerateCoverageTestData={handleGenerateCoverageTestData}

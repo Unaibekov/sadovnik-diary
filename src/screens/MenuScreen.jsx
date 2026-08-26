@@ -34,6 +34,7 @@ export default function MenuScreen({
   lastName,
   notice,
   onChangePermanentPassword,
+  onOpenAiChat,
   onHomePress,
   onJournalPress,
   onLogout,
@@ -80,6 +81,12 @@ export default function MenuScreen({
     },
   ];
   const menuItems = [
+    {
+      key: 'aiChat',
+      onPress: onOpenAiChat,
+      subtitle: 'Тестовый диалог с Guru API',
+      title: 'AI Chat',
+    },
     {
       key: 'shareZip',
       disabled: isReportGenerating,

@@ -51,9 +51,23 @@
           "photosPermission": "Allow Sadovnik Diary to access your photos"
         }
       ],
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Allow Sadovnik Diary to use the microphone for voice input in AI Chat",
+          "speechRecognitionPermission": "Allow Sadovnik Diary to convert your speech to text in AI Chat",
+          "androidSpeechServicePackages": [
+            "com.google.android.googlequicksearchbox",
+            "com.google.android.tts",
+            "com.google.android.as"
+          ]
+        }
+      ],
       "expo-secure-store"
     ],
     "extra": {
+      "aiBackendUrl": "http://localhost:8787",
+      "guruModel": "qwen2.5-72b",
       "eas": {
         "projectId": "006e9c5e-f045-44b1-8f76-e48fc871dd67"
       }

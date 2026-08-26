@@ -29,6 +29,7 @@ import {
 } from "./src/domain/forms";
 import {
   getAdaptationStats,
+  getCardActiveProblemQuantity,
   getCardCurrentQuantity,
   getCardDisplayName,
   getCloneStats,
@@ -46,6 +47,7 @@ import {
 } from "./src/domain/operationConfig";
 import { removeRecommendationFields } from "./src/domain/recommendations";
 import {
+  buildAiChatNavigationState,
   buildCloseRecommendationsState,
   buildDirectoriesNavigationState,
   buildGlobalJournalNavigationState,
@@ -145,6 +147,20 @@ import {
 } from "./src/domain/cultureFormState";
 import { buildLogoutState } from "./src/domain/logoutState";
 import { buildTaskCardOpenState } from "./src/domain/tasks";
+import { createChatMessage } from "./src/domain/aiChat";
+import {
+  addMessageToAiChat,
+  createAiChat,
+  deleteAiChat,
+  ensureAiChatHistoryState,
+  getActiveAiChat,
+  getAiChatById,
+  updateAiChat,
+} from "./src/domain/aiChatHistory";
+import {
+  buildAiContext,
+} from "./src/domain/aiContext";
+import { buildAiVoiceContextualStrings } from "./src/domain/aiVoiceInput";
 import {
   getShareQrNotice,
   getShareZipReportNotice,
@@ -158,6 +174,11 @@ import {
 import AuthScreen from "./src/screens/AuthScreen";
 import AppRouter from "./AppRouter";
 import AppErrorBoundary from "./AppErrorBoundary";
+import { guruApi } from "./src/services/guruApi";
+import {
+  loadAiChatHistoryFromStorage,
+  saveAiChatHistoryToStorage,
+} from "./src/services/aiChatHistoryStorage";
 
 function normalizeEmployeeValue(value) {
   return `${value || ""}`
@@ -196,11 +217,40 @@ function beginPinAuthFlow({
   setQuickAuthPinConfirm("");
 }
 
+function emitAiContextDebugEvent(payload) {
+  if (typeof __DEV__ === "undefined" || !__DEV__) {
+    return;
+  }
+
+  const safePayload = payload && typeof payload === "object"
+    ? payload
+    : null;
+
+  if (!safePayload) {
+    return;
+  }
+
+  try {
+    console.info("AI context debug", safePayload);
+
+    if (
+      typeof window !== "undefined" &&
+      typeof window.dispatchEvent === "function" &&
+      typeof CustomEvent === "function"
+    ) {
+      window.dispatchEvent(new CustomEvent("context-debug", {
+        detail: safePayload,
+      }));
+    }
+  } catch {
+    // Keep diagnostics non-blocking in dev.
+  }
+}
+
 const NATIVE_PHOTO_MAX_SIDE = 1600;
 const NATIVE_PHOTO_COMPRESSION = 0.7;
 
 const DAMAGED_STORAGE_ERROR_CODES = new Set(["invalid_json", "invalid_shape"]);
-
 function buildStorageRecoveryState(backupStatus, { restoreFailed = false } = {}) {
   if (backupStatus === "valid") {
     return {
@@ -227,6 +277,30 @@ function buildStorageRecoveryState(backupStatus, { restoreFailed = false } = {})
     code: "storage_damaged_backup_invalid",
     message: "Основные данные повреждены. Резервная копия повреждена.",
   };
+}
+
+function createAiChatView(mode = "general", extra = {}) {
+  return {
+    backScreen: "menu",
+    cardId: "",
+    cultureCalendarTab: "calendar",
+    mode,
+    ...extra,
+  };
+}
+
+function isScopedChatForCard(chat, cardId) {
+  return chat?.scope?.type === "card" && chat.scope.cardId === cardId;
+}
+
+function getVisibleAiChats(chats, aiChatView) {
+  const normalizedChats = Array.isArray(chats) ? chats : [];
+
+  if (aiChatView?.mode === "card" && aiChatView.cardId) {
+    return normalizedChats.filter((chat) => isScopedChatForCard(chat, aiChatView.cardId));
+  }
+
+  return normalizedChats.filter((chat) => !chat?.scope);
 }
 
 function AppContent() {
@@ -263,6 +337,12 @@ function AppContent() {
   const [storageRecoveryState, setStorageRecoveryState] = useState(null);
   const [isStorageRestoreInProgress, setIsStorageRestoreInProgress] = useState(false);
   const [currentScreen, setCurrentScreen] = useState("stages");
+  const [aiChatChats, setAiChatChats] = useState([]);
+  const [activeAiChatId, setActiveAiChatId] = useState(null);
+  const [aiChatInput, setAiChatInput] = useState("");
+  const [aiChatError, setAiChatError] = useState("");
+  const [isAiChatSending, setIsAiChatSending] = useState(false);
+  const [aiChatView, setAiChatView] = useState(() => createAiChatView());
   const [cultureForm, setCultureForm] = useState(createEmptyCultureForm);
   const [statusForm, setStatusForm] = useState(createEmptyStatusForm);
   const [introActionForm, setIntroActionForm] = useState(
@@ -295,6 +375,22 @@ function AppContent() {
     useState(null);
   const [recommendationsContext, setRecommendationsContext] = useState(null);
   const [recommendationsMode, setRecommendationsMode] = useState("current");
+  const aiChatHistoryRef = useRef({
+    activeChatId: null,
+    chats: [],
+  });
+  const visibleAiChatChats = getVisibleAiChats(aiChatChats, aiChatView);
+  const activeAiChat = getActiveAiChat(visibleAiChatChats, activeAiChatId);
+  const aiChatMessages = activeAiChat?.messages || [];
+  const aiChatDialogueUuid = activeAiChat?.dialogueUuid || "";
+  const activeAiChatScopedCard = activeAiChat?.scope?.type === "card"
+    ? cultureCards.find((card) => card.id === activeAiChat.scope.cardId) || null
+    : null;
+  const aiChatVoiceContextualStrings = buildAiVoiceContextualStrings({
+    cultureCards: activeAiChatScopedCard ? [activeAiChatScopedCard] : [],
+    currentEmployee,
+    scopedCard: activeAiChatScopedCard,
+  });
   const {
     activeCardsCount,
     allVisibleStageCardsCount,
@@ -354,7 +450,15 @@ function AppContent() {
   const taskCount = careTasks.length;
 
   useEffect(() => {
+    aiChatHistoryRef.current = {
+      activeChatId: activeAiChatId,
+      chats: aiChatChats,
+    };
+  }, [activeAiChatId, aiChatChats]);
+
+  useEffect(() => {
     loadCultureCards();
+    loadAiChatHistory();
     initializeLocalNotifications().catch(() => {});
   }, []);
 
@@ -430,6 +534,59 @@ function AppContent() {
       return false;
     } finally {
       setIsCardsLoading(false);
+    }
+  }
+
+  async function commitAiChatHistory(nextChats, nextActiveChatId) {
+    const nextHistoryState = ensureAiChatHistoryState({
+      activeChatId: nextActiveChatId,
+      chats: nextChats,
+    });
+
+    aiChatHistoryRef.current = nextHistoryState;
+    setAiChatChats(nextHistoryState.chats);
+    setActiveAiChatId(nextHistoryState.activeChatId);
+    await saveAiChatHistoryToStorage(nextHistoryState);
+    return nextHistoryState;
+  }
+
+  function createScopedAiChat(card) {
+    return createAiChat({
+      scope: {
+        type: "card",
+        cardCode: card.code,
+        cardId: card.id,
+        cardTitle: getCardDisplayName(card),
+      },
+      title: `Партия ${card.code || getCardDisplayName(card)}`,
+    });
+  }
+
+  async function loadAiChatHistory() {
+    try {
+      const savedHistoryState = await loadAiChatHistoryFromStorage();
+      const nextHistoryState = ensureAiChatHistoryState(savedHistoryState);
+
+      aiChatHistoryRef.current = nextHistoryState;
+      setAiChatChats(nextHistoryState.chats);
+      setActiveAiChatId(nextHistoryState.activeChatId);
+
+      if (
+        savedHistoryState.chats.length === 0
+        || savedHistoryState.activeChatId !== nextHistoryState.activeChatId
+      ) {
+        await saveAiChatHistoryToStorage(nextHistoryState);
+      }
+
+      return true;
+    } catch {
+      const fallbackHistoryState = ensureAiChatHistoryState();
+
+      aiChatHistoryRef.current = fallbackHistoryState;
+      setAiChatChats(fallbackHistoryState.chats);
+      setActiveAiChatId(fallbackHistoryState.activeChatId);
+      await saveAiChatHistoryToStorage(fallbackHistoryState);
+      return false;
     }
   }
 
@@ -913,6 +1070,52 @@ function AppContent() {
   function openMenu() {
     const nextState = buildMenuNavigationState();
     resetSelectedCardContext();
+    setAiChatView(createAiChatView());
+    setCurrentScreen(nextState.currentScreen);
+    setNotice(nextState.notice);
+  }
+
+  function openAiChat(scopeCard = null, options = {}) {
+    const nextState = buildAiChatNavigationState();
+
+    if (scopeCard?.id) {
+      const nextAiChatView = createAiChatView("card", {
+        backScreen: options.backScreen || "cultureCalendar",
+        cardId: scopeCard.id,
+        cultureCalendarTab: options.cultureCalendarTab || "calendar",
+      });
+      const scopedChats = getVisibleAiChats(aiChatHistoryRef.current.chats, nextAiChatView);
+      const scopedActiveChat = getActiveAiChat(scopedChats, aiChatHistoryRef.current.activeChatId);
+
+      setAiChatInput("");
+      setAiChatError("");
+      setAiChatView(nextAiChatView);
+
+      if (scopedActiveChat) {
+        void commitAiChatHistory(aiChatHistoryRef.current.chats, scopedActiveChat.id);
+      } else {
+        const scopedChat = createScopedAiChat(scopeCard);
+        void commitAiChatHistory(
+          [scopedChat, ...aiChatHistoryRef.current.chats],
+          scopedChat.id,
+        );
+      }
+    } else {
+      const nextAiChatView = createAiChatView();
+      const generalChats = getVisibleAiChats(aiChatHistoryRef.current.chats, nextAiChatView);
+      const generalActiveChat = getActiveAiChat(generalChats, aiChatHistoryRef.current.activeChatId);
+
+      resetSelectedCardContext();
+      setAiChatView(nextAiChatView);
+
+      if (generalActiveChat) {
+        void commitAiChatHistory(aiChatHistoryRef.current.chats, generalActiveChat.id);
+      } else {
+        const nextChat = createAiChat();
+        void commitAiChatHistory([nextChat, ...aiChatHistoryRef.current.chats], nextChat.id);
+      }
+    }
+
     setCurrentScreen(nextState.currentScreen);
     setNotice(nextState.notice);
   }
@@ -1064,6 +1267,224 @@ function AppContent() {
     setRecommendationsContext(nextState.recommendationsContext);
     setRecommendationsMode(nextState.recommendationsMode);
     setCurrentScreen(nextState.currentScreen);
+  }
+
+  function handleAiChatInputChange(value) {
+    setAiChatInput(value);
+
+    if (aiChatError) {
+      setAiChatError("");
+    }
+  }
+
+  function handleNewAiChatDialog() {
+    if (isAiChatSending) {
+      return;
+    }
+
+    const scopedCard = aiChatView.mode === "card" && aiChatView.cardId
+      ? cultureCards.find((card) => card.id === aiChatView.cardId) || null
+      : null;
+    const nextChat = scopedCard ? createScopedAiChat(scopedCard) : createAiChat();
+
+    setAiChatInput("");
+    setAiChatError("");
+    void commitAiChatHistory(
+      [nextChat, ...aiChatHistoryRef.current.chats],
+      nextChat.id,
+    );
+  }
+
+  function handleSelectAiChat(chatId) {
+    const selectedChat = getAiChatById(aiChatHistoryRef.current.chats, chatId);
+
+    if (!selectedChat) {
+      return;
+    }
+
+    setAiChatInput("");
+    setAiChatError("");
+    void commitAiChatHistory(aiChatHistoryRef.current.chats, selectedChat.id);
+  }
+
+  function handleDeleteAiChat(chatId) {
+    if (isAiChatSending) {
+      return;
+    }
+
+    const nextChats = deleteAiChat(aiChatHistoryRef.current.chats, chatId);
+    const visibleNextChats = getVisibleAiChats(nextChats, aiChatView);
+    const nextActiveChatId = aiChatHistoryRef.current.activeChatId === chatId ? null : aiChatHistoryRef.current.activeChatId;
+    const scopedCard = aiChatView.mode === "card" && aiChatView.cardId
+      ? cultureCards.find((card) => card.id === aiChatView.cardId) || null
+      : null;
+
+    setAiChatInput("");
+    setAiChatError("");
+
+    if (visibleNextChats.length === 0) {
+      const replacementChat = scopedCard ? createScopedAiChat(scopedCard) : createAiChat();
+      void commitAiChatHistory([replacementChat, ...nextChats], replacementChat.id);
+      return;
+    }
+
+    void commitAiChatHistory(nextChats, nextActiveChatId);
+  }
+
+  function handleCloseAiChat() {
+    setAiChatInput("");
+    setAiChatError("");
+
+    if (aiChatView.mode === "card") {
+      if (aiChatView.backScreen === "cultureCalendar") {
+        if (selectedCardId) {
+          setCultureCalendarTab(aiChatView.cultureCalendarTab || "calendar");
+          setCurrentScreen("cultureCalendar");
+          return;
+        }
+
+        const scopedCard = cultureCards.find((card) => card.id === aiChatView.cardId);
+
+        if (scopedCard) {
+          openCultureCalendar(scopedCard);
+          setCultureCalendarTab(aiChatView.cultureCalendarTab || "calendar");
+          return;
+        }
+      }
+
+      if (aiChatView.backScreen === "cultureList") {
+        setCurrentScreen("cultureList");
+        return;
+      }
+    }
+
+    openMenu();
+  }
+
+  async function handleSendAiChatMessage() {
+    const outgoingText = aiChatInput.trim();
+    const currentChat = getActiveAiChat(
+      aiChatHistoryRef.current.chats,
+      aiChatHistoryRef.current.activeChatId,
+    );
+
+    if (isAiChatSending || !currentChat) {
+      return false;
+    }
+
+    if (!outgoingText) {
+      setAiChatError("Введите сообщение перед отправкой.");
+      return false;
+    }
+
+    return runAsyncAction("guru-chat:send", async () => {
+      const userMessage = createChatMessage("user", outgoingText);
+      const sendingChatId = currentChat.id;
+      const sendingDialogueUuid = currentChat.dialogueUuid;
+      const chatWithUserMessage = addMessageToAiChat(currentChat, userMessage);
+
+      setAiChatError("");
+      setIsAiChatSending(true);
+      setAiChatInput("");
+      await commitAiChatHistory(
+        updateAiChat(
+          aiChatHistoryRef.current.chats,
+          sendingChatId,
+          () => chatWithUserMessage,
+        ),
+        aiChatHistoryRef.current.activeChatId,
+      );
+
+      try {
+        const scopedCard = currentChat.scope?.type === "card"
+          ? cultureCards.find((card) => card.id === currentChat.scope.cardId) || null
+          : null;
+        const context = scopedCard
+          ? buildAiContext({
+            cultureCards: [scopedCard],
+            currentEmployee,
+            focusOverride: (
+              getResolvedBatchStatus(scopedCard) === "problem" ||
+              getResolvedBatchStatus(scopedCard) === "quarantine" ||
+              getCardActiveProblemQuantity(scopedCard) > 0
+            )
+              ? "attention"
+              : "overview",
+            plantsCatalog,
+            question: outgoingText,
+          })
+          : undefined;
+
+        if (scopedCard && context?.scopedCard) {
+          emitAiContextDebugEvent({
+            capturedAt: new Date().toISOString(),
+            context: {
+              latestObservation: context.scopedCard.latestObservation || null,
+              latestProblem: context.scopedCard.latestProblem || null,
+              latestRiskLevel: context.scopedCard.latestRiskLevel || null,
+              recentEvents: context.scopedCard.recentEvents || [],
+              riskSnapshot: context.scopedCard.riskSnapshot || null,
+              scopedCard: {
+                batchStatus: context.scopedCard.batchStatus || null,
+                code: context.scopedCard.code || null,
+                cultureName: context.scopedCard.cultureName || null,
+                displayName: context.scopedCard.displayName || null,
+                location: context.scopedCard.location || null,
+                quantities: context.scopedCard.quantities || null,
+                sourceMaterial: context.scopedCard.sourceMaterial || null,
+                speciesName: context.scopedCard.speciesName || null,
+                stage: context.scopedCard.stage || null,
+                varietyName: context.scopedCard.varietyName || null,
+              },
+            },
+            dialogueUuid: sendingDialogueUuid,
+            question: outgoingText,
+          });
+        }
+
+        const result = await guruApi.sendMessage({
+          context,
+          dialogueUuid: sendingDialogueUuid,
+          text: outgoingText,
+        });
+        const latestChat = getAiChatById(aiChatHistoryRef.current.chats, sendingChatId);
+
+        if (latestChat) {
+          await commitAiChatHistory(
+            updateAiChat(
+              aiChatHistoryRef.current.chats,
+              sendingChatId,
+              () => addMessageToAiChat(latestChat, createChatMessage("assistant", result.text)),
+            ),
+            aiChatHistoryRef.current.activeChatId,
+          );
+        }
+        return true;
+      } catch (error) {
+        const latestChat = getAiChatById(aiChatHistoryRef.current.chats, sendingChatId);
+
+        if (latestChat) {
+          await commitAiChatHistory(
+            updateAiChat(
+              aiChatHistoryRef.current.chats,
+              sendingChatId,
+              () => ({
+                ...latestChat,
+                messages: latestChat.messages.filter((message) => message.id !== userMessage.id),
+                updatedAt: latestChat.messages[latestChat.messages.length - 2]?.createdAt || latestChat.createdAt,
+              }),
+            ),
+            aiChatHistoryRef.current.activeChatId,
+          );
+        }
+
+        setAiChatInput(outgoingText);
+        setAiChatError(error?.userMessage || "Не удалось получить ответ. Проверьте подключение к интернету.");
+        return false;
+      } finally {
+        setIsAiChatSending(false);
+      }
+    }, false);
   }
 
   function handleLogout() {
@@ -1970,6 +2391,17 @@ function AppContent() {
         return;
       }
 
+      const nextAiChats = aiChatHistoryRef.current.chats.filter(
+        (chat) => !isScopedChatForCard(chat, selectedCard.id),
+      );
+      const nextAiActiveChatId = isScopedChatForCard(
+        getAiChatById(aiChatHistoryRef.current.chats, aiChatHistoryRef.current.activeChatId),
+        selectedCard.id,
+      )
+        ? null
+        : aiChatHistoryRef.current.activeChatId;
+      await commitAiChatHistory(nextAiChats, nextAiActiveChatId);
+
       setIsStageMoveConfirmVisible(false);
       setStageActionError("");
       setSelectedStage(nextStage);
@@ -2337,7 +2769,14 @@ function AppContent() {
 
   const routerState = {
     activeCardsCount,
+    activeAiChatId: activeAiChat?.id || null,
     allVisibleStageCardsCount,
+    aiChatChats: visibleAiChatChats,
+    aiChatDialogueUuid,
+    aiChatError,
+    aiChatInput,
+    aiChatMessages,
+    aiChatVoiceContextualStrings,
     batchStatusFilter,
     bottomInset,
     cardSearch,
@@ -2366,6 +2805,7 @@ function AppContent() {
     isCloneStage,
     isCultureIntroStage,
     isEditingCard,
+    isAiChatSending,
     isGreenhouseStage,
     isHardeningStage: selectedStageFlags.isHardeningStage,
     isPlantingStage: selectedStageFlags.isPlantingStage,
@@ -2428,15 +2868,20 @@ function AppContent() {
     closeStatusChangeForm,
     confirmDeleteOperation,
     handleAddStageChange,
+    handleAiChatInputChange,
     handleClearTestData,
     handleGenerateCoverageTestData,
     handleGenerateIntroSeedCards,
     handleDateChange,
     handleGenerateCode,
+    handleNewAiChatDialog,
+    handleDeleteAiChat,
+    handleSelectAiChat,
     handleLogout,
     openDirectories,
     handleSaveCultureCard,
     handleSaveIntroAction,
+    handleSendAiChatMessage,
     handleSaveStatusChange,
     handleScanPress,
     handleRestoreCultureCardsBackup,
@@ -2445,6 +2890,9 @@ function AppContent() {
     handleShareQrPress,
     handleChangePermanentPassword,
     handleStagePress,
+    openAiChat,
+    openAiChatForCard: openAiChat,
+    handleCloseAiChat,
     openStageRecommendations,
     openCultureCalendar,
     openCultureForm,

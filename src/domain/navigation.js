@@ -22,6 +22,13 @@ export function buildMenuNavigationState() {
   };
 }
 
+export function buildAiChatNavigationState() {
+  return {
+    currentScreen: 'aiChat',
+    notice: '',
+  };
+}
+
 export function buildDirectoriesNavigationState() {
   return {
     currentScreen: 'directories',

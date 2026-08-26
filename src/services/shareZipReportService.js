@@ -4,150 +4,12 @@ import * as Sharing from 'expo-sharing';
 import JSZip from 'jszip';
 import { Platform, Share } from 'react-native';
 import {
-  getCardActiveProblemQuantity,
-  getCardCurrentQuantity,
-  getCardHealthyQuantity,
-  getCardLocationDescription,
-} from '../domain/batch';
-import { currentUser as defaultCurrentUser } from '../domain/constants';
-import { getResolvedBatchStatus } from '../domain/cardSelectors';
+  buildAdminReportSnapshot,
+  normalizeText,
+  sanitizeFileSegment,
+} from './adminReportSnapshot';
 
 const DEVICE_ID_STORAGE_KEY = 'sadovnik.report.deviceId';
-
-const CARD_FIELDS = new Set([
-  'id',
-  'code',
-  'cultureName',
-  'speciesName',
-  'varietyName',
-  'stage',
-  'batchStatus',
-  'sterilityStatus',
-  'quantity',
-  'currentQuantity',
-  'activeProblemQuantity',
-  'healthyQuantity',
-  'locationDescription',
-  'createdAt',
-  'updatedAt',
-  'originType',
-  'parentCardId',
-  'parentCode',
-  'sourceEventId',
-  'generation',
-  'healthStatus',
-  'isolationStatus',
-  'sourceProblemEventId',
-  'qrStatus',
-  'propagatedAt',
-  'propagationMethod',
-  'events',
-  'extraFields',
-  'operations',
-]);
-
-const EVENT_EXPORT_FIELDS = new Set([
-  'id',
-  'eventId',
-  'type',
-  'title',
-  'stage',
-  'date',
-  'createdAt',
-  'createdBy',
-  'comment',
-  'photoFiles',
-  'problemType',
-  'riskLevel',
-  'affectedQuantity',
-  'recoveredQuantity',
-  'count',
-  'quantity',
-  'previousQuantity',
-  'currentQuantity',
-  'propagationMethod',
-  'childCardId',
-  'childCode',
-  'parentCardId',
-  'parentCode',
-  'sourceEventId',
-  'sourceProblemEventId',
-  'parentProblemEventId',
-  'generation',
-  'location',
-  'nextLocation',
-  'extraFields',
-]);
-
-function normalizeText(value) {
-  if (value === undefined || value === null) {
-    return '';
-  }
-
-  return `${value}`.replace(/\r?\n/g, ' ').trim();
-}
-
-function normalizeNumber(value, fallback = 0) {
-  const normalizedValue = Number(value);
-
-  return Number.isFinite(normalizedValue) ? normalizedValue : fallback;
-}
-
-function isPlainObject(value) {
-  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
-}
-
-function buildExtraFields(source, allowedFields) {
-  if (!isPlainObject(source)) {
-    return {};
-  }
-
-  return Object.keys(source).reduce((extraFields, key) => {
-    const value = source[key];
-
-    if (value === undefined) {
-      return extraFields;
-    }
-
-    if (key === 'extraFields' && isPlainObject(value)) {
-      return {
-        ...extraFields,
-        ...value,
-      };
-    }
-
-    if (allowedFields.has(key)) {
-      return extraFields;
-    }
-
-    extraFields[key] = value;
-    return extraFields;
-  }, {});
-}
-
-function sanitizeFileSegment(value, fallback = 'report') {
-  const normalized = normalizeText(value)
-    .replace(/[\\/:*?"<>|]+/g, '-')
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '');
-
-  return normalized || fallback;
-}
-
-function getFileExtension(uri) {
-  const normalizedUri = normalizeText(uri);
-  const withoutQuery = normalizedUri.split('?')[0].split('#')[0];
-  const lastDot = withoutQuery.lastIndexOf('.');
-
-  if (lastDot < 0) {
-    return '.jpg';
-  }
-
-  const extension = withoutQuery.slice(lastDot).toLowerCase();
-
-  return extension.length > 1 && extension.length <= 8 ? extension : '.jpg';
-}
 
 async function getStoredValue(key) {
   const value = await AsyncStorage.getItem(key);
@@ -197,18 +59,18 @@ async function readPhotoAsBase64(uri) {
     const response = await fetch(uri);
 
     if (!response.ok) {
-      throw new Error(`Не удалось прочитать файл: ${uri}`);
+      throw new Error(`РќРµ СѓРґР°Р»РѕСЃСЊ РїСЂРѕС‡РёС‚Р°С‚СЊ С„Р°Р№Р»: ${uri}`);
     }
 
     const blob = await response.blob();
 
     return await new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onerror = () => reject(new Error(`Не удалось прочитать файл: ${uri}`));
+      reader.onerror = () => reject(new Error(`РќРµ СѓРґР°Р»РѕСЃСЊ РїСЂРѕС‡РёС‚Р°С‚СЊ С„Р°Р№Р»: ${uri}`));
       reader.onloadend = () => {
         const result = reader.result;
         if (typeof result !== 'string') {
-          reject(new Error(`Не удалось прочитать файл: ${uri}`));
+          reject(new Error(`РќРµ СѓРґР°Р»РѕСЃСЊ РїСЂРѕС‡РёС‚Р°С‚СЊ С„Р°Р№Р»: ${uri}`));
           return;
         }
 
@@ -223,7 +85,7 @@ async function readPhotoAsBase64(uri) {
   });
 }
 
-async function addPhotoToZip(zip, sourceUri, relativeFileName) {
+async function addPhotoToZip(zip, relativeFileName, sourceUri) {
   const photoUri = normalizeText(sourceUri);
 
   if (!photoUri) {
@@ -244,243 +106,6 @@ async function addPhotoToZip(zip, sourceUri, relativeFileName) {
   }
 }
 
-function getPhotoUris(value) {
-  const items = Array.isArray(value) ? value : [value];
-  const seen = new Set();
-
-  return items
-    .map((item) => normalizeText(item))
-    .filter((item) => {
-      if (!item || seen.has(item)) {
-        return false;
-      }
-
-      seen.add(item);
-      return true;
-    });
-}
-
-function mergePhotoUris(...values) {
-  return getPhotoUris(values.flatMap((value) => (Array.isArray(value) ? value : [value])));
-}
-
-function getCardPhotoUris(card) {
-  return mergePhotoUris(card?.startPhotoUris, card?.startPhotoUri);
-}
-
-function getEventPhotoUris(operation) {
-  return mergePhotoUris(operation?.photoUris, operation?.photoUri);
-}
-
-function countAttachmentFiles(filePaths, sourceUriCount = 0) {
-  if (filePaths.length > 0) {
-    return filePaths.length;
-  }
-
-  if (sourceUriCount > 0) {
-    return 1;
-  }
-
-  return 0;
-}
-
-function normalizeEvent(operation, card, zip, zipState, index) {
-  const safeOperation = operation || {};
-  const eventId = normalizeText(safeOperation.id) || `${normalizeText(card?.id) || 'card'}-${index + 1}`;
-  const eventPhotoUris = getEventPhotoUris(safeOperation);
-  const eventPhotoFiles = [];
-
-  return Promise.all(
-    eventPhotoUris.map(async (photoUri, photoIndex) => {
-      const extension = getFileExtension(photoUri);
-      const relativeFileName = `photos/${sanitizeFileSegment(eventId)}_${photoIndex + 1}${extension}`;
-
-      const isAdded = await addPhotoToZip(zip, photoUri, relativeFileName);
-      if (isAdded) {
-        eventPhotoFiles.push(relativeFileName);
-      }
-    }),
-  ).then(() => {
-    const normalizedEvent = {
-      eventId,
-      type: normalizeText(safeOperation.type),
-      title: normalizeText(safeOperation.title || safeOperation.type),
-      stage: normalizeText(safeOperation.stage || card?.stage || ''),
-      date: normalizeText(safeOperation.date),
-      createdAt: normalizeText(safeOperation.createdAt),
-      createdBy: normalizeText(safeOperation.createdBy),
-      comment: normalizeText(safeOperation.comment),
-      photoFiles: eventPhotoFiles,
-      problemType: normalizeText(safeOperation.problemType),
-      riskLevel: normalizeText(safeOperation.riskLevel),
-      affectedQuantity: normalizeNumber(safeOperation.affectedQuantity, 0),
-      recoveredQuantity: normalizeNumber(safeOperation.recoveredQuantity, 0),
-      count: normalizeNumber(safeOperation.count, 0),
-      quantity: normalizeNumber(safeOperation.quantity, 0),
-      previousQuantity: normalizeNumber(safeOperation.previousQuantity, 0),
-      currentQuantity: normalizeNumber(safeOperation.currentQuantity, 0),
-      propagationMethod: normalizeText(safeOperation.propagationMethod),
-      childCardId: normalizeText(safeOperation.childCardId),
-      childCode: normalizeText(safeOperation.childCode),
-      parentCardId: normalizeText(safeOperation.parentCardId),
-      parentCode: normalizeText(safeOperation.parentCode),
-      sourceEventId: normalizeText(safeOperation.sourceEventId),
-      sourceProblemEventId: normalizeText(safeOperation.sourceProblemEventId),
-      parentProblemEventId: normalizeText(safeOperation.parentProblemEventId),
-      generation: normalizeNumber(safeOperation.generation, 0),
-      location: normalizeText(safeOperation.location || safeOperation.nextLocation),
-      extraFields: buildExtraFields(safeOperation, EVENT_EXPORT_FIELDS),
-    };
-
-    zipState.eventsCount += 1;
-    zipState.photosCount += countAttachmentFiles(
-      normalizedEvent.photoFiles,
-      eventPhotoUris.length,
-    );
-
-    if ([
-      'problem',
-      'contamination',
-      'quarantine',
-    ].includes(normalizedEvent.type)) {
-      zipState.problemsCount += 1;
-    }
-
-    return normalizedEvent;
-  });
-}
-
-function normalizeCard(card, zip, zipState, index) {
-  const safeCard = card || {};
-  const cardId = normalizeText(safeCard.id) || `card-${index + 1}`;
-  const cardPhotoUris = getCardPhotoUris(safeCard);
-  const startPhotoFiles = [];
-  const operations = Array.isArray(safeCard.operations) ? safeCard.operations : [];
-  const normalizedOperations = operations
-    .filter((operation) => operation?.type !== 'stageSettingsUpdated');
-
-  return Promise.all(
-    cardPhotoUris.map(async (photoUri, photoIndex) => {
-      const extension = getFileExtension(photoUri);
-      const relativeFileName = `photos/${sanitizeFileSegment(`${cardId}_start`)}_${photoIndex + 1}${extension}`;
-
-      const isAdded = await addPhotoToZip(zip, photoUri, relativeFileName);
-      if (isAdded) {
-        startPhotoFiles.push(relativeFileName);
-      }
-    }),
-  )
-    .then(async () => {
-      const events = await Promise.all(
-        normalizedOperations.map((operation, eventIndex) => normalizeEvent(
-          operation,
-          safeCard,
-          zip,
-          zipState,
-          eventIndex,
-        )),
-      );
-
-      const batchStatus = normalizeText(getResolvedBatchStatus(safeCard) || safeCard.batchStatus || safeCard.status || 'active') || 'active';
-      const activeProblemQuantity = normalizeNumber(getCardActiveProblemQuantity(safeCard), 0);
-      const healthyQuantity = normalizeNumber(getCardHealthyQuantity(safeCard), 0);
-      const normalizedCard = {
-        cardId,
-        code: normalizeText(safeCard.code),
-        cultureName: normalizeText(safeCard.cultureName),
-        speciesName: normalizeText(safeCard.speciesName),
-        varietyName: normalizeText(safeCard.varietyName),
-        stage: normalizeText(safeCard.stage),
-        batchStatus,
-        sterilityStatus: normalizeText(safeCard.sterilityStatus),
-        quantity: normalizeNumber(safeCard.quantity, 0),
-        currentQuantity: normalizeNumber(getCardCurrentQuantity(safeCard), 0),
-        activeProblemQuantity,
-        healthyQuantity,
-        locationDescription: normalizeText(getCardLocationDescription(safeCard)),
-        createdAt: normalizeText(safeCard.createdAt),
-        updatedAt: normalizeText(safeCard.updatedAt || safeCard.createdAt),
-        originType: normalizeText(safeCard.originType),
-        parentCardId: normalizeText(safeCard.parentCardId),
-        parentCode: normalizeText(safeCard.parentCode),
-        sourceEventId: normalizeText(safeCard.sourceEventId),
-        generation: normalizeNumber(safeCard.generation, 0),
-        healthStatus: normalizeText(safeCard.healthStatus),
-        isolationStatus: normalizeText(safeCard.isolationStatus),
-        sourceProblemEventId: normalizeText(safeCard.sourceProblemEventId),
-        qrStatus: normalizeText(safeCard.qrStatus),
-        propagatedAt: normalizeText(safeCard.propagatedAt),
-        propagationMethod: normalizeText(safeCard.propagationMethod),
-        events,
-        extraFields: buildExtraFields(safeCard, CARD_FIELDS),
-      };
-
-      normalizedCard.extraFields = {
-        ...normalizedCard.extraFields,
-        ...(startPhotoFiles.length > 0 ? { startPhotoFiles } : {}),
-      };
-
-      zipState.cardsCount += 1;
-
-      if (batchStatus === 'active') {
-        zipState.activeCount += 1;
-      } else if (batchStatus === 'sold') {
-        zipState.soldCount += 1;
-      } else if (batchStatus === 'quarantine') {
-        zipState.quarantineCount += 1;
-      } else if (batchStatus === 'problem') {
-        zipState.problemCount += 1;
-      } else if (batchStatus === 'partial') {
-        zipState.partialCount += 1;
-      } else if (batchStatus === 'archived') {
-        zipState.archivedCount += 1;
-      }
-
-      zipState.photosCount += countAttachmentFiles(startPhotoFiles, cardPhotoUris.length);
-
-      return normalizedCard;
-    })
-    .catch(() => {
-      const fallbackActiveProblemQuantity = normalizeNumber(getCardActiveProblemQuantity(safeCard), 0);
-      const fallbackHealthyQuantity = normalizeNumber(getCardHealthyQuantity(safeCard), 0);
-      const fallbackCard = {
-        cardId,
-        code: normalizeText(safeCard.code),
-        cultureName: normalizeText(safeCard.cultureName),
-        speciesName: normalizeText(safeCard.speciesName),
-        varietyName: normalizeText(safeCard.varietyName),
-        stage: normalizeText(safeCard.stage),
-        batchStatus: normalizeText(safeCard.batchStatus || safeCard.status || 'active') || 'active',
-        sterilityStatus: normalizeText(safeCard.sterilityStatus),
-        quantity: normalizeNumber(safeCard.quantity, 0),
-        currentQuantity: normalizeNumber(getCardCurrentQuantity(safeCard), 0),
-        activeProblemQuantity: fallbackActiveProblemQuantity,
-        healthyQuantity: fallbackHealthyQuantity,
-        locationDescription: normalizeText(getCardLocationDescription(safeCard)),
-        createdAt: normalizeText(safeCard.createdAt),
-        updatedAt: normalizeText(safeCard.updatedAt || safeCard.createdAt),
-        originType: normalizeText(safeCard.originType),
-        parentCardId: normalizeText(safeCard.parentCardId),
-        parentCode: normalizeText(safeCard.parentCode),
-        sourceEventId: normalizeText(safeCard.sourceEventId),
-        generation: normalizeNumber(safeCard.generation, 0),
-        healthStatus: normalizeText(safeCard.healthStatus),
-        isolationStatus: normalizeText(safeCard.isolationStatus),
-        sourceProblemEventId: normalizeText(safeCard.sourceProblemEventId),
-        qrStatus: normalizeText(safeCard.qrStatus),
-        propagatedAt: normalizeText(safeCard.propagatedAt),
-        propagationMethod: normalizeText(safeCard.propagationMethod),
-        events: [],
-        extraFields: buildExtraFields(safeCard, CARD_FIELDS),
-      };
-
-      zipState.cardsCount += 1;
-      zipState.photosCount += countAttachmentFiles(startPhotoFiles, cardPhotoUris.length);
-
-      return fallbackCard;
-    });
-}
-
 export async function getOrCreateDeviceId() {
   const existingDeviceId = normalizeText(await getStoredValue(DEVICE_ID_STORAGE_KEY));
 
@@ -497,57 +122,15 @@ export async function getOrCreateDeviceId() {
 export async function buildAdminReportJson(cards, options = {}) {
   const reportCreatedAt = new Date().toISOString();
   const deviceId = await getOrCreateDeviceId();
-  const reportCards = new Array(Array.isArray(cards) ? cards.length : 0);
-  const zipState = {
-    activeCount: 0,
-    archivedCount: 0,
-    cardsCount: 0,
-    eventsCount: 0,
-    partialCount: 0,
-    photosCount: 0,
-    problemCount: 0,
-    problemsCount: 0,
-    quarantineCount: 0,
-    soldCount: 0,
-  };
   const zip = new JSZip();
-
-  await Promise.all(
-    (Array.isArray(cards) ? cards : []).map(async (card, index) => {
-      const normalizedCard = await normalizeCard(card, zip, zipState, index);
-      reportCards[index] = normalizedCard;
-    }),
-  );
-
-  const currentEmployee = options.currentEmployee || null;
-  const currentUser = options.currentUser || defaultCurrentUser || {};
-  const report = {
-    reportId: `report-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    createdAt: reportCreatedAt,
-    appVersion: require('../../package.json').version || '',
+  const report = await buildAdminReportSnapshot(cards, {
+    ...options,
     deviceId,
-    user: {
-      userId: normalizeText(currentEmployee?.localUserId || currentUser.id || 'unknown-user') || 'unknown-user',
-      firstName: normalizeText(currentEmployee?.firstName || ''),
-      lastName: normalizeText(currentEmployee?.lastName || ''),
-      displayName: normalizeText(currentEmployee?.displayName || 'Не указан') || 'Не указан',
-      role: normalizeText(currentUser.role || 'employee') || 'employee',
-    },
-    testLocation: normalizeText(options.testLocation || ''),
-    summary: {
-      cardsCount: zipState.cardsCount,
-      eventsCount: zipState.eventsCount,
-      photosCount: zipState.photosCount,
-      problemsCount: zipState.problemsCount,
-      activeCount: zipState.activeCount,
-      soldCount: zipState.soldCount,
-      quarantineCount: zipState.quarantineCount,
-      problemCount: zipState.problemCount,
-      partialCount: zipState.partialCount,
-      archivedCount: zipState.archivedCount,
-    },
-    cards: reportCards,
-  };
+    reportCreatedAt,
+    reportId: `report-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+  }, {
+    addFile: (relativeFileName, sourceUri) => addPhotoToZip(zip, relativeFileName, sourceUri),
+  });
 
   return {
     report,
@@ -625,7 +208,7 @@ export async function shareAdminReportZip(cards, options = {}) {
 
       await Share.share({
         title: noticeFileName,
-        message: 'ZIP-отчет Sadovnik Diary подготовлен в мобильном приложении.',
+        message: 'ZIP-РѕС‚С‡РµС‚ Sadovnik Diary РїРѕРґРіРѕС‚РѕРІР»РµРЅ РІ РјРѕР±РёР»СЊРЅРѕРј РїСЂРёР»РѕР¶РµРЅРёРё.',
       });
       return 'web_ready';
     }
@@ -635,7 +218,7 @@ export async function shareAdminReportZip(cards, options = {}) {
     if (!isSharingAvailable) {
       await Share.share({
         title: noticeFileName,
-        message: 'ZIP-отчет Sadovnik Diary подготовлен, но отправка файлов недоступна.',
+        message: 'ZIP-РѕС‚С‡РµС‚ Sadovnik Diary РїРѕРґРіРѕС‚РѕРІР»РµРЅ, РЅРѕ РѕС‚РїСЂР°РІРєР° С„Р°Р№Р»РѕРІ РЅРµРґРѕСЃС‚СѓРїРЅР°.',
       });
       return 'native_unavailable';
     }
@@ -643,13 +226,13 @@ export async function shareAdminReportZip(cards, options = {}) {
     if (!fileUri) {
       await Share.share({
         title: noticeFileName,
-        message: 'ZIP-отчет Sadovnik Diary подготовлен, но файл недоступен для отправки.',
+        message: 'ZIP-РѕС‚С‡РµС‚ Sadovnik Diary РїРѕРґРіРѕС‚РѕРІР»РµРЅ, РЅРѕ С„Р°Р№Р» РЅРµРґРѕСЃС‚СѓРїРµРЅ РґР»СЏ РѕС‚РїСЂР°РІРєРё.',
       });
       return 'native_unavailable';
     }
 
     await Sharing.shareAsync(fileUri, {
-      dialogTitle: 'Поделиться ZIP-отчетом Sadovnik Diary',
+      dialogTitle: 'РџРѕРґРµР»РёС‚СЊСЃСЏ ZIP-РѕС‚С‡РµС‚РѕРј Sadovnik Diary',
       mimeType: 'application/zip',
       UTI: 'public.zip-archive',
     });
